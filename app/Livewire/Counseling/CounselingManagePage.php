@@ -89,9 +89,9 @@ class CounselingManagePage extends Component
         $search = trim($this->search);
 
         return Counseling::query()
-            ->whereHas('user', fn ($q) => $q->where('company_id', $this->companyId))
+            ->whereHas('user', fn ($q) => $q->whereCompany($this->companyId))
             ->when($this->status, fn ($q) => $q->where('status', $this->status))
-            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->searchName($search)))
             ->with(['user', 'counselor']);
     }
 

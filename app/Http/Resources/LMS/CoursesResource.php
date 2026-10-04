@@ -53,9 +53,8 @@ class CoursesResource extends JsonResource
 
             "member_profile_picture" => $this->courseUsers->take(3)->map(function ($courseUser) {
                 $user = $courseUser->user;
-                $profile = $user?->profile;
-                $profilePicture = $profile?->profile_picture;
-                
+                $profilePicture = $user?->profilePhotoPath();
+
                 if ($profilePicture) {
                     return ["url" => asset(Storage::url($profilePicture))];
                 } else {

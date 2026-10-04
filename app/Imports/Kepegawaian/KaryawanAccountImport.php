@@ -140,7 +140,7 @@ class KaryawanAccountImport implements ToCollection, WithHeadingRow
 
             $this->seenNips[] = $nip;
 
-            $existing = User::where('company_id', $this->companyId)->where('nip', $nip)->first();
+            $existing = User::whereCompany($this->companyId)->whereNip($nip)->first();
 
             if (! $existing && $email === '') {
                 $this->errors[] = "Baris {$rowNum}: email wajib diisi untuk akun baru.";
@@ -156,7 +156,7 @@ class KaryawanAccountImport implements ToCollection, WithHeadingRow
             // gagal kalau dipaksakan, tolak dari sini biar errornya jelas. Cuma dicek kalau
             // email memang disebut di file (bukan hasil fallback ke email lama).
             if ($email !== '') {
-                $emailTaken = User::where('company_id', $this->companyId)
+                $emailTaken = User::whereCompany($this->companyId)
                     ->where('email', $email)
                     ->when($existing, fn ($q) => $q->whereKeyNot($existing->id))
                     ->exists();

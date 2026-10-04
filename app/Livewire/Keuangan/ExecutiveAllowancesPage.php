@@ -57,7 +57,7 @@ class ExecutiveAllowancesPage extends Component
     {
         return User::withoutGlobalScope('non_karyawan')
             ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
-            ->orderBy('name')
+            ->orderByName()
             ->get();
     }
 

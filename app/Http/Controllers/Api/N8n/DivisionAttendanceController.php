@@ -51,7 +51,7 @@ class DivisionAttendanceController extends Controller
                     ->orWhere(fn ($q3) => $q3->whereNull('end_date')->where('start_date', '>=', $today))
                 )
             )
-            ->with(['user:id,name,nip,email', 'leaveDetails'])
+            ->with(['user:id,email', 'leaveDetails'])
             ->get()
             ->flatMap(fn (AttendanceRequests $req) => $req->leaveDetails
                 ->filter(fn ($d) => $d->start_date <= $until
@@ -78,7 +78,7 @@ class DivisionAttendanceController extends Controller
                     ->orWhere(fn ($q3) => $q3->whereNotNull('end_date')->where('end_date', '>=', $today))
                 )
             )
-            ->with(['user:id,name,nip,email', 'permissionDetails'])
+            ->with(['user:id,email', 'permissionDetails'])
             ->get()
             ->flatMap(fn (AttendanceRequests $req) => $req->permissionDetails
                 ->filter(fn ($d) => $d->date <= $until
@@ -121,7 +121,7 @@ class DivisionAttendanceController extends Controller
         $users = User::query()
             ->whereIn('id', $this->divisionUserIds())
             ->with('profile:id,user_id')
-            ->orderBy('name')
+            ->orderByName()
             ->get();
 
         $data = $users->map(function (User $user) use ($today, $holiday, $resolver) {
@@ -191,7 +191,7 @@ class DivisionAttendanceController extends Controller
 
         return User::query()
             ->where('is_active', true)
-            ->where('company_id', self::HOLDING_COMPANY_ID)
+            ->whereCompany(self::HOLDING_COMPANY_ID)
             ->whereHas('profile.jobPosition.orgStructure', $match)
             ->pluck('id')
             ->all();

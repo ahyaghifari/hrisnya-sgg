@@ -45,9 +45,9 @@ class EmployeeSpForm
         $userOptions = User::query()
             ->when(
                 $auth && $auth->company_id && !PermissionHelper::hasGlobalRole($auth),
-                fn ($q) => $q->where('company_id', $auth->company_id)
+                fn ($q) => $q->whereCompany($auth->company_id)
             )
-            ->pluck('name', 'id');
+            ->get()->pluck('name', 'id');
 
         $levelOptions = collect(SpLevel::cases())->mapWithKeys(fn ($level) => [$level->value => $level->getLabel()]);
 
@@ -211,7 +211,7 @@ class EmployeeSpForm
                     Select::make('knows_by')
                         ->label('Mengetahui')
                         ->searchable()
-                        ->options(fn ($record) => User::where('company_id', $record->company_id)->pluck('name', 'id'))
+                        ->options(fn ($record) => User::whereCompany($record->company_id)->get()->pluck('name', 'id'))
                         ->required(),
 
                     TextEntry::make('created_at')

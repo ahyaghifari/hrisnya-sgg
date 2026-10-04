@@ -51,9 +51,8 @@ class PayrollPeriodResource extends BaseCompanyResource
 
                 Select::make('signer_id')
                     ->label('Penandatangan')
-                    ->relationship('signer', 'name')
+                    ->options(fn () => \App\Models\User::orderByName()->get()->pluck('name', 'id'))
                     ->searchable()
-                    ->preload()
                     ->helperText('Nama yang muncul di bagian "Dibuat oleh" slip gaji - terpisah dari siapa yang menekan Generate.'),
             ]);
     }
@@ -122,9 +121,8 @@ class PayrollPeriodResource extends BaseCompanyResource
                             ->label('Tanggal Bayar'),
                         Select::make('signer_id')
                             ->label('Penandatangan')
-                            ->relationship('signer', 'name')
+                            ->options(fn () => \App\Models\User::orderByName()->get()->pluck('name', 'id'))
                             ->searchable()
-                            ->preload()
                             ->helperText('Nama yang muncul di bagian "Dibuat oleh" slip gaji - terpisah dari siapa yang menekan Generate.'),
                     ])
                     ->fillForm(fn ($record) => [

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ExtraShiftAssignments;
 
+use App\Filament\Resources\UserColumn;
 use App\Filament\Resources\ExtraShiftAssignments\Pages\ManageExtraShiftAssignments;
 use App\Helpers\PermissionHelper;
 use App\Models\Master\Companies;
@@ -152,16 +153,16 @@ class ExtraShiftAssignmentResource extends Resource
             ->columns([
                 TextColumn::make('user.company.name')
                     ->label('Perusahaan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchCompany())
+                    ->sortable(query: UserColumn::sortCompany()),
                 TextColumn::make('date')
                     ->label('Tanggal')
                     ->date('d M Y')
                     ->sortable(),
                 TextColumn::make('user.name')
                     ->label('Karyawan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
                 TextColumn::make('shiftType.name')
                     ->label('Shift'),
                 TextColumn::make('coveringUser.name')

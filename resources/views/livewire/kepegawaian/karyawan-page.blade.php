@@ -90,7 +90,7 @@ terpisah yang bisa menyimpang. --}}
                         ->take(2)
                         ->implode('');
 
-                    $photoPath = $employee->profile?->profile_picture[0] ?? null;
+                    $photoPath = $employee->profilePhotoPath();
                     $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
                 @endphp
                 @if ($status === 'tidak_aktif' || $status === 'arsip')
@@ -171,7 +171,7 @@ terpisah yang bisa menyimpang. --}}
             <tbody>
                 @foreach ($employees as $employee)
                     @php
-                        $photoPath = $employee->profile?->profile_picture[0] ?? null;
+                        $photoPath = $employee->profilePhotoPath();
                         $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
                         $roleNames = $employee->getRoleNames()->join(', ');
                     @endphp

@@ -39,7 +39,7 @@ class ResetPasswordRsuSyifaBanjarbaru extends Command
             return self::FAILURE;
         }
 
-        $users = User::with('profile')->where('company_id', $company->id)->get();
+        $users = User::with('profile')->whereCompany($company->id)->get();
 
         $changed = 0;
         $skipped = 0;

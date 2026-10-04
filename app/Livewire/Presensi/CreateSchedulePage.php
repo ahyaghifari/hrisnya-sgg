@@ -131,9 +131,9 @@ class CreateSchedulePage extends Component
             return collect();
         }
 
-        return User::where('company_id', $this->companyId)
+        return User::whereCompany($this->companyId)
             ->where('is_active', true)
-            ->orderBy('name')
+            ->orderByName()
             ->get();
     }
 
@@ -259,7 +259,7 @@ class CreateSchedulePage extends Component
             // percaya ID mentah dari client.
             $schedule->editors()->sync(
                 $this->scheduleType === ScheduleType::SHIFT->value && $this->editorUserIds
-                    ? User::where('company_id', $schedule->company_id)->whereIn('id', $this->editorUserIds)->pluck('id')->all()
+                    ? User::whereCompany($schedule->company_id)->whereIn('id', $this->editorUserIds)->pluck('id')->all()
                     : []
             );
 

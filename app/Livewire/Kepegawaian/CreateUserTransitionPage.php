@@ -111,12 +111,12 @@ class CreateUserTransitionPage extends Component
             return collect();
         }
 
-        return User::where('company_id', $this->companyId)
+        return User::whereCompany($this->companyId)
             ->whereHas('profile.employeeType', fn ($q) => $q->whereIn('category', [
                 EmployeeTypeCategory::TETAP->value,
                 EmployeeTypeCategory::KONTRAK->value,
             ]))
-            ->orderBy('name')
+            ->orderByName()
             ->get();
     }
 

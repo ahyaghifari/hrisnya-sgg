@@ -27,7 +27,9 @@ class ResetCompanyUserPasswords extends Command
             return self::FAILURE;
         }
 
-        $users = User::where('company_id', $company->id)->whereNotNull('nip')->get();
+        $users = User::whereCompany($company->id)
+            ->whereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->whereNotNull('nip'))
+            ->get();
 
         if ($users->isEmpty()) {
             $this->info("Tidak ada user dengan NIP pada perusahaan '{$company->name}'.");

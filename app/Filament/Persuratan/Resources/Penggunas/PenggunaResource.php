@@ -60,8 +60,8 @@ class PenggunaResource extends Resource
                 ->getSearchResultsUsing(fn (string $search, ?Pengguna $record) => HrisUser::query()
                     ->where('is_active', true)
                     ->whereNotIn('id', Pengguna::whereNotNull('hris_user_id')->when($record, fn ($q) => $q->whereKeyNot($record->getKey()))->pluck('hris_user_id'))
-                    ->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"))
-                    ->orderBy('name')->limit(50)->get()
+                    ->searchNameOrNip($search)
+                    ->orderByName()->limit(50)->get()
                     ->mapWithKeys(fn ($u) => [$u->id => $labelHris($u)]))
                 ->getOptionLabelUsing(fn ($value) => ($u = HrisUser::find($value)) ? $labelHris($u) : null)
                 ->rules([fn (string $operation) => function (string $attribute, $value, $fail) use ($operation) {

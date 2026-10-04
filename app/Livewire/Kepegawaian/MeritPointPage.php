@@ -110,7 +110,7 @@ class MeritPointPage extends Component
     public function getLowestBalancesProperty()
     {
         return UserHrBalance::with('user')
-            ->whereHas('user', fn ($q) => $q->where('company_id', $this->companyId))
+            ->whereHas('user', fn ($q) => $q->whereCompany($this->companyId))
             ->orderBy('merit_point')
             ->limit(10)
             ->get();
@@ -118,11 +118,11 @@ class MeritPointPage extends Component
 
     public function getSummaryProperty(): array
     {
-        $tx = MeritPointTransaction::whereHas('user', fn ($q) => $q->where('company_id', $this->companyId))
+        $tx = MeritPointTransaction::whereHas('user', fn ($q) => $q->whereCompany($this->companyId))
             ->where('created_at', '>=', now()->startOfMonth());
 
         return [
-            'karyawan' => UserHrBalance::whereHas('user', fn ($q) => $q->where('company_id', $this->companyId))->where('merit_point', '<', 100)->count(),
+            'karyawan' => UserHrBalance::whereHas('user', fn ($q) => $q->whereCompany($this->companyId))->where('merit_point', '<', 100)->count(),
             'penalti' => (int) (clone $tx)->where('points', '<', 0)->sum('points'),
             'reward' => (int) (clone $tx)->where('points', '>', 0)->sum('points'),
         ];
@@ -131,7 +131,7 @@ class MeritPointPage extends Component
     public function getRecentTransactionsProperty()
     {
         return MeritPointTransaction::with(['user', 'rule'])
-            ->whereHas('user', fn ($q) => $q->where('company_id', $this->companyId))
+            ->whereHas('user', fn ($q) => $q->whereCompany($this->companyId))
             ->latest('created_at')
             ->limit(15)
             ->get();

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Counselings\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Enum\CounselingStatus;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -35,17 +36,17 @@ class CounselingsTable
             ->columns([
                 TextColumn::make('user.name')
                     ->label('User')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
 
                 TextColumn::make('counselor.name')
                     ->label('Konselor')
-                    ->sortable(),
+                    ->sortable(query: UserColumn::sortName('counselor')),
 
                 TextColumn::make('user.company.name')
                     ->label('Company')
-                    ->sortable()
-                    ->searchable(),
+                    ->sortable(query: UserColumn::sortCompany())
+                    ->searchable(query: UserColumn::searchCompany()),
 
                 TextColumn::make('issue')
                     ->label('Issue')
@@ -65,7 +66,7 @@ class CounselingsTable
 
                 TextColumn::make('respondedBy.name')
                     ->label('Responded By')
-                    ->sortable(),
+                    ->sortable(query: UserColumn::sortName('respondedBy')),
 
                 TextColumn::make('created_at')
                     ->label('Tanggal')

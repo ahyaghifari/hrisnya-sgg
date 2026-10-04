@@ -93,10 +93,10 @@ class OrientasiKelolaPage extends Component
     private function usersByOrientasiStatus(bool $currentlyOrientasi)
     {
         return User::query()
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
+            ->when($this->companyId, fn ($q) => $q->whereCompany($this->companyId))
             ->when(trim($this->search) !== '', function ($q) {
                 $s = trim($this->search);
-                $q->where(fn ($q2) => $q2->where('name', 'like', "%{$s}%")->orWhere('nip', 'like', "%{$s}%"));
+                $q->searchNameOrNip($s);
             })
             ->whereHas('orientations')
             ->when($currentlyOrientasi,
@@ -109,7 +109,7 @@ class OrientasiKelolaPage extends Component
                 'orientations' => fn ($q) => $q->orderByDesc('start_date'),
                 'orientationSubmissions' => fn ($q) => $q->with('decidedBy')->orderByDesc('created_at'),
             ])
-            ->orderBy('name');
+            ->orderByName();
     }
 
     /** Tab "pengajuan" — karyawan yang SAAT INI berstatus Orientasi. */

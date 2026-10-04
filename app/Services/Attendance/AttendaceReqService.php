@@ -202,7 +202,7 @@ class AttendaceReqService
             ->pluck('id');
 
         $query = User::query()
-            ->where('company_id', $user->company_id)
+            ->whereCompany($user->company_id)
             ->where('id', '!=', $user->id)
             ->where('is_active', true);
 

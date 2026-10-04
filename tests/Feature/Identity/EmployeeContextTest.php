@@ -54,11 +54,11 @@ class EmployeeContextTest extends TestCase
     public function test_falls_back_to_profile_for_account_without_employee_row(): void
     {
         $perawat = $this->position('Perawat');
-        // Akun non-karyawan (Super Admin) tidak dapat baris employees tapi bisa punya profil.
+        // Akun yang salinan employees-nya belum ada/tertinggal tetap membaca jabatan dari profil.
         $admin = User::factory()->create(['id' => '01k8271ym5edqp4jm1kvwrdrr0']);
         $admin->profile()->create(['job_position_id' => $perawat->id]);
 
-        $this->assertSame(0, DB::table('employees')->where('user_id', $admin->id)->count());
+        DB::table('employees')->where('user_id', $admin->id)->delete();
         $this->assertSame($perawat->id, EmployeeContext::jobPositionId($admin->id));
     }
 

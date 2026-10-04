@@ -11,7 +11,7 @@ class AttendanceRecordRepository
     public function updateOrCreate(array $data): AttendanceRecords
     {
         // Try to find user by nip (fallback when user_id is not yet resolved)
-        $user = User::where('nip', $data['nip'])->first();
+        $user = isset($data['nip']) ? User::whereNip((string) $data['nip'])->first() : null;
         
         // Prepare data for insert/update
         $recordData = [

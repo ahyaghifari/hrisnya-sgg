@@ -44,7 +44,7 @@ class UserRepository
     {
         return filter_var($login, FILTER_VALIDATE_EMAIL)
             ? $this->findByEmail($login)
-            : User::where('nip', $login)->first();
+            : User::whereNip($login)->first();
     }
 
     public function getReviewers($user): Collection

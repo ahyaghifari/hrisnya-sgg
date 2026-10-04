@@ -95,7 +95,7 @@ class TrainingReportPage extends Component
             return collect();
         }
 
-        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->where('company_id', $baseline->company_id))
+        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->whereCompany($baseline->company_id))
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->distinct()
@@ -121,7 +121,7 @@ class TrainingReportPage extends Component
         $courses = $this->baselineCourses;
         $courseIds = $courses->pluck('id')->toArray();
 
-        $users = User::where('company_id', $baseline->company_id)->orderBy('name')->get();
+        $users = User::whereCompany($baseline->company_id)->orderByName()->get();
 
         $enrollments = LmsCourseUsers::whereIn('course_id', $courseIds)
             ->whereDate('enrolled_at', '>=', $baseline->start_date)

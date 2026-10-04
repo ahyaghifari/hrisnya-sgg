@@ -80,7 +80,7 @@ class UserContract extends Model
     public static function latestPerUserInCompany(string $companyId): \Illuminate\Support\Collection
     {
         return static::query()
-            ->whereHas('user', fn ($q) => $q->where('company_id', $companyId))
+            ->whereHas('user', fn ($q) => $q->whereCompany($companyId))
             ->whereNotNull('contract_end_date')
             ->with(['user.profile.jobPosition', 'employeeType'])
             ->get()

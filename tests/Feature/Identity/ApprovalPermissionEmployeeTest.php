@@ -96,8 +96,9 @@ class ApprovalPermissionEmployeeTest extends TestCase
     public function test_falls_back_to_profile_for_account_without_employee_row(): void
     {
         $kepala = $this->position('Kepala Ruangan');
-        $admin = User::factory()->create(['id' => '01k8271ym5edqp4jm1kvwrdrr0', 'company_id' => $this->company->id]); // tanpa employees
+        $admin = User::factory()->create(['company_id' => $this->company->id]);
         $admin->profile()->create(['job_position_id' => $kepala->id]);
+        DB::table('employees')->where('user_id', $admin->id)->delete(); // salinan belum ada/tertinggal
 
         $snapshot = $this->pending('job_position', $kepala->id);
 

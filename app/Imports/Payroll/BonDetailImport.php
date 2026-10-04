@@ -53,7 +53,7 @@ class BonDetailImport implements ToCollection, WithHeadingRow
                 continue; // baris kosong, bukan error
             }
 
-            $user = User::where('nip', $nip)->first();
+            $user = User::whereNip($nip)->first();
             $error = $this->validateRow($user, $amount, $namaPotongan, $nip, $companyId);
 
             if ($this->preview) {

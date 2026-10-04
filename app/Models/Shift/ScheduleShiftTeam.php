@@ -55,7 +55,7 @@ class ScheduleShiftTeam extends Model
         $period ??= now()->format('Y-m');
 
         return User::whereIn('id', $this->members()->where('period', $period)->pluck('user_id'))
-            ->orderBy('name')
+            ->orderByName()
             ->get();
     }
 }

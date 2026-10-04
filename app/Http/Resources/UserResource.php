@@ -15,11 +15,9 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        // profile_picture di-cast array, tapi sebagian baris lama tersimpan sebagai JSON string
-        // biasa (bukan array) — akses [0] pada string malah ambil 1 karakter pertama, bukan
-        // error. Cek tipenya dulu biar aman buat kedua bentuk data.
-        $rawPicture = $this->profile?->profile_picture;
-        $photoPath = is_array($rawPicture) ? ($rawPicture[0] ?? null) : $rawPicture;
+        // Foto = atribut akun (users.profile_picture); profilePhotoPath() menormalkan bentuk data lama
+        // (sebagian baris tersimpan sebagai string JSON, bukan array).
+        $photoPath = $this->profilePhotoPath();
 
         return [
             'id' => $this->id,

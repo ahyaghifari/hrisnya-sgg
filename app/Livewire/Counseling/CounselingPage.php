@@ -45,11 +45,11 @@ class CounselingPage extends Component
 
     public function getCounselorOptionsProperty()
     {
-        return User::where('company_id', Auth::user()->company_id)
+        return User::whereCompany(Auth::user()->company_id)
             ->where('id', '!=', Auth::id())
             ->where('is_active', true)
-            ->orderBy('name')
-            ->pluck('name', 'id');
+            ->orderByName()
+            ->get()->pluck('name', 'id');
     }
 
     /**

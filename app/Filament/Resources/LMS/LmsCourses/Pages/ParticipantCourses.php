@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\LMS\LmsCourses\Pages;
 
+use App\Filament\Resources\UserColumn;
 use App\Enum\CourseUserStatus;
 use App\Filament\Resources\LMS\LmsCourses\LmsCoursesResource;
 use App\Models\LMS\LmsCourses;
@@ -67,8 +68,8 @@ class ParticipantCourses extends Page implements HasTable
                 TextColumn::make('user.name')
                     ->description(fn (LmsCourseUsers $record): string => $record->user->nip)
                     ->label('Nama Peserta')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
                     
                 TextColumn::make('user.profile.jobPosition.name')
                     ->label('Jabatan')

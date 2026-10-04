@@ -606,7 +606,7 @@ class RekapPresensiPage extends Component
     protected function baseUserQuery(): Builder
     {
         $query = User::query()
-            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId));
+            ->when($this->companyId, fn ($q) => $q->whereCompany($this->companyId));
 
         $this->applyDepartmentDivisionFilter($query);
         $this->applyScheduleTypeFilter($query);
@@ -620,7 +620,7 @@ class RekapPresensiPage extends Component
 
         $search = trim($this->search);
         if ($search !== '') {
-            $query->where(fn ($q) => $q->where('users.name', 'like', "%{$search}%")->orWhere('users.nip', 'like', "%{$search}%"));
+            $query->searchNameOrNip($search);
         }
 
         return $query;
@@ -630,7 +630,7 @@ class RekapPresensiPage extends Component
     {
         return AttendanceRecords::query()
             ->whereBetween('date', [$from, $to])
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)))
+            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($this->companyId)))
             ->when($this->departmentId || $this->divisionId, fn ($q) => $q->whereHas('user', fn ($q2) => $this->applyDepartmentDivisionFilter($q2)))
             ->when($this->scheduleFilter !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $this->applyScheduleTypeFilter($q2, $from, $to)));
     }
@@ -718,7 +718,7 @@ class RekapPresensiPage extends Component
         $today = $this->harianDay();
 
         return $this->filteredUserQuery()
-            ->select(['users.id', 'users.name', 'users.nip'])
+            ->select(['users.id'])
             ->leftJoin('attendance_records', function ($join) use ($today) {
                 $join->on('users.id', '=', 'attendance_records.user_id')
                     ->where('attendance_records.date', $today);
@@ -735,7 +735,7 @@ class RekapPresensiPage extends Component
                 in_array($this->statusFilter, ['present', 'late', 'permit', 'leave', 'sick'], true),
                 fn ($q) => $q->where('attendance_records.status', $this->statusFilter)
             )
-            ->orderBy('users.name')
+            ->orderByName()
             ->paginate(15)
             ->appends($this->queryAppends());
     }
@@ -924,7 +924,7 @@ class RekapPresensiPage extends Component
         $totalDays = Carbon::parse($from)->diffInDays(Carbon::parse($to)) + 1;
 
         return $this->filteredUserQuery()
-            ->select(['users.id', 'users.name', 'users.nip'])
+            ->select(['users.id'])
             ->selectRaw('? as total_days_in_period', [$totalDays])
             ->selectRaw('COUNT(DISTINCT attendance_records.date) as present_count')
             ->selectRaw('(? - COUNT(DISTINCT attendance_records.date)) as absent_count', [$totalDays])
@@ -973,8 +973,8 @@ class RekapPresensiPage extends Component
                 $join->on('users.id', '=', 'attendance_records.user_id')
                     ->whereBetween('attendance_records.date', [$from, $to]);
             })
-            ->groupBy('users.id', 'users.name', 'users.nip')
-            ->orderBy('users.name')
+            ->groupBy('users.id')
+            ->orderByName()
             ->paginate(15)
             ->appends($this->queryAppends());
     }
@@ -997,7 +997,7 @@ class RekapPresensiPage extends Component
             return null;
         }
 
-        return $this->baseUserQuery()->find($this->selectedUserId, ['id', 'name', 'nip']);
+        return $this->baseUserQuery()->find($this->selectedUserId);
     }
 
     /**

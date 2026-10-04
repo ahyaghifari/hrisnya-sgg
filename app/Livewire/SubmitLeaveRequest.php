@@ -212,7 +212,7 @@ class SubmitLeaveRequest extends Component
     /** Calon pengganti: karyawan lain di unit yang sama, id => nama. */
     public function getSubstituteOptionsProperty()
     {
-        return app(AttendaceReqService::class)->unitMates(Auth::user())->orderBy('name')->pluck('name', 'id');
+        return app(AttendaceReqService::class)->unitMates(Auth::user())->orderByName()->get()->pluck('name', 'id');
     }
 
     /** Kolom Pengganti cuma tampil di 2 company RS (sama pengecualian izin). */

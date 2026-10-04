@@ -22,18 +22,20 @@ class EmployeesTable
     {
         return $table
             ->columns([
-                ImageColumn::make('profile.profile_picture')
+                ImageColumn::make('profile_picture')
                     ->label('')
                     ->disk('public')
-                    ->getStateUsing(fn ($record) => $record->profile?->profile_picture[0] ?? null)
+                    ->getStateUsing(fn ($record) => $record->profilePhotoPath())
                     ->circular()
                     ->size(40),
                 TextColumn::make('name')
                     ->description(fn ($record) => $record->email)
                     ->label('Nama')
-                    ->sortable()
-                    ->searchable(),
-                TextColumn::make('nip')->label('NIP')->sortable()->searchable(),
+                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderByName($direction))
+                    ->searchable(query: fn (Builder $query, string $search) => $query->searchName($search)),
+                TextColumn::make('nip')->label('NIP')
+                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderByNip($direction))
+                    ->searchable(query: fn (Builder $query, string $search) => $query->whereNipLike($search)),
                 TextColumn::make('profile.department.name')->label('Departemen')->alignCenter()->default('-'),
                 TextColumn::make('profile.jobPosition.name')
                     ->description(fn ($record) => $record->getRoleNames()->join(', '))
@@ -43,14 +45,20 @@ class EmployeesTable
                     ->alignCenter(),
                 TextColumn::make('company.name')
                     ->label('Perusahaan')
-                    ->searchable()
+                    ->searchable(query: fn (Builder $query, string $search) => $query->whereCompany(
+                        \App\Models\Master\Companies::query()->where('name', 'like', "%{$search}%")->pluck('id')->all()
+                    ))
                     ->visible(fn () => PermissionHelper::hasGlobalRole(Auth::user())),
             ])
-            ->defaultSort('name')
+            ->defaultSort(fn (Builder $query, string $direction) => $query->orderByName($direction))
             ->filters([
                 SelectFilter::make('company_id')
                     ->label('Perusahaan')
                     ->relationship('company', 'name')
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        $data['value'] ?? null,
+                        fn (Builder $q, $companyId) => $q->whereCompany($companyId),
+                    ))
                     ->preload()
                     ->searchable()
                     ->default(fn () => PermissionHelper::hasGlobalRole(Auth::user()) ? Auth::user()->company_id : null)

@@ -37,6 +37,15 @@ class User extends Authenticatable implements FilamentUser
     use LogsFieldAuditChanges;
 
     /**
+     * Data karyawan selalu ikut dimuat (satu query per batch, bukan per baris) supaya pembacaan
+     * `$user->employee->...` / `full_name` di daftar & layout tidak jadi N+1. Termasuk saat User
+     * dimuat lewat relasi (`$payroll->user`, `with('user')`). Kosong untuk dua akun Super Admin.
+     *
+     * @var list<string>
+     */
+    protected $with = ['employee'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -48,6 +57,7 @@ class User extends Authenticatable implements FilamentUser
         'nip',
         'company_id',
         'is_active',
+        'profile_picture',
     ];
 
     /**
@@ -71,6 +81,7 @@ class User extends Authenticatable implements FilamentUser
             'id' => 'string',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'profile_picture' => 'array',
         ];
     }
 
@@ -92,7 +103,7 @@ class User extends Authenticatable implements FilamentUser
                 $model->id = (string) \Illuminate\Support\Str::ulid();
             }
 
-            if (empty($model->nip)) {
+            if (empty($model->rawNip())) {
                 $date = date('Ymd');
                 $userCount = static::count() + 1;
                 $index = str_pad($userCount, 3, '0', STR_PAD_LEFT);
@@ -110,6 +121,214 @@ class User extends Authenticatable implements FilamentUser
     public function profile()
     {
         return $this->hasOne(UserProfiles::class, 'user_id', 'id');
+    }
+
+    /*
+     * name / nip / company_id: SUMBER = employees (nama_lengkap, nip, company_id).
+     *
+     * PEMBACAAN `$user->name|nip|company_id` diambil dari employees (accessor menimpa kolom), jatuh
+     * balik ke kolom users untuk salinan yang belum terisi. PENULISAN (`create`, `update`, `fill`,
+     * `$user->name = ..`) ditangkap mutator di bawah: nilainya ditahan di $pendingEmployee lalu
+     * disimpan ke employees oleh EmployeeSyncObserver saat `saved`, dan - selama
+     * config('identity.legacy_user_columns') true - juga ditulis ke kolom users (cermin).
+     * Setelah kolom dicabut (flag false), penulisan HANYA ke employees; semua kode pemanggil
+     * yang sudah ada tidak perlu diubah.
+     *
+     * Yang TIDAK terpengaruh: query SQL (where/orderBy/pluck/join/Auth::attempt) - pakai scope di
+     * bawah (whereNip, searchName, whereCompany, orderByName). Kode yang butuh nilai SUMBER lama
+     * (users.*) memakai rawName()/rawNip()/rawCompanyId(). Jangan memanggil $this->name di dalam
+     * accessor/mutator ini (rekursi).
+     */
+
+    /** @var array<string, mixed> kolom employees yang menunggu disimpan: nama_lengkap | nip | company_id */
+    protected array $pendingEmployee = [];
+
+    /** Hasil deteksi skema (sekali per proses). */
+    private static ?bool $legacyDetected = null;
+
+    /** Apakah kolom users.name/nip/company_id masih ada (masa transisi)? Lihat config/identity.php. */
+    public static function legacyColumns(): bool
+    {
+        $forced = config('identity.legacy_user_columns');
+
+        if ($forced !== null) {
+            return (bool) $forced;
+        }
+
+        if (self::$legacyDetected === null) {
+            $schema = \Illuminate\Support\Facades\Schema::getFacadeRoot();
+
+            // Tabel belum ada (belum bermigrasi): anggap masa transisi dan JANGAN simpan hasilnya.
+            if (! $schema->hasTable('users')) {
+                return true;
+            }
+
+            self::$legacyDetected = $schema->hasColumn('users', 'nip');
+        }
+
+        return self::$legacyDetected;
+    }
+
+    public function setNameAttribute($value): void
+    {
+        $this->holdForEmployee('name', 'nama_lengkap', $value);
+    }
+
+    public function setNipAttribute($value): void
+    {
+        $this->holdForEmployee('nip', 'nip', $value);
+    }
+
+    public function setCompanyIdAttribute($value): void
+    {
+        $this->holdForEmployee('company_id', 'company_id', $value);
+    }
+
+    private function holdForEmployee(string $column, string $employeeColumn, mixed $value): void
+    {
+        $this->pendingEmployee[$employeeColumn] = $value;
+
+        if (static::legacyColumns()) {
+            $this->attributes[$column] = $value;
+        }
+    }
+
+    /** @return array<string, mixed> */
+    public function pendingEmployeeAttributes(): array
+    {
+        return $this->pendingEmployee;
+    }
+
+    public function clearPendingEmployee(): void
+    {
+        $this->pendingEmployee = [];
+    }
+
+    public function getNameAttribute($value): ?string
+    {
+        return $this->pendingEmployee['nama_lengkap'] ?? ($this->employee?->nama_lengkap ?: $value);
+    }
+
+    public function getNipAttribute($value): ?string
+    {
+        return $this->pendingEmployee['nip'] ?? ($this->employee?->nip ?: $value);
+    }
+
+    public function getCompanyIdAttribute($value): ?string
+    {
+        return array_key_exists('company_id', $this->pendingEmployee)
+            ? $this->pendingEmployee['company_id']
+            : ($this->employee?->company_id ?? $value);
+    }
+
+    /** Nilai kolom users apa adanya (nilai tertahan ikut dihitung bila kolom sudah tidak ditulis). */
+    public function rawName(): ?string
+    {
+        return $this->getAttributes()['name'] ?? ($this->pendingEmployee['nama_lengkap'] ?? null);
+    }
+
+    public function rawNip(): ?string
+    {
+        return $this->getAttributes()['nip'] ?? ($this->pendingEmployee['nip'] ?? null);
+    }
+
+    public function rawCompanyId(): ?string
+    {
+        return $this->getAttributes()['company_id'] ?? ($this->pendingEmployee['company_id'] ?? null);
+    }
+
+    /*
+     * Scope query berbasis employees - PENGGANTI kolom users.name/nip/company_id di dalam query SQL
+     * (where/orderBy/pencarian), supaya kolom users bisa dicabut. Pakai ini, bukan `where('nip', ..)`
+     * / `where('company_id', ..)` / `orderBy('name')` pada query User. Semuanya subquery ke employees
+     * (tanpa join) sehingga aman dipakai di dalam `whereHas('user', fn ($q) => $q->searchName(..))`
+     * dan tidak mengubah daftar kolom/alias query pemanggil.
+     */
+    public function scopeWhereNip(Builder $query, string|array $nip): Builder
+    {
+        return $query->whereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->whereIn('nip', (array) $nip));
+    }
+
+    public function scopeWhereNipLike(Builder $query, string $term): Builder
+    {
+        return $query->whereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->where('nip', 'like', "%{$term}%"));
+    }
+
+    /**
+     * Perusahaan karyawan (employees.company_id). Pengganti `where('company_id', $id)` pada query User.
+     * `null` berarti IS NULL (user tanpa perusahaan), PERSIS seperti `where('company_id', null)` yang lama.
+     */
+    public function scopeWhereCompany(Builder $query, string|array|null $companyId): Builder
+    {
+        $employees = \App\Models\Employee\Employee::query()->select('user_id');
+
+        $companyId === null
+            ? $employees->whereNull('company_id')
+            : $employees->whereIn('company_id', (array) $companyId);
+
+        return $query->whereIn('users.id', $employees);
+    }
+
+    public function scopeSearchName(Builder $query, string $term): Builder
+    {
+        return $query->whereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->where('nama_lengkap', 'like', "%{$term}%"));
+    }
+
+    /** Cari nama ATAU NIP (pola pencarian daftar karyawan). */
+    public function scopeSearchNameOrNip(Builder $query, string $term): Builder
+    {
+        return $query->whereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')
+            ->where(fn ($q) => $q->where('nama_lengkap', 'like', "%{$term}%")->orWhere('nip', 'like', "%{$term}%")));
+    }
+
+    public function scopeOrderByName(Builder $query, string $direction = 'asc'): Builder
+    {
+        return $query->orderBy(
+            \App\Models\Employee\Employee::query()->select('nama_lengkap')->whereColumn('employees.user_id', 'users.id')->limit(1),
+            $direction,
+        );
+    }
+
+    public function scopeOrderByNip(Builder $query, string $direction = 'asc'): Builder
+    {
+        return $query->orderBy(
+            \App\Models\Employee\Employee::query()->select('nip')->whereColumn('employees.user_id', 'users.id')->limit(1),
+            $direction,
+        );
+    }
+
+    /** Kompatibilitas: dulu accessor terpisah untuk nama tampilan; kini sama dengan `name`. */
+    public function getFullNameAttribute(): string
+    {
+        return (string) $this->name;
+    }
+
+    /**
+     * Path foto profil di disk public, atau null. Atribut AKUN (users.profile_picture, array path).
+     * Menormalkan bentuk data lama: sebagian baris tersimpan sebagai string JSON atau string path
+     * biasa, bukan array - akses `[0]` langsung pada string mengambil SATU KARAKTER pertama.
+     */
+    public function profilePhotoPath(): ?string
+    {
+        $value = $this->profile_picture;
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : [$value];
+        }
+
+        $path = is_array($value) ? ($value[0] ?? null) : null;
+
+        return is_string($path) && $path !== '' ? $path : null;
+    }
+
+    /** Inisial (maks $limit huruf) dari nama, untuk avatar. Tahan terhadap spasi ganda/ujung. */
+    public function initials(int $limit = 2): string
+    {
+        return collect(preg_split('/\s+/', trim((string) $this->name), -1, PREG_SPLIT_NO_EMPTY))
+            ->map(fn ($part) => mb_substr($part, 0, 1))
+            ->take($limit)
+            ->implode('');
     }
 
     /** Data karyawan (employees.user_id; kosong untuk dua akun Super Admin yang bukan karyawan). */
@@ -495,11 +714,12 @@ class User extends Authenticatable implements FilamentUser
      * (status nakes ada di jabatan: JobPositions::is_nakes). */
     protected function auditFieldLabels(): array
     {
+        // Nama, NIP, dan perusahaan TIDAK lagi dicatat di sini: sumbernya employees, dan audit-nya
+        // dicatat Employee (kunci `{user_id}:name|nip|company_id` sama, riwayat tetap satu aliran).
+        // Mencatatnya di dua tempat menghasilkan baris ganda selama kolom users masih ada, dan berhenti
+        // total setelah kolom dicabut.
         return [
-            'name' => 'Nama',
             'email' => 'Email',
-            'nip' => 'NIP',
-            'company_id' => 'Perusahaan',
             'is_active' => 'Status Aktif',
         ];
     }

@@ -31,8 +31,16 @@ class EmployeeSyncObserver
         }
 
         // User: hanya kolom yang disalin ke employees.
-        if ($model instanceof User && ($model->wasRecentlyCreated || $model->wasChanged(['name', 'nip', 'company_id', 'is_active']))) {
-            $this->sync($model->id);
+        if ($model instanceof User
+            && ($model->wasRecentlyCreated || $model->pendingEmployeeAttributes() || $model->wasChanged(['name', 'nip', 'company_id', 'is_active']))) {
+            // Pakai INSTANCE ini (bukan memuat ulang) supaya nilai name/nip/company_id yang tertahan
+            // dari penulisan lewat model ikut tersimpan ke employees.
+            app(EmployeeSyncService::class)->syncUserQuietly($model);
+
+            // `name`/`nip`/`company_id` dibaca dari relasi employee yang sudah termuat di instance ini;
+            // buang supaya pembacaan berikutnya (di request yang sama) tidak memakai salinan lama.
+            $model->clearPendingEmployee();
+            $model->unsetRelation('employee');
         }
     }
 

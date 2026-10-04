@@ -259,7 +259,7 @@
     @media (prefers-reduced-motion: reduce) {
         .modal-overlay, .modal-overlay > .modal-box { animation: none; }
     }
-    .task-detail-modal-wide { max-width: 1040px; }
+    .task-detail-modal-wide { max-width: 1120px; }
     .task-create-modal-wide { max-width: 640px; }
     .task-checklist-checkbox.custom-checkbox { width: 18px; height: 18px; }
     .task-checklist-checkbox .box { border-radius: 5px; }
@@ -1464,7 +1464,7 @@
 
                 @unless ($isPersonalNote)
                     {{-- Komentar ala Trello, kolom kanan terpisah — cuma buat task yang bukan self-assigned. --}}
-                    <div class="task-detail-comments" style="flex:0 0 320px;border-left:1px solid var(--border-soft);padding-left:24px;">
+                    <div class="task-detail-comments" style="flex:0 0 480px;border-left:1px solid var(--border-soft);padding-left:24px;">
                         <h4 style="font-size:16px;font-weight:700;margin:0 0 12px;"><i class="fa-regular fa-comment"></i> Komentar ({{ $task->comments->count() }})</h4>
                         @php
                             // Mention "@Nama": daftar nama buat dropdown (tanpa diri sendiri) & buat menebalkan "@Nama" di teks.

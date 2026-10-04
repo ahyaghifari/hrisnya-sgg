@@ -106,7 +106,7 @@ class ShiftSwapRecapPage extends Component
         $swaps = ShiftSwapRequests::withoutGlobalScope('company')
             ->whereBetween('req_date', [$this->date_from, $this->date_to])
             ->whereHas('requester', function ($q) {
-                $q->when($this->companyId, fn ($q2) => $q2->where('company_id', $this->companyId));
+                $q->when($this->companyId, fn ($q2) => $q2->whereCompany($this->companyId));
                 $this->applyDepartmentDivisionFilter($q);
             })
             ->with(['requester.profile.jobPosition.orgStructure.parent.parent', 'target.profile.jobPosition.orgStructure.parent.parent', 'reqSchedule.shiftType', 'targetSchedule.shiftType'])

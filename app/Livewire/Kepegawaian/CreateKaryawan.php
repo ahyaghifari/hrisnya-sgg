@@ -90,7 +90,7 @@ class CreateKaryawan extends Component
                 ->where(function ($q) use ($userData) {
                     $q->where('email', $userData['email']);
                     if (! empty($userData['nip'])) {
-                        $q->orWhere('nip', $userData['nip']);
+                        $q->orWhereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->where('nip', $userData['nip']));
                     }
                 })
                 ->first();

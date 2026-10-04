@@ -159,7 +159,7 @@ class PresensiTimWidget extends Component
         }
 
         $ids = $this->subordinateIds();
-        $users = fn ($filterIds) => \App\Models\User::whereIn('id', $filterIds)->with('profile.jobPosition')->orderBy('name')->get();
+        $users = fn ($filterIds) => \App\Models\User::whereIn('id', $filterIds)->with('profile.jobPosition')->orderByName()->get();
 
         if ($this->mode === 'harian') {
             $recorded = AttendanceRecords::whereIn('user_id', $ids)->where('date', now()->toDateString());

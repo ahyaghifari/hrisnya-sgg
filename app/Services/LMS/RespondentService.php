@@ -39,7 +39,7 @@ class RespondentService
     public function resolveForPublic(string $courseId, array $data, string $category = LmsRespondent::CATEGORY_KUIS): LmsRespondent
     {
         $matchedUserId = ! empty($data['nip'])
-            ? User::where('nip', $data['nip'])->value('id')
+            ? User::whereNip((string) $data['nip'])->value('id')
             : null;
 
         $snapshot = [

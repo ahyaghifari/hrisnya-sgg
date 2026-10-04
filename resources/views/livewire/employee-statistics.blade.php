@@ -13,19 +13,19 @@
 lewat wire:navigate (mis. link paginasi/pindah halaman lain). --}}
 <div x-data="{ tab: sessionStorage.getItem('easTab') || 'career' }" x-init="$watch('tab', v => sessionStorage.setItem('easTab', v))">
 <x-page-header
-    :title="$isSelf ? 'Profil Saya' : $record->name"
+    :title="$isSelf ? 'Profil Saya' : $record->full_name"
     :back="$backRoute"
 />
 
 @php
     $profile = $record->profile;
 
-    $initials = collect(preg_split('/\s+/', trim($record->name)))
+    $initials = collect(preg_split('/\s+/', trim($record->full_name)))
         ->map(fn ($w) => mb_substr($w, 0, 1))
         ->take(2)
         ->implode('');
 
-    $photoPath = $profile?->profile_picture[0] ?? null;
+    $photoPath = $record->profilePhotoPath();
     $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
 @endphp
 
@@ -122,7 +122,7 @@ override tambahan. --}}
             <x-photo-upload-cropper :avatar-url="$photoUrl" :initials="$initials ?: '?'" :size="88" />
             @error('photo') <p style="color:var(--danger-text);font-size:11px;margin-top:4px;width:100%;">{{ $message }}</p> @enderror
         @elseif ($photoUrl)
-            <img src="{{ $photoUrl }}" alt="{{ $record->name }}" style="flex-shrink:0;width:88px;height:88px;border-radius:50%;object-fit:cover;">
+            <img src="{{ $photoUrl }}" alt="{{ $record->full_name }}" style="flex-shrink:0;width:88px;height:88px;border-radius:50%;object-fit:cover;">
         @else
             <div style="flex-shrink:0;width:88px;height:88px;border-radius:50%;background:#042c6c;color:#fff;font-weight:800;font-size:26px;display:flex;align-items:center;justify-content:center;">
                 {{ $initials ?: '?' }}
@@ -130,7 +130,7 @@ override tambahan. --}}
         @endif
         <div class="ia-body" style="min-width:0;flex:1;">
             <div class="ia-head" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
-                <h2 class="ia-name" style="font-size:19px;font-weight:800;color:var(--text-heading);letter-spacing:-0.3px;margin:0;">{{ $record->name }}</h2>
+                <h2 class="ia-name" style="font-size:19px;font-weight:800;color:var(--text-heading);letter-spacing:-0.3px;margin:0;">{{ $record->full_name }}</h2>
                 <span class="badge {{ $record->is_active ? 'badge-approved' : 'badge-cancelled' }}">
                     {{ $record->is_active ? 'Aktif' : 'Nonaktif' }}
                 </span>
@@ -992,7 +992,7 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                 <h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Data Presensi</h4>
                 @if ($this->canResyncPeriod)
                     <button type="button" wire:click="syncMyPeriod" wire:loading.attr="disabled" wire:target="syncMyPeriod"
-                        wire:confirm="Hitung ulang data presensi {{ $this->isOwnProfile ? 'kamu' : $record->name }} untuk periode yang dipilih?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                        wire:confirm="Hitung ulang data presensi {{ $this->isOwnProfile ? 'kamu' : $record->full_name }} untuk periode yang dipilih?" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
                         <span wire:loading.remove wire:target="syncMyPeriod">Hitung Ulang Presensi</span>
                         <span wire:loading wire:target="syncMyPeriod">Memproses...</span>
                     </button>
@@ -1305,7 +1305,7 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <div>
                     <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">Transaksi Merit Point</h3>
-                    <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">Karyawan: {{ $this->record->name }}</p>
+                    <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">Karyawan: {{ $this->record->full_name }}</p>
                 </div>
                 <button type="button" wire:click="closeModalMeritTransaction" style="background:none;border:none;font-size:16px;color:var(--text-faint);cursor:pointer;">
                     <i class="fa-solid fa-xmark"></i>

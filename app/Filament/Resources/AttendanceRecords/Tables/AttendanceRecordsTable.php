@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AttendanceRecords\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Filament\Resources\AttendanceRecords\Schemas\AttendanceRecordCreateForm;
 use App\Models\User;
 use App\Repositories\Attendance\AttendanceImportRepository;
@@ -36,8 +37,8 @@ class AttendanceRecordsTable
                     ->label('Nama Karyawan')
                     ->description(fn ($record) => "NIP: {$record->nip}")
                     ->weight(FontWeight::Bold)
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
 
                 TextColumn::make('shift.name')
                     ->label('Shift')

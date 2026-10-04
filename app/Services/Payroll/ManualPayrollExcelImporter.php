@@ -588,7 +588,7 @@ class ManualPayrollExcelImporter
 
         return User::query()
             ->with('profile')
-            ->where(fn ($q) => $q->where('nip', $nip)->orWhere('nip', $padded))
+            ->whereNip([$nip, $padded])
             ->first();
     }
 

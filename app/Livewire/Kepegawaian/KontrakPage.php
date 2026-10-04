@@ -125,7 +125,7 @@ class KontrakPage extends Component
             return collect();
         }
 
-        return User::where('company_id', $this->formCompanyId)->orderBy('name')->pluck('name', 'id');
+        return User::whereCompany($this->formCompanyId)->orderByName()->get()->pluck('name', 'id');
     }
 
     public function getFormEmployeeTypeOptionsProperty()
@@ -149,9 +149,7 @@ class KontrakPage extends Component
             ->when(trim($this->search) !== '', function ($q) {
                 $search = trim($this->search);
 
-                $q->whereHas('user', fn ($q2) => $q2
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('nip', 'like', "%{$search}%"));
+                $q->whereHas('user', fn ($q2) => $q2->searchNameOrNip($search));
             })
             ->orderByDesc('contract_start_date')
             ->paginate(10)
@@ -201,7 +199,7 @@ class KontrakPage extends Component
                 }
 
                 $belongsToOwnCompany = User::whereKey($value)
-                    ->where('company_id', Auth::user()->company_id)
+                    ->whereCompany(Auth::user()->company_id)
                     ->exists();
 
                 if (! $belongsToOwnCompany) {

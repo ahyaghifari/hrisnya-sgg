@@ -42,7 +42,7 @@ class CoachingForm
                         ->options(
                             User::whereHas('profile', function ($q) use ($departmentId) {
                                 $q->whereHas('jobPosition.orgStructure', fn ($o) => $o->where('m_org_structures.id', $departmentId));
-                            })->pluck('name', 'id')
+                            })->get()->pluck('name', 'id')
                         )
                         ->required(),
                     Select::make('coach_by')
@@ -51,7 +51,7 @@ class CoachingForm
                         ->options(
                             User::whereHas('profile', function ($q) use ($departmentId) {
                                 $q->whereHas('jobPosition.orgStructure', fn ($o) => $o->where('m_org_structures.id', $departmentId));
-                            })->pluck('name', 'id')
+                            })->get()->pluck('name', 'id')
                         )
                         ->default($auth->id)
                         ->required()

@@ -206,7 +206,7 @@ class LmsCourseDetailPage extends Component
 
         return LmsCourseUsers::where('course_id', $this->course->id)
             ->with('user')
-            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q) => $q->where('name', 'like', "%{$search}%")))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q) => $q->searchName($search)))
             ->get();
     }
 
@@ -237,10 +237,10 @@ class LmsCourseDetailPage extends Component
     {
         $enrolledIds = $this->participants->pluck('user_id');
 
-        return User::where('company_id', $this->participantCompanyId)
+        return User::whereCompany($this->participantCompanyId)
             ->whereNotIn('id', $enrolledIds)
-            ->orderBy('name')
-            ->pluck('name', 'id');
+            ->orderByName()
+            ->get()->pluck('name', 'id');
     }
 
     public function getCompanyOptionsProperty()
@@ -563,7 +563,7 @@ class LmsCourseDetailPage extends Component
 
     public function getEmployeeOptionsProperty()
     {
-        return User::where('is_active', true)->orderBy('name')->pluck('name', 'id');
+        return User::where('is_active', true)->orderByName()->get()->pluck('name', 'id');
     }
 
     public function getCanCreateTrainerProperty(): bool

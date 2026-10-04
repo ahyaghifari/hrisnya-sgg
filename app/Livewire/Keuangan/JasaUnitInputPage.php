@@ -146,10 +146,10 @@ class JasaUnitInputPage extends Component
             ->pluck('employee_type_id');
 
         return User::query()
-            ->where('company_id', $this->companyId)
+            ->whereCompany($this->companyId)
             ->where('is_active', true)
             ->whereHas('profile', fn ($q) => $q->whereIn('employee_type_id', $eligibleTypeIds))
-            ->orderBy('name')
+            ->orderByName()
             ->get();
     }
 

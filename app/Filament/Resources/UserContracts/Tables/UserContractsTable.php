@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\UserContracts\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Filament\Resources\UserContracts\UserContractResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -18,8 +19,8 @@ class UserContractsTable
             ->columns([
                 TextColumn::make('user.name')
                     ->label('Karyawan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
 
                 TextColumn::make('employeeType.name')
                     ->label('Tipe Karyawan')

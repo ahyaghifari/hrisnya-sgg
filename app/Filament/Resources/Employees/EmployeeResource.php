@@ -64,7 +64,7 @@ class EmployeeResource extends Resource
 
         $user = Auth::user();
         if ($user && $user->company_id && !PermissionHelper::hasGlobalRole($user)) {
-            $query->where('company_id', $user->company_id);
+            $query->whereCompany($user->company_id);
         }
 
         return $query;

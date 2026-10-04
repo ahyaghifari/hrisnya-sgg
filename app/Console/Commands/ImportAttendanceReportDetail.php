@@ -167,14 +167,14 @@ class ImportAttendanceReportDetail extends Command
         if ($nikCandidate !== '') {
             // Match persis ke nip = identifier unik, aman dipercaya langsung (nama di file suka
             // beda format/ejaan dari database walau orangnya benar).
-            if ($byNip = User::where('nip', $nikCandidate)->first()) {
+            if ($byNip = User::whereNip($nikCandidate)->first()) {
                 return $byNip;
             }
 
             // Match "kurang satu nol di depan" cuma heuristik longgar — pernah kebetulan cocok
             // ke nip orang LAIN (beda orang), jadi wajib diverifikasi lewat nama juga.
             $padded = str_pad($nikCandidate, strlen($nikCandidate) + 1, '0', STR_PAD_LEFT);
-            $byPaddedNip = User::where('nip', $padded)->first();
+            $byPaddedNip = User::whereNip($padded)->first();
 
             if ($byPaddedNip && $this->normalizeName($byPaddedNip->name) === $normalizedTarget) {
                 return $byPaddedNip;
@@ -182,7 +182,7 @@ class ImportAttendanceReportDetail extends Command
         }
 
         $matches = User::query()
-            ->get(['id', 'name', 'nip'])
+            ->get()
             ->filter(fn (User $u) => $this->normalizeName($u->name) === $normalizedTarget);
 
         if ($matches->count() === 1) {
@@ -190,7 +190,7 @@ class ImportAttendanceReportDetail extends Command
         }
 
         if ($overrideNip = self::MANUAL_NIP_OVERRIDES[$reportName] ?? null) {
-            return User::where('nip', $overrideNip)->first();
+            return User::whereNip($overrideNip)->first();
         }
 
         return null;

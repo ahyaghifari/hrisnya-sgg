@@ -91,9 +91,7 @@ class OrientasiKaryawanPage extends Component
             ->when($this->status === 'berakhir', fn ($q) => $q->where('end_date', '<', $today))
             ->when(trim($this->search) !== '', function ($q) {
                 $search = trim($this->search);
-                $q->whereHas('user', fn ($q2) => $q2
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('nip', 'like', "%{$search}%"));
+                $q->whereHas('user', fn ($q2) => $q2->searchNameOrNip($search));
             })
             ->orderByDesc('start_date')
             ->paginate(10)

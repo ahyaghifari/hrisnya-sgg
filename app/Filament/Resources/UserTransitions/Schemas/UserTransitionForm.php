@@ -43,15 +43,21 @@ class UserTransitionForm
                 ->schema([
                     Select::make('user_id')
                         ->label('Karyawan')
-                        ->relationship('user', 'name', function ($query) {
-                            // Promosi/Demosi/Mutasi/PHK cuma relevan buat karyawan Tetap/Kontrak.
-                            $query->where('company_id', auth()->user()->company_id)
-                                ->whereHas('profile.employeeType', fn ($q) => $q->whereIn('category', [
-                                    EmployeeTypeCategory::TETAP->value,
-                                    EmployeeTypeCategory::KONTRAK->value,
-                                ]));
-                        })
                         ->searchable()
+                        ->getSearchResultsUsing(fn (string $search) => User::query()
+                            // Promosi/Demosi/Mutasi/PHK cuma relevan buat karyawan Tetap/Kontrak.
+                            ->whereCompany(auth()->user()->company_id)
+                            ->whereHas('profile.employeeType', fn ($q) => $q->whereIn('category', [
+                                EmployeeTypeCategory::TETAP->value,
+                                EmployeeTypeCategory::KONTRAK->value,
+                            ]))
+                            ->searchName($search)
+                            ->orderByName()
+                            ->limit(50)
+                            ->get()
+                            ->pluck('name', 'id')
+                            ->all())
+                        ->getOptionLabelUsing(fn ($value) => User::find($value)?->name)
                         ->reactive()
                         ->required(),
 

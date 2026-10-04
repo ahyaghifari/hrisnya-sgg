@@ -72,7 +72,7 @@ class AttendanceRecordResource extends Resource
 
         if ($user && $user->company_id && !PermissionHelper::hasGlobalRole($user)) {
             $query->whereHas('user', function ($q) use ($user) {
-                $q->where('company_id', $user->company_id);
+                $q->whereCompany($user->company_id);
             });
         }
 

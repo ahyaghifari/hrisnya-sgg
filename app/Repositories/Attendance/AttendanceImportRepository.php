@@ -11,7 +11,7 @@ class AttendanceImportRepository
 {
     public function findUserByNip(string $nip): ?User
     {
-        return User::where('nip', $nip)->first();
+        return User::whereNip($nip)->first();
     }
 
     public function findShiftAssignmentForDate(string $userId, string $date): ?ShiftScheduleAssignments
@@ -88,7 +88,7 @@ class AttendanceImportRepository
         }
 
         if ($companyId) {
-            $query->whereHas('user', fn ($q) => $q->where('company_id', $companyId));
+            $query->whereHas('user', fn ($q) => $q->whereCompany($companyId));
         }
 
         return $query->get();

@@ -39,12 +39,12 @@ class CreatePenilaianKaryawanPage extends Component
         $assessment = $this->assessment_id ? Assessments::find($this->assessment_id) : null;
 
         return User::query()
-            ->where('company_id', Auth::user()->company_id)
+            ->whereCompany(Auth::user()->company_id)
             ->when($assessment?->job_position_id, function ($q) use ($assessment) {
                 $q->whereHas('activeJobPosition', fn ($jp) => $jp->where('job_position_id', $assessment->job_position_id));
             })
-            ->orderBy('name')
-            ->pluck('name', 'id');
+            ->orderByName()
+            ->get()->pluck('name', 'id');
     }
 
     protected function rules(): array

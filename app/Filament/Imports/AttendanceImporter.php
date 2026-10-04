@@ -51,7 +51,7 @@ class AttendanceImporter extends Importer
             $status = $this->data['status'] ?? 'present';
 
             // Find user by nip
-            $user = User::where('nip', $nip)->first();
+            $user = User::whereNip($nip)->first();
             
             if (!$user) {
                 return null;

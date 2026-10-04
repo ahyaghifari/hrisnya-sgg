@@ -1151,7 +1151,7 @@ class EmployeeStatistics extends Component
     {
         $title = $this->record->id === Auth::id()
             ? 'Profil Saya'
-            : "MyStaff - {$this->record->name}";
+            : "MyStaff - {$this->record->full_name}";
 
         return view('livewire.employee-statistics')
             ->layout('components.layout', ['title' => $title]);

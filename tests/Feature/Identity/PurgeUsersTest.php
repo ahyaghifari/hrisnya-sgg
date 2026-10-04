@@ -61,7 +61,7 @@ class PurgeUsersTest extends TestCase
         $this->artisan('identity:purge-users', ['nip' => ['D1', 'NOPE'], '--force' => true])->assertFailed();
         $this->artisan('identity:purge-users', ['nip' => ['SA1'], '--force' => true])->assertFailed();
 
-        $this->assertSame(2, User::withoutGlobalScopes()->whereIn('nip', ['D1', 'SA1'])->count());
+        $this->assertSame(2, User::withoutGlobalScopes()->whereNip(['D1', 'SA1'])->count());
     }
 
     public function test_without_force_deletes_nothing(): void
@@ -70,7 +70,7 @@ class PurgeUsersTest extends TestCase
 
         $this->artisan('identity:purge-users', ['nip' => ['D1']])->assertSuccessful();
 
-        $this->assertSame(1, User::where('nip', 'D1')->count());
+        $this->assertSame(1, User::whereNip('D1')->count());
         $this->assertSame(1, Employee::count());
     }
 
@@ -82,7 +82,7 @@ class PurgeUsersTest extends TestCase
 
         $this->artisan('identity:purge-users', ['nip' => ['D1', 'D2'], '--force' => true])->assertSuccessful();
 
-        $this->assertSame(0, User::whereIn('nip', ['D1', 'D2'])->count());
+        $this->assertSame(0, User::whereNip(['D1', 'D2'])->count());
         $this->assertSame([$keep->id], Employee::pluck('user_id')->all(), 'Salinan karyawan yang dihapus tidak boleh tertinggal.');
         $this->assertSame(1, DB::table('employee_identities')->count(), 'Identitas ikut terhapus lewat cascade.');
     }
@@ -94,11 +94,11 @@ class PurgeUsersTest extends TestCase
         Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
 
         $this->artisan('identity:purge-users', ['nip' => ['D1'], '--force' => true])->assertFailed();
-        $this->assertSame(1, User::where('nip', 'D1')->count());
+        $this->assertSame(1, User::whereNip('D1')->count());
         $this->assertSame(1, Payroll::count());
 
         $this->artisan('identity:purge-users', ['nip' => ['D1'], '--force' => true, '--also' => ['payrolls.user_id']])->assertSuccessful();
-        $this->assertSame(0, User::where('nip', 'D1')->count());
+        $this->assertSame(0, User::whereNip('D1')->count());
         $this->assertSame(0, Payroll::count());
     }
 
@@ -123,11 +123,11 @@ class PurgeUsersTest extends TestCase
         $activity = $this->activity($snap, $demo->id);
 
         $this->artisan('identity:purge-users', ['nip' => ['D1'], '--force' => true])->assertFailed();
-        $this->assertSame(1, User::where('nip', 'D1')->count());
+        $this->assertSame(1, User::whereNip('D1')->count());
 
         $this->artisan('identity:purge-users', ['nip' => ['D1'], '--force' => true, '--nullify-approvals' => true])->assertSuccessful();
 
-        $this->assertSame(0, User::where('nip', 'D1')->count());
+        $this->assertSame(0, User::whereNip('D1')->count());
         $this->assertSame(1, DB::table('approval_snapshots')->count(), 'Pengajuan milik orang lain tetap ada.');
         $this->assertNull(DB::table('approval_activities')->where('id', $activity)->value('acted_by'));
     }
@@ -143,7 +143,7 @@ class PurgeUsersTest extends TestCase
             ->expectsOutputToContain('DILEWATI')
             ->assertSuccessful();
 
-        $this->assertSame(1, User::where('nip', 'D1')->count(), 'Yang bermasalah tidak disentuh.');
+        $this->assertSame(1, User::whereNip('D1')->count(), 'Yang bermasalah tidak disentuh.');
         $this->assertSame(0, User::where('id', $clean->id)->count());
         $this->assertSame(1, Payroll::count());
         $this->assertSame(1, Employee::where('user_id', $withPayroll->id)->count(), 'Salinannya juga tetap ada.');
@@ -158,7 +158,7 @@ class PurgeUsersTest extends TestCase
 
         $this->artisan('identity:purge-users', ['nip' => ['D1', 'D2'], '--force' => true])->assertSuccessful();
 
-        $this->assertSame(1, User::where('nip', 'D1')->count());
+        $this->assertSame(1, User::whereNip('D1')->count());
         $this->assertSame(0, User::where('id', $other->id)->count());
         $this->assertSame(1, DB::table('approval_snapshots')->count());
     }
@@ -175,11 +175,11 @@ class PurgeUsersTest extends TestCase
 
         // Tanpa --nullify-approvals: D2 ikut dilewati (pengajuan itu tetap ada), tidak ada yang terhapus.
         $this->artisan('identity:purge-users', ['nip' => ['D1', 'D2'], '--force' => true])->assertFailed();
-        $this->assertSame(2, User::whereIn('nip', ['D1', 'D2'])->count());
+        $this->assertSame(2, User::whereNip(['D1', 'D2'])->count());
 
         // Dengan --nullify-approvals: D2 terhapus, namanya dikosongkan dari aktivitas; D1 tetap dilewati.
         $this->artisan('identity:purge-users', ['nip' => ['D1', 'D2'], '--force' => true, '--nullify-approvals' => true])->assertSuccessful();
-        $this->assertSame(1, User::where('nip', 'D1')->count());
+        $this->assertSame(1, User::whereNip('D1')->count());
         $this->assertSame(0, User::where('id', $dependent->id)->count());
         $this->assertSame(2, DB::table('approval_activities')->where('snapshot_id', $snap)->count());
         $this->assertSame(1, DB::table('approval_activities')->where('snapshot_id', $snap)->whereNull('acted_by')->count());
@@ -194,7 +194,7 @@ class PurgeUsersTest extends TestCase
 
         $this->artisan('identity:purge-users', ['nip' => ['D1'], '--force' => true])->assertFailed();
 
-        $this->assertSame(1, User::where('nip', 'D1')->count());
+        $this->assertSame(1, User::whereNip('D1')->count());
         $this->assertSame(1, DB::table('approval_snapshots')->count());
     }
 }

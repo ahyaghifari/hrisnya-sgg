@@ -71,7 +71,7 @@ class BonImport implements ToCollection, WithHeadingRow
                 continue; // baris kosong, bukan error
             }
 
-            $user = User::where('nip', $nip)->first();
+            $user = User::whereNip($nip)->first();
             $error = $this->validateRow($user, $amount, $nip, $companyId);
 
             if ($this->preview) {

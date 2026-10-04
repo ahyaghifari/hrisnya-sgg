@@ -41,7 +41,7 @@ class AttendanceImportService
             }
 
             if ($companyId) {
-                $query->whereHas('user', fn ($q) => $q->where('company_id', $companyId));
+                $query->whereHas('user', fn ($q) => $q->whereCompany($companyId));
             }
 
             $records = $query->get();

@@ -129,10 +129,10 @@ class ImportAccounts extends Page
     /** NIP yang ada di sistem (company terpilih) tapi TIDAK kebaca dari file sama sekali. */
     private function findMissingRows(array $seenNips): array
     {
-        return User::where('company_id', $this->companyId)
-            ->whereNotIn('nip', $seenNips)
-            ->orderBy('name')
-            ->get(['id', 'name', 'email', 'nip'])
+        return User::whereCompany($this->companyId)
+            ->whereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->whereNotIn('nip', $seenNips))
+            ->orderByName()
+            ->get()
             ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'nip' => $u->nip])
             ->all();
     }

@@ -23,7 +23,7 @@ class CreateEmployee extends CreateRecord
             ->where(function ($q) use ($data) {
                 $q->where('email', $data['email']);
                 if (!empty($data['nip'])) {
-                    $q->orWhere('nip', $data['nip']);
+                    $q->orWhereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->where('nip', $data['nip']));
                 }
             })
             ->first();

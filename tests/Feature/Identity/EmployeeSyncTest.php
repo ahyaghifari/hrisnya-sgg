@@ -190,11 +190,11 @@ class EmployeeSyncTest extends TestCase
         $this->assertSame('nonaktif', $this->employeeOf($user)->status);
     }
 
-    public function test_super_admin_accounts_get_no_employee(): void
+    public function test_super_admin_accounts_also_get_an_employee_row(): void
     {
-        $user = User::factory()->create(['id' => '01k8271ym5edqp4jm1kvwrdrr0']); // NON_KARYAWAN, bukan payroll-eligible
+        $user = User::factory()->create(['id' => '01k8271ym5edqp4jm1kvwrdrr0', 'name' => 'Super Admin']); // NON_KARYAWAN: tetap dapat baris employees agar kolom users bisa dicabut
 
-        $this->assertSame(0, Employee::where('user_id', $user->id)->count());
+        $this->assertSame('Super Admin', Employee::where('user_id', $user->id)->value('nama_lengkap'));
     }
 
     public function test_profile_documents_are_copied_updated_and_removed(): void
@@ -217,6 +217,10 @@ class EmployeeSyncTest extends TestCase
 
     public function test_backfill_is_idempotent_and_dry_run_writes_nothing(): void
     {
+        if (! User::legacyColumns()) {
+            $this->markTestSkipped('Skenario employees dikosongkan lalu diisi ulang dari kolom users hanya relevan di mode transisi.');
+        }
+
         $jabatan = $this->position('Perawat');
         $user = User::factory()->create(['company_id' => $this->company->id]);
         $user->profile()->create(['job_position_id' => $jabatan->id, 'no_nik' => '3201000000000001']);

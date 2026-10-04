@@ -34,11 +34,9 @@ class VerifyIdentity extends Command
 
     public function handle(): int
     {
-        $skipped = EmployeeSyncService::skippedUserIds();
-
         User::withoutGlobalScopes()->withTrashed()
-            ->when($this->option('user'), fn ($q, $nip) => $q->where('nip', $nip))
-            ->chunkById(300, function ($users) use ($skipped) {
+            ->when($this->option('user'), fn ($q, $nip) => $q->whereNip($nip))
+            ->chunkById(300, function ($users) {
                 $ids = $users->pluck('id');
 
                 $maps = [
@@ -49,25 +47,19 @@ class VerifyIdentity extends Command
                 ];
 
                 foreach ($users as $user) {
-                    $this->verifyUser($user, $maps, in_array($user->id, $skipped, true));
+                    $this->verifyUser($user, $maps);
                 }
             });
 
         return $this->report();
     }
 
-    private function verifyUser(User $user, array $maps, bool $skipEmployee): void
+    private function verifyUser(User $user, array $maps): void
     {
         $profile = $maps['profiles'][$user->id] ?? null;
         $employee = $maps['employees'][$user->id] ?? null;
         $ledger = $maps['ledger'][$user->id] ?? collect();
         $docs = $maps['docs'][$user->id] ?? collect();
-
-        if ($skipEmployee) {
-            $this->check('employees: akun non-karyawan tidak punya employee', $user, $employee === null);
-
-            return;
-        }
 
         $this->check('employees: baris ada', $user, $employee !== null);
 
@@ -75,8 +67,11 @@ class VerifyIdentity extends Command
             return;
         }
 
-        $this->check('employees: data pribadi', $user, $this->same($employee, [
-            'nama_lengkap' => $user->name,
+        // name/nip/company_id: sumbernya kolom users HANYA selama masa transisi (legacy_user_columns true);
+        // setelah kolom dicabut employees adalah sumber, jadi tidak ada yang dibandingkan.
+        $legacy = User::legacyColumns();
+
+        $this->check('employees: data pribadi', $user, $this->same($employee, ($legacy ? ['nama_lengkap' => $user->rawName()] : []) + [
             'nickname' => $profile?->nickname,
             'gender' => $profile?->gender,
             'marital_status' => $profile?->marital_status,
@@ -106,9 +101,7 @@ class VerifyIdentity extends Command
             $docs->pluck('label')->sort()->values()->all() === $employee->documents->pluck('type')->sort()->values()->all(),
         );
 
-        $this->check('employees: data kepegawaian', $user, $this->same($employee, [
-            'nip' => $user->nip,
-            'company_id' => $user->company_id,
+        $this->check('employees: data kepegawaian', $user, $this->same($employee, ($legacy ? ['nip' => $user->rawNip(), 'company_id' => $user->rawCompanyId()] : []) + [
             'employee_type_id' => $profile?->employee_type_id,
             'job_position_id' => $profile?->job_position_id,
             'pangkat_id' => $profile?->pangkat_id,
@@ -165,7 +158,7 @@ class VerifyIdentity extends Command
         $this->stats[$dimension]['checked']++;
 
         if (! $ok) {
-            $this->stats[$dimension]['bad'][] = $user->nip;
+            $this->stats[$dimension]['bad'][] = $user->rawNip() ?? $user->nip ?? $user->id;
         }
     }
 

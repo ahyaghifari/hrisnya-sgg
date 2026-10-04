@@ -154,16 +154,16 @@ class RoleAccessTreePage extends Component
         $user = Auth::user();
         $search = trim($this->userSearch);
 
-        $query = User::query()->orderBy('name');
+        $query = User::query()->orderByName();
 
         if ($user->company_id && ! PermissionHelper::hasGlobalRole($user)) {
-            $query->where('company_id', $user->company_id);
+            $query->whereCompany($user->company_id);
         } elseif ($this->companyId) {
-            $query->where('company_id', $this->companyId);
+            $query->whereCompany($this->companyId);
         }
 
         if ($search !== '') {
-            $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"));
+            $query->searchNameOrNip($search);
         }
 
         return $query->limit(50)->get();

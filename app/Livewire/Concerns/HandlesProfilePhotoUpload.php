@@ -30,21 +30,14 @@ trait HandlesProfilePhotoUpload
             'photo' => ['required', 'image', 'max:2048'],
         ]);
 
-        $profile = $this->record->profile;
-
-        if (! $profile) {
-            $this->addError('photo', 'Profil belum tersedia, hubungi HC.');
-
-            return;
-        }
-
-        $oldPath = $profile->profile_picture[0] ?? null;
+        // Foto = atribut akun (users.profile_picture), jadi tidak butuh baris profil.
+        $oldPath = $this->record->profilePhotoPath();
 
         $path = $this->photo->store('profile-pictures', 'public');
 
-        $profile->update(['profile_picture' => [$path]]);
+        $this->record->update(['profile_picture' => [$path]]);
 
-        if ($oldPath && is_string($oldPath)) {
+        if ($oldPath) {
             Storage::disk('public')->delete($oldPath);
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Sikartap;
 
+use App\Filament\Resources\UserColumn;
 use App\Filament\Resources\BaseResource;
 use App\Filament\Resources\Sikartap\Pages\ListSikartap;
 use App\Filament\Resources\Sikartap\Pages\ViewSikartap;
@@ -43,12 +44,12 @@ class SikartapResource extends BaseResource
             ->columns([
                 TextColumn::make('user.nip')
                     ->label('NIP')
-                    ->searchable(),
+                    ->searchable(query: UserColumn::searchNip()),
 
                 TextColumn::make('user.name')
                     ->label('Nama Karyawan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
 
                 TextColumn::make('status_berkas')
                     ->label('Berkas')
@@ -154,7 +155,7 @@ class SikartapResource extends BaseResource
         $query = parent::getEloquentQuery()->with(['user.company', 'testSchedule', 'interviewSchedule']);
 
         if (! static::canBrowseAllCompanies() && static::companyId()) {
-            $query->whereHas('user', fn ($q) => $q->where('company_id', static::companyId()));
+            $query->whereHas('user', fn ($q) => $q->whereCompany(static::companyId()));
         }
 
         return $query;

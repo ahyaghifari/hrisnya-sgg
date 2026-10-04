@@ -168,7 +168,7 @@ class SpDetailPage extends Component
 
     public function getKnowsByOptionsProperty()
     {
-        return User::where('company_id', $this->record->company_id)->orderBy('name')->pluck('name', 'id');
+        return User::whereCompany($this->record->company_id)->orderByName()->get()->pluck('name', 'id');
     }
 
     public function saveSp(): void

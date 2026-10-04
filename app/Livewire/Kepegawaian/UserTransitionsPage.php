@@ -121,7 +121,7 @@ class UserTransitionsPage extends Component
             ->when($this->status, fn ($q) => $q->where('status', $this->status))
             ->when($search !== '', fn ($q) => $q->where(fn ($q2) => $q2
                 ->where('number', 'like', "%{$search}%")
-                ->orWhereHas('user', fn ($q3) => $q3->where('name', 'like', "%{$search}%"))))
+                ->orWhereHas('user', fn ($q3) => $q3->searchName($search))))
             ->with('user');
     }
 

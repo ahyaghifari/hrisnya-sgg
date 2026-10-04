@@ -20,7 +20,7 @@ class ReviewerListResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'company_name' => $this->company?->name,
-            'profile_picture' => $this->profile->profile_picture ? url(Storage::url($this->profile->profile_picture)) : null,
+            'profile_picture' => ($photo = $this->profilePhotoPath()) ? url(Storage::url($photo)) : null,
             'department' => $this->profile->department->name ?? null,
         ];
     }

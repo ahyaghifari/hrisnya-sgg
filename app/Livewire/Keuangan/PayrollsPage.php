@@ -169,9 +169,7 @@ class PayrollsPage extends Component
         // Ambil dulu SEMUA baris mentah (query di atas tidak menyentuh nominal terenkripsi
         // sama sekali - PayrollEncrypted baru jalan pas atribut diakses, bukan pas ->get()).
         $payrolls = $this->applySlipStatusFilter($this->baseSlipQuery())
-            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('nip', 'like', "%{$search}%")))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->searchNameOrNip($search)))
             ->with(['user', 'payrollPeriod' => fn ($q) => $this->unscopePeriodRelation($q)])
             ->orderByDesc('created_at')
             ->get();

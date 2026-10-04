@@ -80,7 +80,7 @@ class PayrollRevisionImport implements ToCollection
                 continue; // baris judul divisi / baris kosong, bukan error
             }
 
-            $user = User::where('nip', $nip)->first();
+            $user = User::whereNip($nip)->first();
 
             if (! $user) {
                 // Belum ketemu di karyawan biasa - coba 2 akun eksekutif non-karyawan (Presiden
@@ -92,7 +92,7 @@ class PayrollRevisionImport implements ToCollection
                 // kosong kalau baris ini kebetulan ada di file company lain.
                 $user = User::withoutGlobalScope('non_karyawan')
                     ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
-                    ->where('nip', $nip)
+                    ->whereNip($nip)
                     ->first();
             }
 

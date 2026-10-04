@@ -4,12 +4,12 @@
 @php
     $profile = $record->profile;
 
-    $initials = collect(preg_split('/\s+/', trim($record->name)))
+    $initials = collect(preg_split('/\s+/', trim($record->full_name)))
         ->map(fn ($w) => mb_substr($w, 0, 1))
         ->take(2)
         ->implode('');
 
-    $photoPath = $profile?->profile_picture[0] ?? null;
+    $photoPath = $record->profilePhotoPath();
     $photoUrl = $photoPath && is_string($photoPath) ? \Illuminate\Support\Facades\Storage::url($photoPath) : null;
 
     $roleLabel = $record->roles->pluck('name')
@@ -22,7 +22,7 @@
     <div style="display:flex;align-items:center;gap:14px;">
         <x-photo-upload-cropper :avatar-url="$photoUrl" :initials="$initials ?: '?'" :size="56" />
         <div style="min-width:0;flex:1;">
-            <h2 style="font-size:16px;font-weight:800;color:var(--text-heading);letter-spacing:-0.3px;margin:0;">{{ $record->name }}</h2>
+            <h2 style="font-size:16px;font-weight:800;color:var(--text-heading);letter-spacing:-0.3px;margin:0;">{{ $record->full_name }}</h2>
             <p style="font-size:12.5px;color:var(--text-muted);margin-top:3px;">
                 {{ $profile?->jobPosition?->name ?? 'Belum ada jabatan' }}
                 @if ($profile?->department?->name)

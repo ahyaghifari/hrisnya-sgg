@@ -63,21 +63,21 @@ class AttendanceDashboardPage extends Component
 
     protected function scopedUsers()
     {
-        return User::query()->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId));
+        return User::query()->when($this->companyId, fn ($q) => $q->whereCompany($this->companyId));
     }
 
     protected function scopedRecordsForDate(string $date)
     {
         return AttendanceRecords::query()
             ->where('date', $date)
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)));
+            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($this->companyId)));
     }
 
     protected function scopedPendingRequests()
     {
         return AttendanceRequests::query()
             ->whereIn('status', [AttendanceReqStatus::SUBMITTED->value, AttendanceReqStatus::IN_REVIEW->value])
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)));
+            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($this->companyId)));
     }
 
     public function getEmployeeCountProperty(): int

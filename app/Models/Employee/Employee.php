@@ -2,6 +2,7 @@
 
 namespace App\Models\Employee;
 
+use App\Models\AuditLog;
 use App\Models\Master\JobPositions;
 use App\Models\Master\Kelas;
 use App\Models\Master\Pangkats;
@@ -34,7 +35,6 @@ class Employee extends Model
         'place_of_birth',
         'date_of_birth',
         'religion_id',
-        'profile_picture',
         'phone',
         'whatsapp',
         'email_pribadi',
@@ -52,8 +52,52 @@ class Employee extends Model
         'date_of_birth' => 'date',
         'joining_date' => 'date',
         'tmt_tetap' => 'date',
-        'profile_picture' => 'array',
     ];
+
+    /**
+     * Audit nama, NIP, dan perusahaan (dulu dicatat model User dari kolom users.*, yang akan dicabut).
+     * Dicatat dengan kunci `{user_id}:{name|nip|company_id}` dan modul `data_karyawan` yang SAMA dengan
+     * catatan lama, jadi riwayat di halaman Data Diri tetap satu aliran (EmployeeStatistics::
+     * getAuditHistoryProperty membaca `{user_id}:%`). Aktornya Auth::id() (AuditLog::record), baik karyawan
+     * sendiri maupun admin/HC, seperti LogsFieldAuditChanges. created/deleted sengaja tidak dicatat.
+     *
+     * nama_lengkap kosong -> terisi TIDAK dicatat: itu isi awal salinan saat identity:backfill, bukan
+     * perubahan data.
+     *
+     * @var array<string, array{0: string, 1: string}> kolom employees => [kunci audit, label]
+     */
+    private const AUDITED_USER_FIELDS = [
+        'nama_lengkap' => ['name', 'Nama'],
+        'nip' => ['nip', 'NIP'],
+        'company_id' => ['company_id', 'Perusahaan'],
+    ];
+
+    protected static function booted(): void
+    {
+        static::updated(function (Employee $employee) {
+            foreach (self::AUDITED_USER_FIELDS as $column => [$key, $label]) {
+                if (! $employee->wasChanged($column)) {
+                    continue;
+                }
+
+                $old = $employee->getOriginal($column);
+                $new = $employee->{$column};
+
+                if ((string) $old === (string) $new || ($column === 'nama_lengkap' && ($old === null || $old === ''))) {
+                    continue;
+                }
+
+                AuditLog::record(
+                    'data_karyawan',
+                    $employee->company_id,
+                    $employee->user_id . ':' . $key,
+                    $label,
+                    $old === null ? null : (string) $old,
+                    $new === null ? null : (string) $new,
+                );
+            }
+        });
+    }
 
     public function user(): BelongsTo
     {

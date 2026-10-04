@@ -119,12 +119,12 @@ class CompanyFilterAccessPage extends Component
             ->map(fn (Role $r) => ['key' => "role:{$r->id}", 'type' => 'role', 'name' => $r->name]);
 
         $search = trim($this->userSearch);
-        $userQuery = User::where('company_id', $this->companyId)
+        $userQuery = User::whereCompany($this->companyId)
             ->permission(CustomPermissionEnum::LIHAT_PERUSAHAAN_LAIN->value)
-            ->orderBy('name');
+            ->orderByName();
 
         if ($search !== '') {
-            $userQuery->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"));
+            $userQuery->searchNameOrNip($search);
         }
 
         $users = $userQuery->limit(50)->get()

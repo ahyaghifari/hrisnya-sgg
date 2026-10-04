@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Incentives\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Helpers\PermissionHelper;
 use App\Models\Incentive\Incentive;
 use App\Models\Master\Companies;
@@ -21,12 +22,12 @@ class IncentivesTable
             ->columns([
                 TextColumn::make('user.company.name')
                     ->label('Perusahaan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchCompany())
+                    ->sortable(query: UserColumn::sortCompany()),
                 TextColumn::make('user.name')
                     ->label('Penerima')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: UserColumn::searchName())
+                    ->sortable(query: UserColumn::sortName()),
                 TextColumn::make('name')
                     ->label('Nama Program')
                     ->searchable()
@@ -47,7 +48,7 @@ class IncentivesTable
                     ->searchable()
                     ->query(fn ($query, array $data) => $query->when(
                         $data['value'] ?? null,
-                        fn ($q, $companyId) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $companyId)),
+                        fn ($q, $companyId) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($companyId)),
                     ))
                     ->default(fn () => PermissionHelper::hasGlobalRole(Auth::user()) ? Auth::user()->company_id : null)
                     ->visible(fn () => PermissionHelper::hasGlobalRole(Auth::user())),

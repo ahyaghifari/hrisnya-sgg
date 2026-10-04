@@ -565,8 +565,8 @@ class ApprovalFlowForm
                     return match ($approverType) {
                         'role' => Role::where('company_id', $companyId)
                             ->pluck('name', 'id'),
-                        'user' => \App\Models\User::where('company_id', $companyId)
-                            ->pluck('name', 'id'),
+                        'user' => \App\Models\User::whereCompany($companyId)
+                            ->get()->pluck('name', 'id'),
                         'job_position' => JobPositions::where('company_id', $companyId)
                             ->pluck('name', 'id'),
                         default => [],

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Coachings\Tables;
 
+use App\Filament\Resources\UserColumn;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -16,13 +17,13 @@ class CoachingsTable
             ->columns([
                 TextColumn::make('user.name')
                     ->label('Karyawan')
-                    ->sortable()
-                    ->searchable(),
+                    ->sortable(query: UserColumn::sortName())
+                    ->searchable(query: UserColumn::searchName()),
 
                 TextColumn::make('coachBy.name')
                     ->label('Coach')
-                    ->sortable()
-                    ->searchable(),
+                    ->sortable(query: UserColumn::sortName('coachBy'))
+                    ->searchable(query: UserColumn::searchName('coachBy')),
 
                 TextColumn::make('title')
                     ->label('Judul')

@@ -7,9 +7,9 @@
     // <x-pwa-nav.xxx-menu> masing-masing, bukan di sini.
     extract($gates);
 
-    $navPhotoPath = auth()->user()->profile?->profile_picture[0] ?? null;
+    $navPhotoPath = auth()->user()->profilePhotoPath();
     $navPhotoUrl = $navPhotoPath && is_string($navPhotoPath) ? \Illuminate\Support\Facades\Storage::url($navPhotoPath) : null;
-    $navInitials = collect(explode(' ', auth()->user()->name))
+    $navInitials = collect(explode(' ', auth()->user()->full_name))
         ->map(fn ($part) => mb_substr($part, 0, 1))
         ->take(2)
         ->implode('');

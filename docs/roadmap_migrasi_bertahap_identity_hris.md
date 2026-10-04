@@ -364,6 +364,56 @@ menunjukkan **nol selisih** di staging dan produksi.
 Setiap slice = "fitur ini membaca data karyawan lewat model baru, bukan `user->profile`".
 **Tabel fiturnya sendiri tidak berubah** (`user_id` tetap).
 
+## Slice Pembacaan — `name`, `nip`, `company_id` dari employees (SUDAH DIPINDAH lewat accessor)
+
+`User` memuat relasi `employee` otomatis (`protected $with = ['employee']`: satu query per batch, bukan
+per baris, termasuk saat dimuat lewat relasi seperti `$payroll->user`) dan **menimpa pembacaan kolom**
+lewat accessor `getNameAttribute` / `getNipAttribute` / `getCompanyIdAttribute`:
+`$user->name` = `employees.nama_lengkap`, `$user->nip` = `employees.nip`, `$user->company_id` =
+`employees.company_id`, dan jatuh balik ke kolom `users.*` untuk akun tanpa baris employees (dua Super
+Admin) atau salinan yang belum terisi. Fallback itu yang membuat pagar akses `company_id` (±356 titik)
+tidak fail-open untuk akun tanpa employee. Plus `initials()` (inisial avatar) dan `full_name` (alias).
+Dengan begitu semua pembacaan PHP/Blade (±1.000 titik) beralih tanpa edit per file.
+
+**Yang TIDAK beralih (tetap membaca kolom users):** query SQL (`where`/`orderBy`/`pluck`/`select`/join,
+`Auth::attempt`), dirty-tracking Eloquent, dan penulisan. Itu disengaja: login, pencocokan mesin absen,
+import Excel, dan pencarian memakai `users.nip`/`users.name` yang masih disinkron sebagai cermin.
+
+**Aturan:** kode yang butuh nilai SUMBER `users.*` (`EmployeeSyncService`, `identity:verify`) WAJIB memakai
+`rawName()` / `rawNip()` / `rawCompanyId()`, bukan `$user->name`, supaya salinan tidak disalin/dibandingkan
+dari dirinya sendiri. Jangan memanggil `$this->name` di dalam accessor (rekursi).
+
+**Risiko yang diterima:** pembacaan kini bergantung pada salinan. Kalau sinkron gagal (update massal,
+error yang hanya dilog), tampilan menampilkan nilai lama dan **form edit yang mengisi dari `$record->name`
+bisa menulis balik nilai lama ke `users.name`**. `identity:verify` (membandingkan nilai mentah) yang
+menangkapnya - jalankan berkala. Inisial avatar dihitung dari format nama, jadi `nama_lengkap` harus
+berformat sama dengan `users.name`.
+
+**Belum:** ±130 query yang memakai kolom `name`/±110 query dan kunci `nip` bila ingin ditulis ulang agar
+membaca `employees` (tanpa manfaat fungsional selama cermin disinkron), dan membalik arah penulisan
+(edit langsung ke employees lalu dicerminkan ke users).
+
+## Slice Penulisan, Audit, Foto, dan Pencabutan Kolom (rilis transisi)
+
+- **Query:** semua query yang membaca `users.name|nip|company_id` (±250 titik) ditulis ulang ke employees lewat scope
+  `User::whereNip|whereNipLike|whereCompany|searchName|searchNameOrNip|orderByName|orderByNip`. Login NIP lewat
+  `KaryawanAwareUserProvider::retrieveByCredentials` -> `employees.nip`. Dua akun Super Admin juga punya baris
+  employees. Terbukti: 38 file regresi identik dengan baseline `HEAD` di mode transisi dan di skema akhir.
+- **Penulisan:** mutator `name`/`nip`/`company_id` di `User` menahan nilai ke employees (`EmployeeSyncObserver` menyimpannya
+  saat `saved`) dan, selama kolom users ada, juga menulis kolom itu (cermin). Penulis lama tidak diubah.
+  `User::legacyColumns()` mendeteksi skema otomatis (override: env `IDENTITY_LEGACY_USER_COLUMNS`, `config/identity.php`).
+- **Audit:** perubahan nama/NIP/perusahaan dicatat `Employee` dengan kunci `{user_id}:name|nip|company_id` yang sama dengan
+  catatan lama (riwayat Data Diri tetap satu aliran); `User` hanya mengaudit `email` dan `is_active`.
+- **Foto profil:** `users.profile_picture` (atribut akun), `User::profilePhotoPath()` menormalkan bentuk data lama;
+  `employees.profile_picture` dibuang (migration `2026_10_29_100000`). `user_profiles.profile_picture` tetap sebagai sumber
+  lama sampai cleanup.
+- **Pencabutan kolom (BELUM aktif):** `database/migrations-pending/2026_10_28_100000_drop_name_nip_company_id_from_users_table.php`
+  (lihat README di folder itu). Aktifkan sebagai rilis kedua setelah rilis transisi stabil, `identity:backfill` selesai, dan
+  `identity:verify` bersih. `up()` menolak bila data tidak bersih; `down()` memulihkan kolom dari employees (teruji).
+- **Urutan rilis transisi:** backup -> deploy + `migrate` berbarengan (selang antara deploy dan migrate membuat foto tidak tampil)
+  -> `identity:backfill` SEGERA (baris employees dua Super Admin baru dibuat di sini; sebelum itu login NIP mereka gagal, login
+  email tetap jalan) -> `identity:verify` -> `queue:restart`.
+
 ## Slice 0 — Approval Management (SUDAH DIPINDAH, dikerjakan lebih dulu dari Slice A)
 
 Approval hanya membaca **jabatan pengaju/penyetuju** (dan organisasi/departemen turunannya) dari

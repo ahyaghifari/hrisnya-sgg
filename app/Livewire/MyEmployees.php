@@ -53,9 +53,8 @@ class MyEmployees extends Component
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
+                $q->searchNameOrNip($search)
                     ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('nip', 'like', "%{$search}%")
                     ->orWhereHas('profile.jobPosition', fn ($q2) => $q2->where('name', 'like', "%{$search}%"));
             });
         }
@@ -67,7 +66,7 @@ class MyEmployees extends Component
     public function getEmployeesProperty()
     {
         return $this->baseQuery()
-            ->orderBy('name')
+            ->orderByName()
             ->paginate(20)
             ->appends(['search' => $this->search]);
     }

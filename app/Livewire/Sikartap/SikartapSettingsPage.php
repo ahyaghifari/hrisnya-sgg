@@ -246,7 +246,7 @@ class SikartapSettingsPage extends Component
             return collect();
         }
 
-        return User::where('company_id', $this->companyId)->orderBy('name')->get(['id', 'name']);
+        return User::whereCompany($this->companyId)->orderByName()->get();
     }
 
     /**

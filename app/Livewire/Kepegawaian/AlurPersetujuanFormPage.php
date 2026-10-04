@@ -203,7 +203,7 @@ class AlurPersetujuanFormPage extends Component
 
         return match ($approverType) {
             'role' => Role::where('company_id', $companyId)->orderBy('name')->pluck('name', 'id')->all(),
-            'user' => User::where('company_id', $companyId)->orderBy('name')->pluck('name', 'id')->all(),
+            'user' => User::whereCompany($companyId)->orderByName()->get()->pluck('name', 'id')->all(),
             'job_position' => JobPositions::where('company_id', $companyId)->orderBy('name')->pluck('name', 'id')->all(),
             default => [],
         };

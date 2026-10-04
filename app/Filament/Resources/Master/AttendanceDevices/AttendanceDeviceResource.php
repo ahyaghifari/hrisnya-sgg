@@ -55,9 +55,11 @@ class AttendanceDeviceResource extends BaseCompanyResource
                     ->default(true),
 
                 Select::make('users')
-                    ->relationship('users', 'name')
-                    ->multiple()
+                    ->relationship('users', 'name', modifyQueryUsing: fn ($query) => $query->orderByName())
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->name)
                     ->searchable()
+                    ->getSearchResultsUsing(fn (string $search) => \App\Models\User::searchName($search)->orderByName()->limit(50)->get()->pluck('name', 'id')->all())
+                    ->multiple()
                     ->preload()
                     ->label('User Tambahan (Beda Company)')
                     ->helperText('Buat user company holding yang ditempatkan di unit usaha ini - device tetap dikenali untuk mereka walau company_id user beda dari company device di atas.')

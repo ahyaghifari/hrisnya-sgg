@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ContractSubmissions;
 
+use App\Filament\Resources\UserColumn;
 use App\Filament\Resources\BaseCompanyResource;
 use App\Filament\Resources\ContractSubmissions\Pages\ManageContractSubmissions;
 use App\Models\ContractSubmission;
@@ -45,8 +46,8 @@ class ContractSubmissionResource extends BaseCompanyResource
     {
         return $table
             ->columns([
-                TextColumn::make('user.name')->label('Karyawan')->searchable()->sortable(),
-                TextColumn::make('user.nip')->label('NIP')->searchable(),
+                TextColumn::make('user.name')->label('Karyawan')->searchable(query: UserColumn::searchName())->sortable(query: UserColumn::sortName()),
+                TextColumn::make('user.nip')->label('NIP')->searchable(query: UserColumn::searchNip()),
                 TextColumn::make('userContract')
                     ->label('Kontrak Berjalan')
                     ->state(fn ($record) => $record->userContract

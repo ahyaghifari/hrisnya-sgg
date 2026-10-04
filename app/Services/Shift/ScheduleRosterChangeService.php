@@ -242,7 +242,7 @@ class ScheduleRosterChangeService
             return;
         }
 
-        $nipByUserId = User::whereIn('id', $userIdsByDate->flatten()->unique())->pluck('nip', 'id');
+        $nipByUserId = User::whereIn('id', $userIdsByDate->flatten()->unique())->get()->pluck('nip', 'id');
 
         foreach ($userIdsByDate as $date => $userIds) {
             foreach ($userIds as $userId) {

@@ -34,14 +34,14 @@ class CreateBeritaAcaraPage extends Component
 
         $this->companyId = $user->company_id;
 
-        if ($prefill = User::where('company_id', $user->company_id)->find(request()->query('user_id'))) {
+        if ($prefill = User::whereCompany($user->company_id)->find(request()->query('user_id'))) {
             $this->user_id = $prefill->id;
         }
     }
 
     public function getEmployeeOptionsProperty()
     {
-        return User::where('company_id', $this->companyId)->orderBy('name')->pluck('name', 'id');
+        return User::whereCompany($this->companyId)->orderByName()->get()->pluck('name', 'id');
     }
 
     public function getCompanyNameProperty(): ?string
@@ -78,7 +78,7 @@ class CreateBeritaAcaraPage extends Component
 
         // Karyawan & mengetahui harus satu company dengan HC - cegah id company lain lewat wire:model manual.
         abort_unless(
-            User::where('company_id', $this->companyId)->whereIn('id', [$data['user_id'], $data['knows_by']])->count() === count(array_unique([$data['user_id'], $data['knows_by']])),
+            User::whereCompany($this->companyId)->whereIn('id', [$data['user_id'], $data['knows_by']])->count() === count(array_unique([$data['user_id'], $data['knows_by']])),
             403
         );
 

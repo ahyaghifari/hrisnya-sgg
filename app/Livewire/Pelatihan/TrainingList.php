@@ -47,7 +47,7 @@ class TrainingList extends Component
             ->get()
             ->map(function ($courseUser) {
                 $user = $courseUser->user;
-                $picture = $user?->profile?->profile_picture[0] ?? null;
+                $picture = $user?->profilePhotoPath();
 
                 return $picture
                     ? Storage::disk('public')->url($picture)

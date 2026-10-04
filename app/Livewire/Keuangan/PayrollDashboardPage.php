@@ -181,7 +181,7 @@ class PayrollDashboardPage extends Component
     protected function scopedIncentives()
     {
         return Incentive::query()
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)))
+            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($this->companyId)))
             ->where('is_active', true);
     }
 
@@ -205,7 +205,7 @@ class PayrollDashboardPage extends Component
     protected function scopedKoperasi()
     {
         return UserKoperasi::query()
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('company_id', $this->companyId)))
+            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($this->companyId)))
             ->where('is_active', true);
     }
 

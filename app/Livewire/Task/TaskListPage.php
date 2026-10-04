@@ -145,7 +145,7 @@ class TaskListPage extends Component
             return collect();
         }
 
-        return app(OrgHierarchyService::class)->subordinates(Auth::user())->get(['id', 'name']);
+        return app(OrgHierarchyService::class)->subordinates(Auth::user())->get();
     }
 
     public function getMyProjectsProperty()
@@ -189,10 +189,10 @@ class TaskListPage extends Component
         $existingIds = $this->activeProject ? $this->projectMembers->pluck('user_id') : collect();
 
         return User::query()
-            ->where('company_id', $this->memberCompanyId ?: Auth::user()->company_id)
+            ->whereCompany($this->memberCompanyId ?: Auth::user()->company_id)
             ->whereNotIn('id', $existingIds)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+            ->orderByName()
+            ->get();
     }
 
     /** Perusahaan untuk pilihan sumber calon anggota (default perusahaan sendiri, sisanya opsi tambahan). */

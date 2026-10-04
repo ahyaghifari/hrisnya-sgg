@@ -123,7 +123,7 @@ class CourseService
     {
         $recipients = User::query()
             ->where('is_active', true)
-            ->when($course->company_id, fn ($query) => $query->where('company_id', $course->company_id))
+            ->when($course->company_id, fn ($query) => $query->whereCompany($course->company_id))
             ->get();
 
         Notification::send($recipients, new CoursePublished($course));

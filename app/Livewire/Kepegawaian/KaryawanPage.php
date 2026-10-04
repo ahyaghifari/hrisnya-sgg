@@ -129,9 +129,9 @@ class KaryawanPage extends Component
         };
 
         if ($this->companyId) {
-            $query->where('company_id', $this->companyId);
+            $query->whereCompany($this->companyId);
         } elseif (! Auth::user()->canFilterByCompanyForSystem(CustomPermissionEnum::SISTEM_KEPEGAWAIAN)) {
-            $query->where('company_id', Auth::user()->company_id);
+            $query->whereCompany(Auth::user()->company_id);
         }
 
         if ($this->departmentId) {
@@ -164,9 +164,8 @@ class KaryawanPage extends Component
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
+                $q->searchNameOrNip($search)
                     ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('nip', 'like', "%{$search}%")
                     ->orWhereHas('profile.jobPosition', fn ($q2) => $q2->where('name', 'like', "%{$search}%"));
             });
         }
@@ -176,7 +175,7 @@ class KaryawanPage extends Component
 
     public function getEmployeesProperty()
     {
-        return $this->baseQuery()->orderBy('name')->paginate(10)->appends([
+        return $this->baseQuery()->orderByName()->paginate(10)->appends([
             'companyId' => $this->companyId,
             'departmentId' => $this->departmentId,
             'divisionId' => $this->divisionId,

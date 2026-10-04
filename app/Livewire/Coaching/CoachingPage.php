@@ -124,7 +124,7 @@ class CoachingPage extends Component
                     ->orWhere('coach_by', $user->id));
             })
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$search}%")))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->searchName($search)))
             ->with(['user', 'coachBy']);
     }
 

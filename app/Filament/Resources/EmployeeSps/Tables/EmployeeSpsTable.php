@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\EmployeeSps\Tables;
 
+use App\Filament\Resources\UserColumn;
 use App\Enum\Sp\SpLevel;
 use App\Enum\Sp\SpSourceType;
 use App\Models\Sp\EmployeeSp;
@@ -24,8 +25,8 @@ class EmployeeSpsTable
             ->columns([
                 TextColumn::make('user.name')
                     ->label('Karyawan')
-                    ->sortable()
-                    ->searchable(),
+                    ->sortable(query: UserColumn::sortName())
+                    ->searchable(query: UserColumn::searchName()),
 
                 TextColumn::make('nomor')
                     ->label('Nomor')

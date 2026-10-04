@@ -47,7 +47,7 @@ class AttendanceTrendWidget extends Component
     {
         $jobPositionIds = $this->scopedJobPositionIds();
 
-        $userQuery = User::query()->where('company_id', $this->companyId);
+        $userQuery = User::query()->whereCompany($this->companyId);
         if ($jobPositionIds !== null) {
             $userQuery->whereHas('profile', fn ($q) => $q->whereIn('job_position_id', $jobPositionIds));
         }
