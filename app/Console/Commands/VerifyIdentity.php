@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Employee\Employee;
-use App\Models\Person\Person;
 use App\Models\User;
 use App\Models\User\UserJobPositions;
 use App\Models\User\UserProfileDocument;
@@ -15,20 +14,20 @@ use Illuminate\Console\Command;
 /**
  * Parity check (roadmap_migrasi_bertahap_identity_hris.md bagian 7): membandingkan data lama
  * (users, user_profiles, user_job_positions, user_profile_documents) dengan salinannya
- * (persons*, employees, employee_careers, person_documents) untuk SEMUA user. HANYA MEMBACA -
+ * (employees, employee_identities/addresses/documents, employee_careers) untuk SEMUA user. HANYA MEMBACA -
  * tidak menulis apa pun. Sebuah fitur baru boleh dipindah ke tabel baru kalau dimensi yang
  * dibacanya nol selisih. Keluaran cuma jumlah & NIP (tanpa nilai data sensitif); exit code 1
  * kalau ada selisih.
  *
  * Selisih biasanya berarti: update/hapus massal yang tidak memicu observer, sinkron yang gagal
  * (cek log), atau dua sumber jabatan (profil vs riwayat) yang memang berbeda di data lama.
- * Perbaiki sinkron dengan identity:backfill & identity:backfill-employees.
+ * Perbaiki sinkron dengan identity:backfill.
  */
 class VerifyIdentity extends Command
 {
     protected $signature = 'identity:verify {--user= : Batasi ke satu NIP} {--limit=15 : Jumlah NIP contoh per dimensi}';
 
-    protected $description = 'Bandingkan data lama dengan salinan persons/employees (hanya membaca)';
+    protected $description = 'Bandingkan data lama dengan salinan employees (hanya membaca)';
 
     /** @var array<string, array{checked: int, bad: array<int, string>}> */
     private array $stats = [];
@@ -44,8 +43,7 @@ class VerifyIdentity extends Command
 
                 $maps = [
                     'profiles' => UserProfiles::whereIn('user_id', $ids)->get()->keyBy('user_id'),
-                    'persons' => Person::with(['identity', 'addresses', 'documents'])->whereIn('user_id', $ids)->get()->keyBy('user_id'),
-                    'employees' => Employee::with('careers')->whereIn('user_id', $ids)->get()->keyBy('user_id'),
+                    'employees' => Employee::with(['careers', 'identity', 'addresses', 'documents'])->whereIn('user_id', $ids)->get()->keyBy('user_id'),
                     'ledger' => UserJobPositions::whereIn('user_id', $ids)->get()->groupBy('user_id'),
                     'docs' => UserProfileDocument::whereIn('user_id', $ids)->get()->groupBy('user_id'),
                 ];
@@ -61,47 +59,9 @@ class VerifyIdentity extends Command
     private function verifyUser(User $user, array $maps, bool $skipEmployee): void
     {
         $profile = $maps['profiles'][$user->id] ?? null;
-        $person = $maps['persons'][$user->id] ?? null;
         $employee = $maps['employees'][$user->id] ?? null;
         $ledger = $maps['ledger'][$user->id] ?? collect();
         $docs = $maps['docs'][$user->id] ?? collect();
-
-        $this->check('persons: baris ada', $user, $person !== null);
-
-        if ($person) {
-            $this->check('users: person_id menunjuk person miliknya', $user, $user->person_id === $person->id);
-
-            $this->check('persons: data pribadi', $user, $this->same($person, [
-                'nama_lengkap' => $user->name,
-                'nickname' => $profile?->nickname,
-                'gender' => $profile?->gender,
-                'marital_status' => $profile?->marital_status,
-                'place_of_birth' => $profile?->place_of_birth,
-                'date_of_birth' => $profile?->date_of_birth,
-                'religion_id' => $profile?->religion_id,
-                'phone' => $profile?->phone,
-                'whatsapp' => $profile?->whatsapp,
-                'email_pribadi' => $profile?->email_pribadi,
-            ]));
-
-            if ($profile) {
-                $this->check('persons: identitas & rekening', $user, $person->identity !== null && $this->same($person->identity, $profile->only([
-                    'no_nik', 'no_kk', 'npwp', 'no_bpjs_kes', 'no_bpjs_ket',
-                    'bank_name', 'bank_account_number', 'bank_account_name',
-                ])));
-
-                $address = $person->addresses->firstWhere('type', 'utama');
-                $this->check('persons: alamat', $user, $address !== null && $this->same($address, $profile->only([
-                    'country', 'province', 'city', 'district', 'village', 'address', 'postal_code', 'rt', 'rw',
-                ])));
-            }
-
-            $this->check(
-                'persons: lampiran',
-                $user,
-                $docs->pluck('label')->sort()->values()->all() === $person->documents->pluck('type')->sort()->values()->all(),
-            );
-        }
 
         if ($skipEmployee) {
             $this->check('employees: akun non-karyawan tidak punya employee', $user, $employee === null);
@@ -114,6 +74,37 @@ class VerifyIdentity extends Command
         if (! $employee) {
             return;
         }
+
+        $this->check('employees: data pribadi', $user, $this->same($employee, [
+            'nama_lengkap' => $user->name,
+            'nickname' => $profile?->nickname,
+            'gender' => $profile?->gender,
+            'marital_status' => $profile?->marital_status,
+            'place_of_birth' => $profile?->place_of_birth,
+            'date_of_birth' => $profile?->date_of_birth,
+            'religion_id' => $profile?->religion_id,
+            'phone' => $profile?->phone,
+            'whatsapp' => $profile?->whatsapp,
+            'email_pribadi' => $profile?->email_pribadi,
+        ]));
+
+        if ($profile) {
+            $this->check('employees: identitas & rekening', $user, $employee->identity !== null && $this->same($employee->identity, $profile->only([
+                'no_nik', 'no_kk', 'npwp', 'no_bpjs_kes', 'no_bpjs_ket',
+                'bank_name', 'bank_account_number', 'bank_account_name',
+            ])));
+
+            $address = $employee->addresses->firstWhere('type', 'utama');
+            $this->check('employees: alamat', $user, $address !== null && $this->same($address, $profile->only([
+                'country', 'province', 'city', 'district', 'village', 'address', 'postal_code', 'rt', 'rw',
+            ])));
+        }
+
+        $this->check(
+            'employees: lampiran',
+            $user,
+            $docs->pluck('label')->sort()->values()->all() === $employee->documents->pluck('type')->sort()->values()->all(),
+        );
 
         $this->check('employees: data kepegawaian', $user, $this->same($employee, [
             'nip' => $user->nip,

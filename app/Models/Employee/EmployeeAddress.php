@@ -1,20 +1,20 @@
 <?php
 
-namespace App\Models\Person;
+namespace App\Models\Employee;
 
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Alamat orang (1:N per `type`). Salinan dari user_profiles (lihat PersonSyncService). */
-class PersonAddress extends Model
+/** Alamat karyawan (1:N per `type`). Salinan dari user_profiles (lihat EmployeeSyncService). */
+class EmployeeAddress extends Model
 {
     use HasUlids;
 
-    protected $table = 'person_addresses';
+    protected $table = 'employee_addresses';
 
     protected $fillable = [
-        'person_id',
+        'employee_id',
         'type',
         'is_primary',
         'country',
@@ -32,8 +32,8 @@ class PersonAddress extends Model
         'is_primary' => 'boolean',
     ];
 
-    public function person(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(Person::class, 'person_id');
+        return $this->belongsTo(Employee::class, 'employee_id');
     }
 }

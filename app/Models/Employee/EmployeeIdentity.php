@@ -1,20 +1,20 @@
 <?php
 
-namespace App\Models\Person;
+namespace App\Models\Employee;
 
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** NIK/KK/NPWP/BPJS + rekening bank. Salinan dari user_profiles (lihat PersonSyncService). */
-class PersonIdentity extends Model
+/** NIK/KK/NPWP/BPJS + rekening bank. Salinan dari user_profiles (lihat EmployeeSyncService). */
+class EmployeeIdentity extends Model
 {
     use HasUlids;
 
-    protected $table = 'person_identities';
+    protected $table = 'employee_identities';
 
     protected $fillable = [
-        'person_id',
+        'employee_id',
         'no_nik',
         'no_kk',
         'npwp',
@@ -25,8 +25,8 @@ class PersonIdentity extends Model
         'bank_account_name',
     ];
 
-    public function person(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(Person::class, 'person_id');
+        return $this->belongsTo(Employee::class, 'employee_id');
     }
 }
