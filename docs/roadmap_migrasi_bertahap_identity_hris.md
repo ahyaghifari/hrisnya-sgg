@@ -141,6 +141,14 @@ person_addresses   (1:N, unique per person_id + type)
 dipanggil oleh `PersonSyncObserver` (`#[ObservedBy]` di `User` dan `UserProfiles`) tiap model
 disimpan, dan oleh `php artisan identity:backfill [--dry-run] [--user=NIP]`.
 
+- **`users.person_id` (SUDAH DIBANGUN)**: tautan akun → orang, nullable & unique, migration
+  `2026_10_26_130000_add_person_id_to_users_table.php`. Diisi `PersonSyncService` lewat query
+  langsung (bukan `$user->save()`, supaya tidak memicu observer lagi) dan oleh
+  `identity:backfill`; dicek `identity:verify`. Relasi `User::person()` dan `User::employee()`
+  sudah ada tapi belum dipakai fitur apa pun. `persons.user_id` tetap sebagai jembatan sampai
+  cleanup. **`users.nip` dan `users.name` belum dicabut** - itu baru setelah pembacanya (±342
+  pemakaian `nip`, ±1.100 `name`, login, join `access_logs`) dipindah; sesi/token tidak
+  terpengaruh karena berkunci `users.id`, tapi pembacaan langsung kolom itu akan error.
 - Kegagalan salin hanya dilaporkan ke log; menyimpan profil tidak ikut gagal.
 - **Celah:** update massal tidak memicu event model (`$user->profile()->update()` lewat
   relasi, `UserProfiles::where()->update()`). `UserRepository::updateProfileUser` sudah

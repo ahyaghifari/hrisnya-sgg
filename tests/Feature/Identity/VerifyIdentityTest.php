@@ -52,6 +52,18 @@ class VerifyIdentityTest extends TestCase
             ->assertFailed();
     }
 
+    public function test_reports_user_whose_person_id_link_is_missing(): void
+    {
+        $this->karyawan('V001');
+        $unlinked = $this->karyawan('V002');
+
+        DB::table('users')->where('id', $unlinked->id)->update(['person_id' => null]);
+
+        $this->artisan('identity:verify')
+            ->expectsOutputToContain('users: person_id menunjuk person miliknya: V002')
+            ->assertFailed();
+    }
+
     public function test_reports_missing_person_and_conflicting_job_sources(): void
     {
         $missing = $this->karyawan('V001');
