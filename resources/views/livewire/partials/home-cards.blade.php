@@ -113,11 +113,11 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 12px; font-weight: 600; }
         .wc-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (max-width: 639px) {
-            /* Mobile: avatar kecil di kiri, teks di kanan (foto profil hanya tampil di sini; diedit di halaman Profil Saya). */
-            .wc-hero { column-gap: 12px; row-gap: 20px; }
+            /* Mobile: sapaan baris sendiri paling atas; di bawahnya nama + chip di kiri, avatar kecil di kanan (foto profil hanya tampil di sini; diedit di halaman Profil Saya). */
+            .wc-hero { width: 100%; grid-template-columns: minmax(0, 1fr) auto; column-gap: 14px; row-gap: 6px; }
             .wc-hero .welcome-greeting { grid-column: 1 / -1; grid-row: 1; margin-bottom: 0; }
-            .wc-hero .wc-avatar { grid-row: 2; align-self: center; }
-            .wc-hero .wc-text { grid-column: 2; grid-row: 2; align-self: center; }
+            .wc-hero .wc-text { grid-column: 1; grid-row: 2; align-self: center; }
+            .wc-hero .wc-avatar { grid-column: 2; grid-row: 2; align-self: center; margin: 0; }
             /* Halo berdenyut, spread kecil supaya muat di padding kartu (22px) dan tidak terlalu menimpa teks di kanan. */
             .wc-avatar::before { box-shadow: 0 0 0 5px rgba(255,255,255,.10), 0 0 0 11px rgba(255,255,255,.055), 0 0 0 18px rgba(255,255,255,.03); animation: wc-pulse 3.2s ease-in-out infinite; }
             @keyframes wc-pulse {
@@ -127,7 +127,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             @media (prefers-reduced-motion: reduce) { .wc-avatar::before { animation: none; } }
             .wc-face { width: 58px; height: 58px; }
             .wc-face-initials { font-size: 17px; }
-            .wc-chips { margin-top: 7px; gap: 5px; flex-wrap: nowrap; }
+            .wc-chips { margin-top: 12px; gap: 5px; flex-wrap: nowrap; }
             .wc-chip { min-width: 0; }
             .wc-chips .wc-chip:first-child { flex-shrink: 0; }
             .welcome-name.wc-big { font-size: 16px; }
