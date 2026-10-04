@@ -143,7 +143,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
         }
         /* Tombol edit kecil (absolute, pojok kanan atas kartu) + dropdown. Panel buka ke KIRI tombol, bukan ke bawah: kartu overflow:hidden, ke bawah bisa terpotong di desktop yang rendah. */
         .wc-menu { position: absolute; top: 12px; right: 12px; z-index: 5; }
-        .wc-menu-btn { width: 28px; height: 28px; border-radius: 50%; border: 0; background: none; color: #fff; opacity: .35; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .wc-menu-btn { width: 28px; height: 28px; border-radius: 50%; border: 0; background: none; color: #fff; opacity: .2; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .wc-menu-btn:hover, .wc-menu-btn[aria-expanded="true"] { opacity: 1; }
         .wc-menu-panel { position: absolute; top: 0; right: 36px; width: 206px; padding: 6px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 10px 28px rgba(0,0,0,.28); }
         .wc-menu-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--text-heading); font-size: 12.5px; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer; }
