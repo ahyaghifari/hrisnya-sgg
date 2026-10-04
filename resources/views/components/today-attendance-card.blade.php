@@ -207,6 +207,26 @@
                                 @endif
                             </div>
                         </div>
+                        @if ($w['target_label'])
+                            <div style="display:flex;gap:12px;align-items:flex-start;">
+                                <div class="pwa-tile-icon navy" style="flex-shrink:0;"><i class="fa-solid fa-bullseye"></i></div>
+                                <div>
+                                    <p style="font-size:11px;color:var(--text-muted);margin:0;">Target jam kerja</p>
+                                    <p style="font-size:14.5px;font-weight:700;color:var(--text-heading);margin:2px 0 0;">{{ $w['target_label'] }}</p>
+                                    <p style="font-size:11.5px;color:var(--text-muted);margin:1px 0 0;">Kelebihan dari target dihitung lembur</p>
+                                </div>
+                            </div>
+                        @endif
+                        @if ($w['min_label'])
+                            <div style="display:flex;gap:12px;align-items:flex-start;">
+                                <div class="pwa-tile-icon gold" style="flex-shrink:0;"><i class="fa-solid fa-arrow-right-from-bracket"></i></div>
+                                <div>
+                                    <p style="font-size:11px;color:var(--text-muted);margin:0;">Boleh pulang duluan sejak</p>
+                                    <p style="font-size:14.5px;font-weight:700;color:var(--text-heading);margin:2px 0 0;">Setelah kerja {{ $w['min_label'] }}</p>
+                                    <p style="font-size:11.5px;color:var(--text-muted);margin:1px 0 0;">Scan pulang sebelum itu ditolak; di antara ini dan target tetap tersimpan</p>
+                                </div>
+                            </div>
+                        @endif
                     @endif
                 </div>
             </div>

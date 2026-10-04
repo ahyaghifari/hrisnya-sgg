@@ -36,7 +36,7 @@ trait ResolvesTodayAttendanceStatus
      *     late_minutes_label: ?string,
      *     flexible_min_work_label: ?string,
      *     flexible_target_checkout: ?string,
-     *     attendance_window: ?array{type: string, from: string, until: string, start_time?: string, end_time?: string, checkin_buffer_minutes?: int, checkout_buffer_minutes?: int, late_tolerance_minutes?: int, late_threshold?: string, late_checkin_deadline?: ?string},
+     *     attendance_window: ?array{type: string, from: string, until: string, start_time?: string, end_time?: string, checkin_buffer_minutes?: int, checkout_buffer_minutes?: int, late_tolerance_minutes?: int, late_threshold?: string, late_checkin_deadline?: ?string, target_label?: ?string, min_label?: ?string},
      * }
      */
     protected function todayAttendanceStatus(User $user, ?AttendanceRecords $attendance = null): array
@@ -372,6 +372,10 @@ trait ResolvesTodayAttendanceStatus
                 'from'                   => substr($schedule->flexible_checkin_from, 0, 5),
                 'until'                  => substr($schedule->flexible_checkin_until, 0, 5),
                 'late_checkin_deadline'  => $config->late_checkin_deadline ? substr($config->late_checkin_deadline, 0, 5) : null,
+                // Label siap tampil (null = tidak diatur): target = max_work_minutes (kelebihannya
+                // lembur), min = durasi paling pendek yang boleh pulang duluan.
+                'target_label'           => ($t = $this->flexibleTargetMinutes($config)) > 0 ? $this->formatMinutesAsHours($t) : null,
+                'min_label'              => (int) $config->min_work_minutes > 0 ? $this->formatMinutesAsHours((int) $config->min_work_minutes) : null,
             ];
         }
 

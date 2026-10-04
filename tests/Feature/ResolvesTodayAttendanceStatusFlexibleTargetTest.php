@@ -73,5 +73,9 @@ class ResolvesTodayAttendanceStatusFlexibleTargetTest extends TestCase
 
         // 08:00 + 480 menit (8 jam) + 60 menit istirahat = 17:00, BUKAN 16:00.
         $this->assertSame('17:00', $status['flexible_target_checkout']);
+
+        // Modal Jendela Presensi: target dari max (8 jam), batas pulang duluan dari min (5 jam).
+        $this->assertSame('8 jam', $status['attendance_window']['target_label']);
+        $this->assertSame('5 jam', $status['attendance_window']['min_label']);
     }
 }
