@@ -125,8 +125,8 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             /* NIP · jabatan = teks polos sebaris dipisah middle dot (bukan chip). Desktop tetap chip. */
             .wc-chips { flex-wrap: wrap; align-items: center; gap: 2px 6px; }
             .wc-chip { background: none; border: 0; padding: 0; font-size: 10px; font-weight: 500; color: rgba(255,255,255,.8); max-width: 100%; }
-            .wc-chip i { display: none; }
-            .wc-chips .wc-chip:first-child span::before { content: "NIP "; }
+            .wc-chip { gap: 4px; }
+            .wc-chip i { font-size: 9px; opacity: .75; }
             .wc-chips .wc-chip + .wc-chip::before { content: "\00b7"; margin-right: 2px; font-weight: 800; }
         }
     </style>
