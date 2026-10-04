@@ -113,6 +113,18 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(UserProfiles::class, 'user_id', 'id');
     }
 
+    /** Orang pemilik akun ini (users.person_id, diisi PersonSyncService). Belum dipakai fitur apa pun. */
+    public function person()
+    {
+        return $this->belongsTo(\App\Models\Person\Person::class, 'person_id');
+    }
+
+    /** Data karyawan (kosong untuk akun yang bukan karyawan, mis. dokter non-karyawan). */
+    public function employee()
+    {
+        return $this->hasOne(\App\Models\Employee\Employee::class, 'user_id');
+    }
+
     /** Kunci urut roster jadwal shift: tanggal bergabung terlama dulu (yang belum diisi di paling
      * bawah), lalu nama tanpa peduli huruf besar/kecil sebagai pembeda (2026-09-21). Eager load
      * `profile` dulu supaya tidak N+1. */

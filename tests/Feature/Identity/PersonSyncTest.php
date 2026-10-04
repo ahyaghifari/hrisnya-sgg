@@ -8,6 +8,7 @@ use App\Models\User\UserProfileDocument;
 use App\Models\User\UserProfiles;
 use App\Services\User\UserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -99,6 +100,24 @@ class PersonSyncTest extends TestCase
 
         $ktp->delete();
         $this->assertSame(['STR'], $person->documents()->pluck('type')->all());
+    }
+
+    public function test_users_person_id_is_linked_by_sync_and_restored_by_backfill(): void
+    {
+        $user = User::factory()->create();
+        $person = Person::where('user_id', $user->id)->firstOrFail();
+
+        $this->assertSame($person->id, $user->fresh()->person_id);
+        $this->assertSame($person->id, $user->fresh()->person->id);
+
+        // Simulasi data lama sebelum kolom ada / tertinggal: dikosongkan, backfill mengisi lagi.
+        DB::table('users')->where('id', $user->id)->update(['person_id' => null]);
+        $this->assertNull($user->fresh()->person_id);
+
+        $this->artisan('identity:backfill')->assertSuccessful();
+
+        $this->assertSame($person->id, $user->fresh()->person_id);
+        $this->assertSame(1, Person::where('user_id', $user->id)->count());
     }
 
     public function test_backfill_is_idempotent_and_dry_run_writes_nothing(): void

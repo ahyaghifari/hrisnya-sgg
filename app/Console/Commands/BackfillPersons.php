@@ -32,6 +32,9 @@ class BackfillPersons extends Command
 
         $this->info(($dry ? '[DRY-RUN] ' : '') . "users: {$total}, sudah punya person: {$existing}, akan dibuat: " . ($total - $existing));
 
+        $linked = (clone $users)->whereNotNull('person_id')->count();
+        $this->line("users.person_id terisi: {$linked} dari {$total}");
+
         $this->reportConflicts();
 
         if ($dry) {

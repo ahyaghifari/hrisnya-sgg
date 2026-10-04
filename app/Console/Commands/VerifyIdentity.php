@@ -69,6 +69,8 @@ class VerifyIdentity extends Command
         $this->check('persons: baris ada', $user, $person !== null);
 
         if ($person) {
+            $this->check('users: person_id menunjuk person miliknya', $user, $user->person_id === $person->id);
+
             $this->check('persons: data pribadi', $user, $this->same($person, [
                 'nama_lengkap' => $user->name,
                 'nickname' => $profile?->nickname,

@@ -56,6 +56,12 @@ class PersonSyncService
                 'email_pribadi' => $profile?->email_pribadi,
             ]);
 
+            // Tautan akun -> orang. Query langsung (bukan $user->save()) supaya tidak memicu
+            // observer lagi dan tidak membuat putaran; hanya menulis kalau memang berbeda.
+            DB::table('users')->where('id', $user->id)
+                ->where(fn ($q) => $q->whereNull('person_id')->orWhere('person_id', '!=', $person->id))
+                ->update(['person_id' => $person->id]);
+
             // Lampiran tidak bergantung pada profil (upload tidak mensyaratkannya).
             $this->syncDocuments($person);
 
