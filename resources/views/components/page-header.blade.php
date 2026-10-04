@@ -2,7 +2,9 @@
 
 <div class="mb-6 flex items-center justify-between flex-wrap gap-2">
     <div>
-        <p class="text-xs text-slate-500 mb-1">{{ now()->translatedFormat('l, d F Y') }} · <span id="live-clock"></span></p>
+        {{-- Tanggal + jam live disembunyikan sementara (instruksi user 2026-10-05); tick di layout.blade.php
+        aman karena cek elemen #live-clock null. Kembalikan baris ini untuk mengaktifkan lagi:
+        <p class="text-xs text-slate-500 mb-1">{{ now()->translatedFormat('l, d F Y') }} · <span id="live-clock"></span></p> --}}
         {{-- Judul disembunyikan di mobile: sudah tampil di pwa-app-bar-title, dobel kalau ditulis lagi di sini. --}}
         <h1 class="hidden md:block lg:text-2xl xl:3-xl font-extrabold text-slate-900 tracking-tight">{{ $title }}</h1>
         @if ($subtitle)
