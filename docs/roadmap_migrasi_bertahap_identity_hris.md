@@ -25,6 +25,53 @@ Yang **tidak** dilakukan dokumen ini: mengubah, merename, atau menghapus tabel l
 
 ---
 
+# 0. Status Terkini (diperbarui 5 Oktober 2026)
+
+Bagian ini ringkasan posisi pekerjaan. Rinciannya ada di bagian bernomor di bawah; bagian yang masih
+menyebut `persons`/`person_*` adalah catatan sejarah sebelum peleburan.
+
+| Pekerjaan | Status |
+|---|---|
+| Tabel `employees` + `employee_identities/addresses/documents/careers` sebagai salinan | ✅ selesai (bagian 3) |
+| `identity:backfill` + observer sinkron satu arah (users/user_profiles/jabatan/lampiran → employees) | ✅ selesai (bagian 3, 6) |
+| `identity:verify` (parity check) | ✅ selesai (bagian 7) |
+| Peleburan `persons` ke `employees`, `users.person_id` dibuang | ✅ selesai (migration `2026_10_27_100000`) |
+| Approval membaca jabatan dari employees (`EmployeeContext`) | ✅ selesai (Slice 0, bagian 8) |
+| Pembacaan `name`/`nip`/`company_id` dari employees (accessor di `User`) | ✅ selesai (bagian 8) |
+| Query ke scope employees, penulisan lewat mutator, audit pindah ke `Employee`, foto pindah ke `users.profile_picture` | ✅ di kode (rilis transisi, commit `6919baa2`); **status deploy/migrate di produksi belum tercatat di sini, isi saat dikonfirmasi** |
+| Pencabutan kolom `users.name/nip/company_id` | ⏸ disiapkan di `database/migrations-pending/`, **belum aktif** (rilis kedua, bagian 8) |
+| `identity:purge-users` (hapus permanen akun demo + salinannya) | ✅ selesai, sudah dipakai untuk akun demo (bagian 5b) |
+| Fase 0 (audit data: NIK kosong/ganda, selisih jabatan, jabatan aktif ganda) | ❓ hasilnya belum tercatat; **wajib sebelum Slice C dan unique NIK** |
+| Slice A (izin/cuti/lembur), B (jadwal/absensi), C (layar edit dibalik), D (payroll) | ⏳ belum dimulai |
+| `employee_identities.no_nik` unique | ⏳ menunggu data bersih |
+| Dokter (`doctors`) | ⏳ belum |
+| SSO/Keycloak | ⏸ ditahan (bagian 12) |
+
+**Yang berubah sejak revisi dokumen sebelumnya:**
+
+- Dua akun Super Admin kini juga punya baris `employees` (dulu dikecualikan), supaya kolom `users.name/nip/company_id`
+  bisa dicabut. Login NIP mereka baru bekerja setelah `identity:backfill` (login email tidak terpengaruh).
+- `employees.profile_picture` dibuang; foto adalah atribut akun di `users.profile_picture` (bagian 8).
+- Pekerjaan UI Beranda (5 Oktober) mulai memakai data ini, tanpa mengubah alur identitas:
+  - Welcome card membaca foto dari `User::profilePhotoPath()` dan nama panggilan dari `user_profiles.nickname`
+    (dipakai kalau 3 sampai 15 huruf, selain itu nama lengkap).
+  - Modal "Nama panggilan" (`Dashboard::saveNickname`, 3 sampai 12 huruf) **menulis `user_profiles.nickname` lewat
+    model**, jadi observer memicu sinkron ke `employees.nickname`. Ini jalur tulis nickname kedua selain form Data Diri;
+    tetap sumbernya `user_profiles` (edit ganda belum dibalik). Test: `DashboardNicknameTest`.
+  - Pilihan mode nama (lengkap/panggilan) hanya disimpan di `localStorage` browser, bukan database.
+  - Edit foto dari Beranda sempat dibuat lalu **dicabut**; foto hanya diubah dari Profil Saya
+    (`HandlesProfilePhotoUpload`, `abort_unless` pemilik akun).
+  - Kolom baru `m_companies.logo` (logo perusahaan di welcome card) tidak terkait identitas karyawan.
+
+**Langkah berikutnya, berurutan:**
+
+1. Konfirmasi rilis transisi sudah ter-deploy: `migrate`, `identity:backfill`, `identity:verify` bersih, `queue:restart`.
+2. Selesaikan Fase 0 (bagian 5) dan putuskan data yang bertentangan bersama HC; baru pasang unique NIK.
+3. Rilis kedua: aktifkan pencabutan kolom `users.name/nip/company_id` setelah rilis transisi stabil beberapa hari.
+4. Slice A, lalu B (bagian 8), satu rilis per slice. Slice C dan D menyusul sesuai bagian 8.
+
+---
+
 # 1. Hasil Audit Singkat (Dasar Keputusan)
 
 ## Ukuran sistem
@@ -126,8 +173,9 @@ seperti biasa (edit ganda dihindari dengan observer, bukan dengan mengubah halam
 ```text
 employees   (kolom data pribadi, di samping kolom kepegawaian di bagian berikut)
   nama_lengkap (= users.name), nickname, gender, marital_status, place_of_birth, date_of_birth,
-  religion_id, profile_picture (json), phone, whatsapp, email_pribadi
+  religion_id, phone, whatsapp, email_pribadi
   ← kontak dilipat dulu (1:1); jadi tabel sendiri kalau butuh 1:N (kontak darurat)
+  ← foto profil TIDAK di sini: atribut akun di users.profile_picture (bagian 8)
 
 employee_identities  (1:1 dengan employees)
   no_nik, no_kk, npwp, no_bpjs_kes, no_bpjs_ket          ← NIK BELUM unique (bagian 5)
@@ -152,8 +200,8 @@ dipanggil oleh `EmployeeSyncObserver` (`#[ObservedBy]` di `User`, `UserProfiles`
 `php artisan identity:backfill [--dry-run] [--user=NIP]` (nama lama `identity:backfill-employees`
 tetap jalan sebagai alias). Dicek `identity:verify`.
 
-- **`users.nip`, `users.name`, `users.company_id` belum dicabut** - itu baru setelah pembacanya
-  dipindah. Dari inventarisasi (Okt 2026): `name` ±680 titik (±133 query perlu ditulis ulang),
+- **`users.nip`, `users.name`, `users.company_id`: pembacanya sudah dipindah ke employees, pencabutan kolom
+  disiapkan tapi belum aktif** (bagian 8, rilis kedua). Catatan inventarisasi sebelum pemindahan (Okt 2026): `name` ±680 titik (±133 query perlu ditulis ulang),
   `nip` ±310 (±110 query/kunci), `company_id` ±560 yang **356 di antaranya adalah pagar akses akun
   yang sedang login dan TIDAK boleh dipindah ke employees** (akun tanpa baris employees
   kehilangan scope perusahaannya = kebocoran data lintas perusahaan). Sesi/token tidak terpengaruh
@@ -194,8 +242,10 @@ Keputusan:
   `user_profiles`, riwayat dari `user_job_positions`. Selisihnya dilaporkan `identity:verify`
   (sudah dibangun, lihat bagian 7).
 - 2 akun Super Admin (`User::NON_KARYAWAN_IDS` dikurangi `PAYROLL_ELIGIBLE_EXECUTIVE_IDS`)
-  **tidak** mendapat baris `employees` (data namanya tetap di `users.name`). Direktur dan Sekretaris Direktur tetap
-  karyawan karena masih ada payroll.
+  **kini juga mendapat baris `employees`** (revisi 5 Oktober: dulu dikecualikan dan namanya tetap di `users.name`).
+  Alasannya, kolom `users.name/nip/company_id` tidak bisa dicabut kalau ada akun tanpa sumber di employees. Mereka tetap
+  tersaring dari `User::query()` oleh scope `non_karyawan`. Direktur dan Sekretaris Direktur tetap karyawan karena masih
+  ada payroll.
 
 **Cara sinkron:** `EmployeeSyncService` dipanggil `EmployeeSyncObserver` (di `User`,
 `UserProfiles`, `UserJobPositions`) dan oleh `php artisan identity:backfill-employees
@@ -228,7 +278,7 @@ Dari `UserProfiles::$fillable` dan migration terkini. Model ini memakai `LogsFie
 |---|---|---|
 | `users.name` | `employees.nama_lengkap` | |
 | `nickname`, `gender`, `marital_status`, `place_of_birth`, `date_of_birth`, `religion_id` | `employees` (kolom) | |
-| `profile_picture` (json) | `employees.profile_picture` | |
+| `profile_picture` (json) | `users.profile_picture` | Atribut akun, bukan data kepegawaian; `employees.profile_picture` dibuang (bagian 8) |
 | `no_nik`, `no_kk`, `npwp` | `employee_identities` | NIK/NPWP disimpan plaintext sekarang |
 | `no_bpjs_kes`, `no_bpjs_ket` | `employee_identities` | |
 | `country`, `province`, `city`, `district`, `village`, `address`, `postal_code`, `rt`, `rw` | `employee_addresses` (`type` = utama) | |
@@ -283,21 +333,39 @@ Dari `UserProfiles::$fillable` dan migration terkini. Model ini memakai `LogsFie
 Hasil query dicatat di dokumen terpisah (`HRIS DATABASE MAP`). **Selisih jabatan dan NIK ganda
 diputuskan oleh HC/Admin** — kode tidak boleh menebak mana yang benar.
 
+> **Status (5 Oktober 2026):** hasil Fase 0 belum tercatat di dokumen ini. Fase 1 dan sebagian slice sudah
+> dikerjakan lebih dulu, jadi Fase 0 sekarang berfungsi sebagai **syarat sebelum Slice C dan unique NIK**, bukan
+> sebelum tabel dibuat. `identity:verify` melaporkan sebagian temuannya (selisih jabatan, jabatan aktif ganda).
+
+## 5b. Hapus akun demo — `identity:purge-users` (SUDAH DIBANGUN)
+
+`php artisan identity:purge-users {nip*} [--force] [--nullify-approvals] [--also=tabel.kolom]`. Menghapus **permanen**
+user (mis. akun demo) beserta salinan employees dan data approval-nya. Tanpa `--force` hanya melapor (dry-run).
+
+- NIP harus ada semua; akun non-karyawan/eksekutif (`User::NON_KARYAWAN_IDS`) ditolak.
+- User yang punya penghalang **dilewati** dan dilaporkan beserta alasannya, sisanya tetap dihapus; pengecekan
+  diulang sampai stabil (melewati satu user bisa membuat user lain ikut bermasalah).
+- Penghalang: FK ke `users` tanpa cascade yang berisi baris (kecuali diizinkan `--also`), pengajuan yang sudah
+  diproses orang lain, dan aktivitas approval pada pengajuan orang lain (kecuali `--nullify-approvals`).
+- Satu transaksi; user dihapus lewat query langsung supaya observer tidak membuat ulang baris employees.
+- Test: `PurgeUsersTest`. Jalankan `--force` hanya setelah laporan dry-run dibaca dan backup dibuat.
+
 ---
 
 # 6. Fase 1 — Fondasi (Tidak Ada Fitur yang Berubah)
 
+**Status: ✅ selesai.** Catatan sejarah: tahap awal membuat entitas `Person` terpisah; sudah dilebur ke `employees`
+(bagian 3), jadi butir `Person` di bawah tidak berlaku lagi.
+
 ```text
-□ Migration: employees (+ employee_identities, employee_addresses, employee_documents), employee_careers
-□ Migration: employees
-□ Migration: employee_careers
-□ Model + relasi: Person, Employee, EmployeeJobPosition
-□ Relasi tambahan di User: employee()  (hanya tambah, tidak mengubah yang ada)
-□ Command: identity:backfill  (--dry-run, --user=NIP, idempotent)
-□ Observer satu arah di model lama (UserProfiles, UserJobPositions, User) → sinkron ke tabel baru
-□ Command: identity:verify  (bagian 7)
-□ Test: backfill dua kali tidak menghasilkan duplikat
-□ Test: observer menyinkronkan perubahan profil/jabatan
+✅ Migration: employees (+ employee_identities, employee_addresses, employee_documents), employee_careers
+✅ Model + relasi: Employee, EmployeeCareer, dst. (Person sudah dilebur)
+✅ Relasi tambahan di User: employee()  (kini juga dimuat otomatis lewat $with)
+✅ Command: identity:backfill  (--dry-run, --user=NIP, idempotent)
+✅ Observer satu arah di model lama (UserProfiles, UserJobPositions, User, UserProfileDocument) → sinkron ke tabel baru
+✅ Command: identity:verify  (bagian 7)
+✅ Test: backfill dua kali tidak menghasilkan duplikat (EmployeeSyncTest)
+✅ Test: observer menyinkronkan perubahan profil/jabatan (EmployeeSyncTest)
 ```
 
 ## Aturan `identity:backfill`
@@ -583,10 +651,18 @@ Hanya setelah semua slice stabil minimal beberapa siklus payroll:
 
 # 16. Ringkasan Urutan
 
+Posisi per 5 Oktober 2026: Fase 1, Slice 0 (approval), Slice Pembacaan, dan Slice Penulisan/Audit/Foto **sudah
+dikerjakan**; pencabutan kolom `users.*` menunggu rilis kedua; Fase 0 (audit data) belum tercatat; Slice A sampai D
+belum dimulai.
+
 ```text
-FASE 0  Persiapan, backup, bersihkan data (jabatan ganda, NIK)
+FASE 0  Persiapan, backup, bersihkan data (jabatan ganda, NIK)   ← belum tercatat; syarat Slice C & unique NIK
    ↓
-FASE 1  Tabel baru + backfill + observer + identity:verify   (tidak ada fitur berubah)
+FASE 1  Tabel baru + backfill + observer + identity:verify   ✅ selesai (tidak ada fitur berubah)
+   ↓
+SLICE 0 Approval, Pembacaan name/nip/company_id, Penulisan/Audit/Foto   ✅ di kode (rilis transisi)
+   ↓
+RILIS 2 Cabut kolom users.name/nip/company_id   ⏸ migrations-pending, setelah rilis transisi stabil
    ↓
 SLICE A Izin / Cuti / Lembur
    ↓
@@ -604,11 +680,18 @@ CLEANUP
 
 ---
 
-# 17. Langkah Pertama
+# 17. Langkah Berikutnya
 
-1. Kerjakan **Fase 0**: backup, baseline test, dan lima query audit (user tanpa profil, NIK
-   kosong/ganda, selisih jabatan, jabatan aktif ganda/kosong, akun non-karyawan).
-2. Bawa hasil query ke HC/Admin untuk memutuskan data yang bertentangan.
-3. Baru buat migration Fase 1 di branch terpisah.
+(Versi awal bagian ini berisi "kerjakan Fase 0 sebelum membuat migration". Migration Fase 1 sudah dibuat dan
+dipakai, jadi urutannya direvisi 5 Oktober 2026.)
 
-**Jangan membuat migration sebelum hasil Fase 0 ada.**
+1. **Konfirmasi rilis transisi di produksi**: backup, `migrate`, `identity:backfill` segera (baris employees dua
+   Super Admin dibuat di sini), `identity:verify` bersih, `queue:restart`. Catat tanggalnya di bagian 0.
+2. **Fase 0**: lima query audit (user tanpa profil, NIK kosong/ganda, selisih jabatan, jabatan aktif ganda/kosong,
+   akun non-karyawan) dan baseline test di MySQL staging. Bawa hasilnya ke HC/Admin untuk memutuskan data yang
+   bertentangan. Setelah bersih, pasang unique `employee_identities.no_nik`.
+3. **Rilis kedua**: pindahkan migration pencabutan kolom dari `database/migrations-pending/` setelah rilis transisi
+   stabil beberapa hari (syarat lengkap ada di README folder itu).
+4. **Slice A**, satu rilis, parity check dimensinya nol selisih lebih dulu.
+
+**Jangan memindahkan Slice C (arah sinkron dibalik) atau memasang unique NIK sebelum hasil Fase 0 ada.**
