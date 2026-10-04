@@ -140,11 +140,6 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             .wc-chip { gap: 4px; }
             .wc-chip i { font-size: 9px; opacity: .75; }
             .wc-chips .wc-chip + .wc-chip::before { content: "\00b7"; margin-right: 2px; font-weight: 800; }
-            /* Pakai nama panggilan: NIP & jabatan kembali jadi chip (seperti desktop), tanpa middle dot. */
-            .wc-hero.has-nick .wc-chips { gap: 6px; }
-            .wc-hero.has-nick .wc-chip { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); padding: 3px 10px; font-size: 11px; font-weight: 600; color: #fff; gap: 5px; }
-            .wc-hero.has-nick .wc-chip i { font-size: 11px; opacity: 1; }
-            .wc-hero.has-nick .wc-chips .wc-chip + .wc-chip::before { content: none; }
         }
     </style>
     <div class="welcome-card bento-welcome">
