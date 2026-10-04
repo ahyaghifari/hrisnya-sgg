@@ -60,6 +60,11 @@ class Person extends Model
         return $this->hasMany(PersonAddress::class, 'person_id');
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(PersonDocument::class, 'person_id');
+    }
+
     public function primaryAddress(): HasOne
     {
         return $this->hasOne(PersonAddress::class, 'person_id')->where('is_primary', true);

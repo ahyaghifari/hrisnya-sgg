@@ -3,7 +3,9 @@
 namespace App\Services\Identity;
 
 use App\Models\Person\Person;
+use App\Models\Person\PersonDocument;
 use App\Models\User;
+use App\Models\User\UserProfileDocument;
 use App\Models\User\UserProfiles;
 use Illuminate\Support\Facades\DB;
 
@@ -54,6 +56,9 @@ class PersonSyncService
                 'email_pribadi' => $profile?->email_pribadi,
             ]);
 
+            // Lampiran tidak bergantung pada profil (upload tidak mensyaratkannya).
+            $this->syncDocuments($person);
+
             // Orang tanpa profil: cukup baris persons (nama), identitas & alamat tidak dibuat.
             if (! $profile) {
                 return $person;
@@ -71,5 +76,24 @@ class PersonSyncService
 
             return $person;
         });
+    }
+
+    /** Lampiran KTP/KK/STR/SIP/RKK: salin baris (file_path sama, file TIDAK dipindah) dan buang
+     * baris salinan yang asalnya sudah dihapus. STR/SIP ikut disalin karena karyawan nakes juga
+     * memilikinya, bukan cuma dokter. */
+    private function syncDocuments(Person $person): void
+    {
+        $source = UserProfileDocument::where('user_id', $person->user_id)->get();
+
+        foreach ($source as $doc) {
+            PersonDocument::updateOrCreate(
+                ['person_id' => $person->id, 'type' => $doc->label],
+                ['file_path' => $doc->file_path],
+            );
+        }
+
+        PersonDocument::where('person_id', $person->id)
+            ->whereNotIn('type', $source->pluck('label'))
+            ->delete();
     }
 }

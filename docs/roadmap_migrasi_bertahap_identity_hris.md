@@ -16,7 +16,7 @@ dari yang paling aman ke yang paling berisiko.
      │              │                  │
      │       sinkron satu arah (lama → baru), idempotent
      ▼              ▼                  ▼
-   persons ─── employees ─── employee_job_positions ...
+   persons ─── employees ─── employee_careers ...
                  TABEL BARU (dibangun pelan-pelan)
 ```
 
@@ -124,6 +124,14 @@ person_identities  (1:1 dengan persons)
   no_nik, no_kk, npwp, no_bpjs_kes, no_bpjs_ket          ← NIK BELUM unique (bagian 5)
   bank_name, bank_account_number, bank_account_name      ← rekening ikut di sini (sensitif, 1:1)
 
+person_documents   (1:N, unique per person_id + type) ← lampiran KTP/KK/STR/SIP/RKK
+  type (string apa adanya, label lama dulu bebas ketik), file_path
+  file_path SAMA dengan user_profile_documents: file terenkripsi di disk privat TIDAK dipindah,
+  pembukaan tetap lewat route lampiran lama (dekripsi + cek izin).
+  STR/SIP ikut disalin: karyawan nakes juga memilikinya, bukan cuma dokter.
+  (user_documents = surat resmi terbitan admin; tidak ada kode yang memakainya - dicek isinya
+  di DB dulu sebelum diputuskan, bukan sumber lampiran KTP/KK.)
+
 person_addresses   (1:N, unique per person_id + type)
   type ('utama' dulu — form HRIS belum membedakan KTP/domisili), is_primary,
   country, province, city, district, village, address, postal_code, rt, rw
@@ -140,42 +148,53 @@ disimpan, dan oleh `php artisan identity:backfill [--dry-run] [--user=NIP]`.
 - Perubahan baru: update profil lewat jalur itu kini juga memicu audit field
   (`LogsFieldAuditChanges`) yang sebelumnya terlewat.
 
-## `employees`
+## Karyawan: `employees`, `employee_careers` (SUDAH DIBANGUN)
+
+Migration `2026_10_26_110000_create_employees_tables.php`. Salinan seperti `persons*`: tabel lama
+tetap sumber, belum dibaca fitur apa pun.
 
 ```text
-id (ulid)
-person_id          ← persons.id
-user_id            unique   ← jembatan ke users.id (kunci migrasi per fitur)
-nip                (salinan users.nip; users.nip tetap sumber sampai akhir)
-company_id
-employee_type_id
-joining_date
-tmt_tetap
-status             (aktif / nonaktif, turunan dari users.is_active + soft delete)
-created_at, updated_at
+employees   (kondisi SAAT INI)
+  id, person_id → persons, user_id (unique → users; jembatan ke fitur lama),
+  nip (salinan users.nip), company_id, employee_type_id,
+  job_position_id, pangkat_id, kelas_id      ← boleh null (PHK mengosongkan ketiganya)
+  joining_date, tmt_tetap,
+  status (aktif | nonaktif ← users.is_active + soft delete)
+
+employee_careers   (RIWAYAT perubahan jabatan, dari user_job_positions)
+  id, employee_id, user_job_position_id (unique, kunci sinkron), job_position_id,
+  pangkat_id, kelas_id (snapshot), assigned_by, start_date, end_date, status, source
 ```
 
-Sumber: `users` + `user_profiles`.
+Keputusan:
+- Pangkat dan kelas ikut di `employees` (kondisi sekarang) dan di `employee_careers` (snapshot).
+  Karena itu `employee_grades` terpisah **tidak jadi diperlukan**. Pangkat/kelas memang ikut
+  jabatan (`UserTransitionService` mengambilnya dari jabatan baru saat promosi/mutasi).
+- **Riwayat pangkat/kelas hanya bisa direkonstruksi sebagian.** `user_job_positions` tidak
+  mencatatnya. Baris riwayat lama sengaja NULL (tidak menebak dari jabatan sekarang); hanya
+  baris aktif yang berisi snapshot, dan snapshot yang sudah tersimpan tidak ditimpa saat baris
+  ditutup.
+- **Dua sumber jabatan tidak ditutupi.** `employees.job_position_id` datang dari
+  `user_profiles`, riwayat dari `user_job_positions`. Selisihnya dilaporkan `identity:verify`
+  (belum dibangun).
+- 2 akun Super Admin (`User::NON_KARYAWAN_IDS` dikurangi `PAYROLL_ELIGIBLE_EXECUTIVE_IDS`)
+  mendapat `persons` tapi **tidak** mendapat `employees`. Direktur dan Sekretaris Direktur tetap
+  karyawan karena masih ada payroll.
 
-## `employee_job_positions`
+**Cara sinkron:** `EmployeeSyncService` dipanggil `EmployeeSyncObserver` (di `User`,
+`UserProfiles`, `UserJobPositions`) dan oleh `php artisan identity:backfill-employees
+[--dry-run] [--user=NIP]`. Jalankan **setelah** `identity:backfill`.
 
-```text
-id (ulid)
-employee_id
-job_position_id
-start_date, end_date
-status
-created_at, updated_at
-```
-
-Sumber: `user_job_positions` (sumber riwayat yang benar — bukan `user_profiles.job_position_id`).
+**Celah (update/hapus massal tidak memicu event):**
+`$user->jobPositions()->where(...)->delete()` di `EditKaryawan` & `CreateKaryawan`, dan
+`->update()` di `UserTransitionService` (termination). Rapikan dengan menjalankan ulang
+`identity:backfill-employees`; `identity:verify` yang akan melaporkan selisihnya.
 
 ## Menyusul (tidak di Versi 1)
 
 | Tabel | Sumber lama | Kapan |
 |---|---|---|
 | `employee_contracts` | `user_contracts` | saat modul kontrak dipindah |
-| `employee_grades` (pangkat + kelas, + riwayat) | `user_profiles` (`pangkat_id`, `kelas_id`) | sebelum payroll |
 | `person_bank_accounts` (riwayat ganti rekening, 1:N) | kolom bank di `person_identities` | kalau butuh riwayat rekening |
 | `employee_transitions` | `user_transitions*` | saat modul mutasi dipindah |
 | `doctors` | — (baru) | kapan saja setelah Fase 1 |
@@ -197,9 +216,10 @@ Dari `UserProfiles::$fillable` dan migration terkini. Model ini memakai `LogsFie
 | `no_nik`, `no_kk`, `npwp` | `person_identities` | NIK/NPWP disimpan plaintext sekarang |
 | `no_bpjs_kes`, `no_bpjs_ket` | `person_identities` | |
 | `country`, `province`, `city`, `district`, `village`, `address`, `postal_code`, `rt`, `rw` | `person_addresses` (`type` = utama) | |
+| `user_profile_documents` (`label`, `file_path`) | `person_documents` (`type`, `file_path`) | Baris disalin, file tidak dipindah |
 | `phone`, `whatsapp`, `email_pribadi` | `persons` | `users.email` = email akun, tetap di `users` |
 | `employee_type_id`, `joining_date`, `tmt_tetap` | `employees` | |
-| `pangkat_id`, `kelas_id` | `employee_grades` (menyusul) | Payroll-kritis; tidak masuk Versi 1 |
+| `job_position_id`, `pangkat_id`, `kelas_id` | `employees` (kondisi sekarang) + snapshot di `employee_careers` | Payroll membaca pangkat/kelas dari tabel lama sampai slice payroll |
 | `bank_name`, `bank_account_number`, `bank_account_name` | `person_identities` | Dibaca payroll dari tabel lama sampai slice payroll |
 | `job_position_id` | **tidak disalin** | Duplikat sumber jabatan; pakai `user_job_positions` |
 | `users.is_active` + soft delete | `employees.status` | |
@@ -254,7 +274,7 @@ diputuskan oleh HC/Admin** — kode tidak boleh menebak mana yang benar.
 ```text
 □ Migration: persons
 □ Migration: employees
-□ Migration: employee_job_positions
+□ Migration: employee_careers
 □ Model + relasi: Person, Employee, EmployeeJobPosition
 □ Relasi tambahan di User: person(), employee()  (hanya tambah, tidak mengubah yang ada)
 □ Command: identity:backfill  (--dry-run, --user=NIP, idempotent)
@@ -281,7 +301,7 @@ diputuskan oleh HC/Admin** — kode tidak boleh menebak mana yang benar.
 user_profiles / user_job_positions / users   (sumber, diedit seperti biasa)
         │  observer (saved/deleted)
         ▼
-persons / employees / employee_job_positions  (salinan, hanya ditulis oleh sinkron)
+persons / employees / employee_careers  (salinan, hanya ditulis oleh sinkron)
 ```
 
 Selama fase ini **tabel baru read-only bagi aplikasi**. Kalau observer gagal, kejadian dicatat
@@ -357,7 +377,7 @@ sinkron balik (kebalikan fase 1) **selama modul lain masih membaca tabel lama**.
 
 ```text
 □ Pindahkan form Data Diri → persons
-□ Pindahkan form Jabatan → employee_job_positions (satu sumber jabatan, dua sumber lama disatukan)
+□ Pindahkan form Jabatan → employees + employee_careers (satu sumber jabatan, dua sumber lama disatukan)
 □ Balik arah observer untuk modul ini saja
 □ identity:verify tetap dijalankan di kedua arah
 ```
@@ -365,7 +385,7 @@ sinkron balik (kebalikan fase 1) **selama modul lain masih membaca tabel lama**.
 ## Slice D — Payroll (terakhir)
 
 ```text
-□ Buat employee_grades (pangkat/kelas); rekening sudah ada di person_identities
+□ Pangkat/kelas sudah ada di employees & employee_careers; rekening di person_identities
 □ Test snapshot: generate payroll satu periode dari jalur lama dan jalur baru,
   bandingkan SETIAP baris payroll_items — harus identik sampai ke sen
 □ Pindahkan calculator satu per satu (GajiPokok, Tunjangan, BPJS, ...), bukan sekaligus

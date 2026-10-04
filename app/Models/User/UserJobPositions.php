@@ -2,9 +2,12 @@
 
 namespace App\Models\User;
 
+use App\Observers\EmployeeSyncObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
+#[ObservedBy(EmployeeSyncObserver::class)]
 class UserJobPositions extends Model
 {
     use HasUlids;

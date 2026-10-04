@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\User;
+use App\Models\User\UserProfileDocument;
 use App\Models\User\UserProfiles;
 use App\Services\Identity\PersonSyncService;
 use Illuminate\Database\Eloquent\Model;
@@ -20,7 +21,7 @@ class PersonSyncObserver
 {
     public function saved(Model $model): void
     {
-        if ($model instanceof UserProfiles) {
+        if ($model instanceof UserProfiles || $model instanceof UserProfileDocument) {
             $this->sync($model->user_id);
 
             return;
@@ -29,6 +30,14 @@ class PersonSyncObserver
         // User: salin cuma saat baru dibuat / nama berubah (nama_lengkap diambil dari users.name).
         if ($model instanceof User && ($model->wasRecentlyCreated || $model->wasChanged('name'))) {
             $this->sync($model->id);
+        }
+    }
+
+    /** Lampiran dihapus -> salinannya ikut dibuang (UserProfiles dihapus tidak menghapus person). */
+    public function deleted(Model $model): void
+    {
+        if ($model instanceof UserProfileDocument) {
+            $this->sync($model->user_id);
         }
     }
 
