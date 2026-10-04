@@ -49,20 +49,17 @@
     <meta name="vapid-public-key" content="{{ config('webpush.vapid.public_key') }}">
     <title>{{ $title }} - HRIS Syifa Global Group</title>
     <link rel="manifest" href="/pwa/manifest.json">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#042c6c">
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="apple-touch-icon" href="/pwa/icons/icon-192-v3.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Syifa HRIS">
     <script>
         (function () {
             var t = localStorage.getItem('theme');
             if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             if (t === 'dark') document.documentElement.classList.add('dark');
-            var a = localStorage.getItem('accent'); // biru (default) | hijau | pink | ungu | emas
-            if (['hijau','pink','ungu','emas'].indexOf(a) >= 0) document.documentElement.setAttribute('data-theme', a);
-            // <meta theme-color> SENGAJA putih tetap (status bar OS/PWA tidak ikut warna app bar); app bar ikut tema lewat --brand-fill.
         })();
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -200,31 +197,8 @@
             const dark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('theme', dark ? 'dark' : 'light');
         }
-        // Dipakai pemilih warna di halaman Akun. accent: 'biru' (default) | 'hijau' | 'pink' | 'ungu' | 'emas'.
-        window.setAccent = function (accent) {
-            if (['hijau','pink','ungu','emas'].indexOf(accent) >= 0) {
-                document.documentElement.setAttribute('data-theme', accent);
-                localStorage.setItem('accent', accent);
-            } else {
-                document.documentElement.removeAttribute('data-theme');
-                localStorage.setItem('accent', 'biru');
-            }
-        };
-        // Tandai swatch aktif di dropdown tampilan (komponen x-theme-toggle; ada di navbar desktop & app bar HP).
-        window.markAccent = function () {
-            const a = localStorage.getItem('accent') || 'biru';
-            document.querySelectorAll('.accent-picker .accent-swatch').forEach(function (b) {
-                b.classList.toggle('is-active', b.dataset.accent === a);
-            });
-        };
-        window.pickAccent = function (a) { window.setAccent(a); window.markAccent(); };
-        window.markAccent();
-        document.addEventListener('livewire:navigated', window.markAccent);
         document.addEventListener('livewire:navigated', function () {
             document.documentElement.classList.toggle('dark', localStorage.getItem('theme') === 'dark');
-            const a = localStorage.getItem('accent');
-            if (['hijau','pink','ungu','emas'].indexOf(a) >= 0) document.documentElement.setAttribute('data-theme', a);
-            else document.documentElement.removeAttribute('data-theme');
         });
     </script>
     @stack('scripts')
