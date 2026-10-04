@@ -53,6 +53,16 @@
                  biarkan kosong & centang manual per baris (lihat PendingApprovalsCard::
                  confirmBulkApprove()). --}}
             <div style="padding:12px 20px;border-bottom:1px solid var(--border-soft);display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+                {{-- Petunjuk dilipat default supaya tidak mengganggu; x-data lokal (bukan state Livewire), Alpine mempertahankan
+                     $open walau komponen di-render ulang. --}}
+                <div x-data="{ open: false }" style="flex-basis:100%;font-size:11.5px;color:var(--text-muted);">
+                    <button type="button" @click="open = ! open" :aria-expanded="open" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:600;color:var(--text-muted);">
+                        <i class="fa-solid fa-circle-info"></i> Petunjuk persetujuan massal <i class="fa-solid text-[10px]" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                    </button>
+                    <p x-show="open" x-cloak style="margin:6px 0 0;">
+                        Untuk menyetujui beberapa pengajuan sekaligus, centang kotak pada pengajuan yang dipilih atau pilih satu jenis pengajuan pada daftar di bawah, kemudian klik tombol <strong>Approve Terpilih</strong>. Harap periksa kembali pengajuan yang dicentang sebelum menyetujui, karena persetujuan yang telah diberikan tidak dapat ditarik kembali dari halaman ini.
+                    </p>
+                </div>
                 <select wire:model.live="bulkTypeFilter" class="form-input" style="max-width:240px;font-size:12px;padding:6px 10px;">
                     <option value="">Pilih manual (centang baris)</option>
                     @foreach ($this->bulkTypeOptions as $module => $label)
