@@ -77,6 +77,9 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
     <!-- WELCOME CARD (server-rendered, bukan domain attendance) -->
     @php
         $profilePhotoPath = auth()->user()->profilePhotoPath();
+        // Nama panggilan (Data Diri) dipakai kalau 3-15 huruf; selain itu tetap nama lengkap.
+        $nick = trim((string) auth()->user()->profile?->nickname);
+        $useNick = mb_strlen($nick) >= 3 && mb_strlen($nick) <= 15;
         $profilePhotoUrl = $profilePhotoPath && is_string($profilePhotoPath) ? \Illuminate\Support\Facades\Storage::url($profilePhotoPath) : null;
     @endphp
     {{-- Tombol putih "Dashboard" di welcome card: latarnya tetap putih di dark mode, tapi var(--brand) berubah jadi
@@ -97,6 +100,11 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
         .wc-avatar { position: relative; flex-shrink: 0; border-radius: 50%; padding: 0; line-height: 0; }
         .wc-avatar::before { content: ""; position: absolute; inset: 0; border-radius: 50%; }
         .welcome-name.wc-big { font-size: 26px; line-height: 1.15; margin-top: 1px; }
+        /* Pakai nama panggilan: nama dan foto lebih besar (nama pendek, muat). */
+        .wc-hero.has-nick .welcome-greeting { font-size: 16px; }
+        .wc-hero.has-nick .welcome-name.wc-big { font-size: 34px; }
+        .wc-hero.has-nick .wc-face { width: 110px; height: 110px; }
+        .wc-hero.has-nick .wc-face-initials { font-size: 34px; }
         .wc-chips { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
         /* Logo perusahaan = sisi balik avatar: tiap siklus 15 dtk, 10 dtk foto lalu 5 dtk logo (flip masuk di 66%, keluar di 97%).
         Cakram menimpa foto (foto sendiri tidak berputar). */
@@ -120,6 +128,10 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             .wc-hero .wc-text { grid-column: 2; grid-row: 2; align-self: center; }
             .wc-face { width: 48px; height: 48px; }
             .wc-face-initials { font-size: 15px; }
+            .wc-hero.has-nick .welcome-greeting { font-size: 14px; }
+            .wc-hero.has-nick .welcome-name.wc-big { font-size: 26px; }
+            .wc-hero.has-nick .wc-face { width: 64px; height: 64px; }
+            .wc-hero.has-nick .wc-face-initials { font-size: 20px; }
             .wc-chips { justify-content: flex-start; margin-top: 8px; gap: 5px; }
             .welcome-name.wc-big { font-size: 18px; }
             /* NIP · jabatan = teks polos sebaris dipisah middle dot (bukan chip). Desktop tetap chip. */
@@ -128,12 +140,17 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             .wc-chip { gap: 4px; }
             .wc-chip i { font-size: 9px; opacity: .75; }
             .wc-chips .wc-chip + .wc-chip::before { content: "\00b7"; margin-right: 2px; font-weight: 800; }
+            /* Pakai nama panggilan: NIP & jabatan kembali jadi chip (seperti desktop), tanpa middle dot. */
+            .wc-hero.has-nick .wc-chips { gap: 6px; }
+            .wc-hero.has-nick .wc-chip { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); padding: 3px 10px; font-size: 11px; font-weight: 600; color: #fff; gap: 5px; }
+            .wc-hero.has-nick .wc-chip i { font-size: 11px; opacity: 1; }
+            .wc-hero.has-nick .wc-chips .wc-chip + .wc-chip::before { content: none; }
         }
     </style>
     <div class="welcome-card bento-welcome">
         <div class="w-deco-1"></div><div class="w-deco-2"></div><div class="w-deco-4"></div>
         <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-            <div class="wc-hero">
+            <div class="wc-hero{{ $useNick ? ' has-nick' : '' }}">
                 <p class="welcome-greeting">Selamat datang kembali 👋</p>
                 <div class="wc-avatar">
                     @if ($profilePhotoUrl)
@@ -146,7 +163,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
                     @endif
                 </div>
                 <div class="wc-text" style="min-width:0;">
-                    <h2 class="welcome-name wc-big">{{ auth()->user()->full_name }}</h2>
+                    <h2 class="welcome-name wc-big" title="{{ auth()->user()->full_name }}">{{ $useNick ? $nick : auth()->user()->full_name }}</h2>
                     <div class="wc-chips">
                         <span class="wc-chip" title="NIP"><i class="fa-solid fa-id-badge"></i><span>{{ auth()->user()->nip }}</span></span>
                         <span class="wc-chip"><i class="fa-solid fa-briefcase"></i><span>{{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}</span></span>
