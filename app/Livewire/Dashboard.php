@@ -33,11 +33,37 @@ class Dashboard extends Component
      * #[Url], widget ini bagian dari Dashboard bukan halaman sendiri. */
     public string $calendarMonth = '';
 
+    /** Input modal "Nama panggilan" di welcome card (tersimpan ke user_profiles.nickname). */
+    public string $nickname = '';
+
     public function mount(): void
     {
         $this->calendarMonth = now()->format('Y-m');
+        $this->nickname = (string) Auth::user()->profile?->nickname;
     }
 
+    /** Nama panggilan dari welcome card: 3-12 huruf (batas tampil kartu 3-15 supaya nama lama 13-15 huruf tetap valid). */
+    public function saveNickname(): void
+    {
+        $this->nickname = trim($this->nickname);
+
+        $this->validate(
+            ['nickname' => ['required', 'string', 'min:3', 'max:12']],
+            ['nickname.required' => 'Nama panggilan wajib diisi.', 'nickname.min' => 'Minimal 3 huruf.', 'nickname.max' => 'Maksimal 12 huruf.'],
+        );
+
+        $profile = Auth::user()->profile;
+
+        if (! $profile) {
+            $this->addError('nickname', 'Profil belum tersedia, hubungi HC.');
+
+            return;
+        }
+
+        $profile->update(['nickname' => $this->nickname]);
+
+        $this->dispatch('nickname-saved');
+    }
     public function calendarPrevMonth(): void
     {
         $this->calendarMonth = Carbon::createFromFormat('Y-m', $this->calendarMonth)->subMonthNoOverflow()->format('Y-m');
