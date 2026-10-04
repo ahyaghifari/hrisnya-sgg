@@ -6,6 +6,7 @@ use App\Notifications\LeaveRequestSubmitted;
 use App\Notifications\OvertimeRequestSubmitted;
 use App\Notifications\PermissionRequestSubmitted;
 use App\Models\User;
+use App\Services\Identity\EmployeeContext;
 
 class NotificationService
 {
@@ -54,18 +55,13 @@ class NotificationService
 
                 // If scope is specific department, filter by department
                 if ($activity->scope_type === 'specific_department') {
-                    $departmentId = $activity->scope_ref_id;
-                    $query->whereHas('profile.jobPosition.orgStructure', function ($q) use ($departmentId) {
-                        $q->where('m_org_structures.id', $departmentId);
-                    });
+                    EmployeeContext::whereOrgStructure($query, $activity->scope_ref_id);
                 }
 
                 return $query->first();
 
             case 'job_position':
-                return User::whereHas('profile.jobPosition', function ($q) use ($activity) {
-                    $q->where('id', $activity->approver_ref_id);
-                })->first();
+                return EmployeeContext::whereJobPositionIn(User::query(), [$activity->approver_ref_id])->first();
 
             default:
                 return null;

@@ -5,6 +5,7 @@ namespace App\Services\Approval;
 use App\Models\ApprovalManagement\ApprovalActivities;
 use App\Models\User;
 use App\Repositories\Approval\ApprovalActivityRepository;
+use App\Services\Identity\EmployeeContext;
 use Illuminate\Support\Collection;
 
 class ApprovalPermissionService
@@ -44,7 +45,7 @@ class ApprovalPermissionService
     public function pendingApprovalsFor(User $user, string $moduleType): Collection
     {
         $roleIds = $user->roles()->pluck('id')->map(fn ($id) => (string) $id)->all();
-        $jobPositionId = $user->profile?->job_position_id;
+        $jobPositionId = EmployeeContext::jobPositionId($user->id);
 
         $candidates = ApprovalActivities::query()
             ->where('status', 'pending')
@@ -77,7 +78,7 @@ class ApprovalPermissionService
                 return $this->checkRolePermission($activity, $user);
 
             case 'job_position':
-                return $user->profile?->job_position_id === $activity->approver_ref_id;
+                return EmployeeContext::jobPositionId($user->id) === $activity->approver_ref_id;
 
             default:
                 return false;
@@ -93,7 +94,7 @@ class ApprovalPermissionService
         }
 
         if ($activity->scope_type === 'specific_department') {
-            return $user->profile?->department?->id === $activity->scope_ref_id;
+            return EmployeeContext::departmentId($user->id) === $activity->scope_ref_id;
         }
 
         return true;
@@ -128,14 +129,14 @@ class ApprovalPermissionService
                 }
                 
                 if ($activity->scope_type === 'specific_department' && 
-                    $user->profile?->jobPosition?->orgStructure?->id !== $activity->scope_ref_id) {
+                    EmployeeContext::orgStructureId($user->id) !== $activity->scope_ref_id) {
                     return 'User ini tidak berada di department yang sesuai.';
                 }
                 
                 return null;
 
             case 'job_position':
-                return $user->job_position_id !== $activity->approver_ref_id 
+                return EmployeeContext::jobPositionId($user->id) !== $activity->approver_ref_id
                     ? 'User ini tidak sesuai dengan jabatan yang ditentukan.' 
                     : null;
 
