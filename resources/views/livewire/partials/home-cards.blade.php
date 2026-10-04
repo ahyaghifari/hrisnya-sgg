@@ -90,20 +90,20 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
         /* Avatar: cincin emas tipis (::before duluan di DOM, cropper position:relative di atasnya - tanpa z-index negatif/stacking context). */
         .wc-avatar { position: relative; flex-shrink: 0; border-radius: 50%; padding: 3px; line-height: 0; }
         .wc-avatar::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(135deg, #fde68a, #f5c518 55%, #d4a017); }
-        .welcome-name.wc-big { font-size: 28px; line-height: 1.15; margin-top: 1px; }
+        .welcome-name.wc-big { font-size: 24px; line-height: 1.15; margin-top: 1px; }
         .wc-chips { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-        /* Logo perusahaan: lingkaran putih polos sejajar chip (putih supaya logo warna apa pun terbaca). */
-        .wc-seal { width: 26px; height: 26px; border-radius: 50%; background: #fff; padding: 4px; box-sizing: border-box; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        /* Logo perusahaan: lingkaran putih kecil sejajar chip (putih supaya logo warna apa pun terbaca). */
+        .wc-seal { width: 24px; height: 24px; border-radius: 50%; background: #fff; padding: 3px; box-sizing: border-box; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .wc-seal img { display: block; width: 100%; height: 100%; object-fit: contain; }
-        .wc-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 11px; border-radius: 999px;
-            background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 12px; font-weight: 600; }
+        .wc-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 10px; border-radius: 999px;
+            background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 11px; font-weight: 600; }
         .wc-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (max-width: 639px) {
             .wc-hero { gap: 14px; }
-            .welcome-name.wc-big { font-size: 20px; }
-            .wc-chips { margin-top: 8px; }
-            .wc-seal { width: 24px; height: 24px; padding: 3px; }
-            .wc-chip { font-size: 11px; padding: 3px 9px; }
+            .wc-chips { margin-top: 8px; gap: 6px; }
+            .welcome-name.wc-big { font-size: 17px; }
+            .wc-chip { font-size: 10px; padding: 2px 8px; }
+            .wc-seal { width: 22px; height: 22px; padding: 3px; }
         }
     </style>
     <div class="welcome-card bento-welcome">
@@ -118,7 +118,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
                 <div class="wc-avatar">
                     <x-photo-upload-cropper :avatar-url="$profilePhotoUrl" :initials="$record->initials() ?: '?'" :size="72" />
                 </div>
-                <div style="min-width:0;">
+                <div class="wc-text" style="min-width:0;">
                     @error('photo') <p style="color:#fecaca;font-size:11px;font-weight:600;margin-bottom:4px;">{{ $message }}</p> @enderror
                     <p class="welcome-greeting">Selamat datang kembali 👋</p>
                     <h2 class="welcome-name wc-big">{{ auth()->user()->full_name }}</h2>
@@ -126,7 +126,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
                         @if ($logoUrl = auth()->user()->company?->logoUrl())
                             <span class="wc-seal" title="{{ auth()->user()->company->name }}"><img src="{{ $logoUrl }}" alt="{{ auth()->user()->company->name }}"></span>
                         @endif
-                        <span class="wc-chip"><i class="fa-solid fa-id-badge"></i><span>NIP {{ auth()->user()->nip }}</span></span>
+                        <span class="wc-chip" title="NIP"><i class="fa-solid fa-id-badge"></i><span>{{ auth()->user()->nip }}</span></span>
                         <span class="wc-chip"><i class="fa-solid fa-briefcase"></i><span>{{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}</span></span>
                     </div>
                 </div>
