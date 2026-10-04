@@ -310,7 +310,15 @@ gagal.
 
 ---
 
-# 7. Parity Check — `identity:verify`
+# 7. Parity Check — `identity:verify` (SUDAH DIBANGUN)
+
+`php artisan identity:verify [--user=NIP] [--limit=15]` — hanya membaca, exit code 1 kalau ada
+selisih, keluarannya cuma jumlah dan NIP. Dimensi yang dicek: `persons` (baris, data pribadi,
+identitas & rekening, alamat, lampiran), `employees` (baris, data kepegawaian, akun
+non-karyawan tidak punya employee), jabatan (paling banyak satu aktif di riwayat; profil =
+riwayat aktif), dan jumlah `employee_careers` vs `user_job_positions`. Selisih diperbaiki dengan
+`identity:backfill` + `identity:backfill-employees`; selisih jabatan profil-vs-riwayat adalah
+data lama yang diputuskan HC.
 
 Ini jaring pengaman utama. Command membandingkan **nilai dari jalur lama vs jalur baru** untuk
 semua karyawan dan melaporkan selisih.
