@@ -5,7 +5,7 @@ namespace Tests\Feature\Counseling;
 use App\Enum\CustomPermissionEnum;
 use App\Livewire\Counseling\CounselingDetailPage;
 use App\Livewire\Counseling\CounselingManagePage;
-use App\Livewire\Counseling\CounselingPage;
+use App\Livewire\Pembinaan\PembinaanSayaList;
 use App\Models\Counseling\Counseling;
 use App\Models\Master\Companies;
 use App\Models\User;
@@ -61,7 +61,7 @@ class CounselingConfidentialityTest extends TestCase
         $counselor = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
 
         Livewire::actingAs($employee)
-            ->test(CounselingPage::class)
+            ->test(PembinaanSayaList::class)
             ->call('openConsultModal')
             ->set('issue', 'Ada masalah dengan rekan kerja.')
             ->set('counselorId', $counselor->id)
@@ -84,7 +84,7 @@ class CounselingConfidentialityTest extends TestCase
         $counselor = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
 
         Livewire::actingAs($employee)
-            ->test(CounselingPage::class)
+            ->test(PembinaanSayaList::class)
             ->call('openConsultModal')
             ->set('issue', 'Keluhan biasa saja.')
             ->set('counselorId', $counselor->id)
@@ -103,7 +103,7 @@ class CounselingConfidentialityTest extends TestCase
         $counselor = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
 
         Livewire::actingAs($employee)
-            ->test(CounselingPage::class)
+            ->test(PembinaanSayaList::class)
             ->set('issue', 'Ada masalah dengan rekan kerja.')
             ->set('counselorId', $counselor->id)
             ->call('submitConsult');
@@ -117,7 +117,7 @@ class CounselingConfidentialityTest extends TestCase
         $employee = User::factory()->create(['company_id' => $company->id]);
 
         Livewire::actingAs($employee)
-            ->test(CounselingPage::class)
+            ->test(PembinaanSayaList::class)
             ->set('issue', 'Coba konsul ke diri sendiri.')
             ->set('counselorId', $employee->id)
             ->call('submitConsult')
@@ -273,14 +273,14 @@ class CounselingConfidentialityTest extends TestCase
         ]);
 
         Livewire::actingAs($counselorWithoutSubordinates)
-            ->test(CounselingPage::class)
+            ->test(PembinaanSayaList::class)
             ->assertSee('Konsul ke Saya');
 
         // Karyawan yang belum pernah ditunjuk jadi konselor sama sekali tidak lihat tombolnya.
         $neverCounselor = User::factory()->create(['company_id' => $company->id]);
 
         Livewire::actingAs($neverCounselor)
-            ->test(CounselingPage::class)
+            ->test(PembinaanSayaList::class)
             ->assertDontSee('Konsul ke Saya');
     }
 
@@ -352,7 +352,7 @@ class CounselingConfidentialityTest extends TestCase
         ]);
 
         Livewire::actingAs($counselor)
-            ->test(CounselingPage::class)
+            ->test(PembinaanSayaList::class)
             ->assertDontSee('Konsul ke Saya');
     }
 }

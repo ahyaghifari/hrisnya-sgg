@@ -1126,10 +1126,13 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
 @endif
 
 @if ($this->canViewPembinaanTab)
-    {{-- Pembinaan — CUMA Coaching (pengembangan) di mana karyawan ini yang dibina. Counseling
-    tidak ditampilkan di sini (instruksi user). Tampil buat karyawan itu sendiri, atasannya, atau
-    pemegang SISTEM_PEMBINAAN_KARYAWAN. --}}
+    {{-- Pembinaan — profil sendiri (punya PEMBINAAN_SAYA): SATU daftar Coaching + Counseling + SP berlabel
+    jenis (komponen membaca Auth::id(), bukan $record, dan counseling rahasia, jadi jangan dipakai di profil
+    orang lain). Selain itu (atasan / pemegang SISTEM_PEMBINAAN_KARYAWAN): cuma Coaching karyawan ini. --}}
     <div x-show="tab === 'pembinaan'">
+        @if ($this->isOwnProfile && auth()->user()->can(\App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value))
+            <livewire:pembinaan.pembinaan-saya-list />
+        @else
         @php $coachings = $this->myCoachings; @endphp
 
         <div class="pwa-list">
@@ -1157,12 +1160,6 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                 </div>
             @endforelse
         </div>
-
-        {{-- Counseling + SP milik sendiri (eks menu "Pembinaan Saya", instruksi user 2026-10-05). Cuma di
-        profil sendiri: kedua komponen membaca Auth::id(), bukan $record, dan counseling rahasia. --}}
-        @if ($this->isOwnProfile && auth()->user()->can(\App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value))
-            <div style="margin-top:24px;"><livewire:counseling.counseling-page /></div>
-            <div style="margin-top:24px;"><livewire:sp.surat-peringatan-page /></div>
         @endif
     </div>
 @endif

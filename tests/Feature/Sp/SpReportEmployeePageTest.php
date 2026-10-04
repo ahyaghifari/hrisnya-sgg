@@ -5,7 +5,7 @@ namespace Tests\Feature\Sp;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpReportStatus;
 use App\Livewire\Sp\BeritaAcaraSayaPage;
-use App\Livewire\Sp\SuratPeringatanPage;
+use App\Livewire\Pembinaan\PembinaanSayaList;
 use App\Models\Master\Companies;
 use App\Models\Sp\SpReport;
 use App\Models\User;
@@ -115,7 +115,7 @@ class SpReportEmployeePageTest extends TestCase
     {
         $sp = \Tests\Support\SpFixtures::draftSp($this->hc, $this->hc->company_id, $this->employee->id, $this->knower->id, 'SP-DRAFT-777');
 
-        Livewire::actingAs($this->employee)->test(SuratPeringatanPage::class)->assertDontSee('SP-DRAFT-777')->assertSee('Belum ada data');
+        Livewire::actingAs($this->employee)->test(PembinaanSayaList::class)->assertDontSee('SP-DRAFT-777')->assertSee('Belum ada data');
         Livewire::actingAs($this->employee)->test(\App\Livewire\Sp\SuratPeringatanDetailPage::class, ['record' => $sp])->assertNotFound();
         $this->actingAs($this->employee)->get(route('sp.saya.preview', $sp))->assertForbidden();
     }
@@ -136,6 +136,6 @@ class SpReportEmployeePageTest extends TestCase
         Notification::assertSentTo($this->employee, SpReportUpdated::class);
         Notification::assertSentTo($this->knower, SpReportUpdated::class);
 
-        Livewire::actingAs($this->employee)->test(SuratPeringatanPage::class)->assertSee('Berita Acara');
+        Livewire::actingAs($this->employee)->test(PembinaanSayaList::class)->assertSee('Berita Acara');
     }
 }

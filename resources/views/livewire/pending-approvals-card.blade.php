@@ -68,8 +68,8 @@
         <!-- MOBILE: card manual -->
         <div class="md:hidden">
             @foreach ($requests as $request)
+                {{-- Tanpa ikon jenis per baris di mobile (instruksi user 2026-10-05): label berwarna sudah membedakan jenis. --}}
                 @php $rowInner = '
-                    <div class="pwa-tile-icon ' . $request->tile . '"><i class="fa-solid ' . $request->icon . '"></i></div>
                     <div style="flex:1;min-width:0;">
                         <p style="font-size:13px;font-weight:600;color:var(--text-heading);">
                             <span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;' . $badgeStyle($request->badge) . '">' . e($request->label) . '</span>
