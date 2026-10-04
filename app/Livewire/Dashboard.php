@@ -25,7 +25,6 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Beranda'])]
 class Dashboard extends Component
 {
-    use HandlesProfilePhotoUpload;
     use ResolvesTodayAttendanceStatus;
     use ResyncsOwnAttendance;
     use ResolvesDayScheduleSummary;
@@ -34,12 +33,8 @@ class Dashboard extends Component
      * #[Url], widget ini bagian dari Dashboard bukan halaman sendiri. */
     public string $calendarMonth = '';
 
-    /** Akun sendiri - target ganti foto dari welcome card (HandlesProfilePhotoUpload). */
-    public User $record;
-
     public function mount(): void
     {
-        $this->record = Auth::user();
         $this->calendarMonth = now()->format('Y-m');
     }
 

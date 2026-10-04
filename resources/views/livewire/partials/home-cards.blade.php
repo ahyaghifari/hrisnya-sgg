@@ -76,7 +76,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
 
     <!-- WELCOME CARD (server-rendered, bukan domain attendance) -->
     @php
-        $profilePhotoPath = $record->profilePhotoPath(); // $record = Dashboard::$record (segar setelah upload)
+        $profilePhotoPath = auth()->user()->profilePhotoPath();
         $profilePhotoUrl = $profilePhotoPath && is_string($profilePhotoPath) ? \Illuminate\Support\Facades\Storage::url($profilePhotoPath) : null;
     @endphp
     {{-- Tombol putih "Dashboard" di welcome card: latarnya tetap putih di dark mode, tapi var(--brand) berubah jadi
@@ -87,54 +87,62 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
     <style>
         .welcome-actions .data-diri-btn:not(.gold) { color: #042c6c; }
         .wc-hero { display: flex; align-items: center; gap: 18px; min-width: 0; }
-        /* Avatar: cincin emas tipis (::before duluan di DOM, cropper position:relative di atasnya - tanpa z-index negatif/stacking context). */
-        .wc-avatar { position: relative; flex-shrink: 0; border-radius: 50%; padding: 3px; line-height: 0; }
-        .wc-avatar::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(135deg, #fde68a, #f5c518 55%, #d4a017); }
-        .welcome-name.wc-big { font-size: 24px; line-height: 1.15; margin-top: 1px; }
+        /* Avatar: ::before dipakai untuk halo (mobile), foto di atasnya. */
+        .wc-face { position: relative; display: flex; align-items: center; justify-content: center; width: 92px; height: 92px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,.9); box-sizing: border-box; }
+        .wc-face-initials { background: #042c6c; color: #fff; font-size: 26px; font-weight: 800; }
+        .wc-avatar { position: relative; flex-shrink: 0; border-radius: 50%; padding: 0; line-height: 0; }
+        .wc-avatar::before { content: ""; position: absolute; inset: 0; border-radius: 50%; }
+        .welcome-name.wc-big { font-size: 26px; line-height: 1.15; margin-top: 1px; }
         .wc-chips { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-        /* Logo perusahaan: lingkaran putih kecil sejajar chip (putih supaya logo warna apa pun terbaca). */
-        .wc-seal { width: 24px; height: 24px; border-radius: 50%; background: #fff; padding: 3px; box-sizing: border-box; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-        .wc-seal img { display: block; width: 100%; height: 100%; object-fit: contain; }
+        /* Logo perusahaan = sisi balik avatar: tiap siklus 15 dtk, 10 dtk foto lalu 5 dtk logo (flip masuk di 66%, keluar di 97%).
+        Cakram menimpa foto (foto sendiri tidak berputar). */
+        .wc-logo-face { position: absolute; inset: 0; border-radius: 50%; background: #fff; padding: 12%; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transform: perspective(300px) rotateY(90deg); animation: wc-flip 15s ease-in-out infinite; }
+        .wc-logo-face img { display: block; width: 100%; height: 100%; object-fit: contain; }
+        @keyframes wc-flip {
+            0%, 66% { opacity: 0; transform: perspective(300px) rotateY(90deg); }
+            70%, 93% { opacity: 1; transform: perspective(300px) rotateY(0); }
+            97%, 100% { opacity: 0; transform: perspective(300px) rotateY(-90deg); }
+        }
+        @media (prefers-reduced-motion: reduce) { .wc-logo-face { animation: none; } }
         .wc-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 10px; border-radius: 999px;
-            background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 11px; font-weight: 600; }
+            background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 12px; font-weight: 600; }
         .wc-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (max-width: 639px) {
-            /* Mobile = susunan kartu identitas Profil Saya: avatar di atas, nama & chip di tengah. */
-            .wc-hero { flex-direction: column; align-items: center; text-align: center; gap: 12px; width: 100%; }
-            /* Halo: tiga lingkaran samar berdenyut pelan, melebar di kiri-kanan avatar (box-shadow ::before, di belakang foto, tanpa stacking context baru). */
-            .wc-avatar { margin: 14px 0 10px; }
-            .wc-avatar::before { box-shadow: 0 0 0 12px rgba(255,255,255,.10), 0 0 0 26px rgba(255,255,255,.055), 0 0 0 42px rgba(255,255,255,.03); animation: wc-pulse 3.2s ease-in-out infinite; }
+            /* Mobile: avatar kecil di kiri, teks di kanan (foto profil hanya tampil di sini; diedit di halaman Profil Saya). */
+            .wc-hero { gap: 12px; }
+            /* Halo berdenyut, spread kecil supaya muat di padding kartu (22px) dan tidak terlalu menimpa teks di kanan. */
+            .wc-avatar::before { box-shadow: 0 0 0 5px rgba(255,255,255,.10), 0 0 0 11px rgba(255,255,255,.055), 0 0 0 18px rgba(255,255,255,.03); animation: wc-pulse 3.2s ease-in-out infinite; }
             @keyframes wc-pulse {
-                0%, 100% { box-shadow: 0 0 0 12px rgba(255,255,255,.10), 0 0 0 26px rgba(255,255,255,.055), 0 0 0 42px rgba(255,255,255,.03); }
-                50% { box-shadow: 0 0 0 17px rgba(255,255,255,.15), 0 0 0 35px rgba(255,255,255,.08), 0 0 0 54px rgba(255,255,255,.04); }
+                0%, 100% { box-shadow: 0 0 0 5px rgba(255,255,255,.10), 0 0 0 11px rgba(255,255,255,.055), 0 0 0 18px rgba(255,255,255,.03); }
+                50% { box-shadow: 0 0 0 8px rgba(255,255,255,.15), 0 0 0 16px rgba(255,255,255,.08), 0 0 0 22px rgba(255,255,255,.04); }
             }
             @media (prefers-reduced-motion: reduce) { .wc-avatar::before { animation: none; } }
-            .wc-chips { margin-top: 8px; gap: 6px; justify-content: center; }
-            .welcome-name.wc-big { font-size: 21px; }
-            .wc-chip { font-size: 12px; padding: 4px 11px; }
-            .wc-seal { width: 26px; height: 26px; padding: 3px; }
+            .wc-face { width: 58px; height: 58px; }
+            .wc-face-initials { font-size: 17px; }
+            .wc-chips { margin-top: 7px; gap: 5px; }
+            .welcome-name.wc-big { font-size: 18px; }
+            .wc-chip { font-size: 11.5px; padding: 3px 9px; gap: 5px; }
         }
     </style>
     <div class="welcome-card bento-welcome">
         <div class="w-deco-1"></div><div class="w-deco-2"></div><div class="w-deco-4"></div>
-        {{-- Tanpa z-index di baris ini: kalau punya, jadi stacking context & overlay crop foto (fixed, z-200) terjebak di dalamnya.
-        Posisi relative + urutan DOM sudah cukup menaikkannya di atas dekorasi. --}}
         <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
             <div class="wc-hero">
-                {{-- Ganti foto langsung dari sini (crop + upload), komponen & trait sama dengan halaman
-                Data Diri: Dashboard::updatedPhoto() lewat HandlesProfilePhotoUpload. Ukuran tetap 92px
-                (komponen cropper pakai px inline, tidak bisa diperkecil khusus HP). --}}
                 <div class="wc-avatar">
-                    <x-photo-upload-cropper :avatar-url="$profilePhotoUrl" :initials="$record->initials() ?: '?'" :size="92" />
+                    @if ($profilePhotoUrl)
+                        <img class="wc-face" src="{{ $profilePhotoUrl }}" alt="{{ auth()->user()->full_name }}">
+                    @else
+                        <span class="wc-face wc-face-initials" aria-hidden="true">{{ auth()->user()->initials() ?: '?' }}</span>
+                    @endif
+                    @if ($logoUrl = auth()->user()->company?->logoUrl())
+                        <span class="wc-logo-face" aria-hidden="true"><img src="{{ $logoUrl }}" alt=""></span>
+                    @endif
                 </div>
                 <div class="wc-text" style="min-width:0;">
-                    @error('photo') <p style="color:#fecaca;font-size:11px;font-weight:600;margin-bottom:4px;">{{ $message }}</p> @enderror
                     <p class="welcome-greeting">Selamat datang kembali 👋</p>
                     <h2 class="welcome-name wc-big">{{ auth()->user()->full_name }}</h2>
                     <div class="wc-chips">
-                        @if ($logoUrl = auth()->user()->company?->logoUrl())
-                            <span class="wc-seal" title="{{ auth()->user()->company->name }}"><img src="{{ $logoUrl }}" alt="{{ auth()->user()->company->name }}"></span>
-                        @endif
                         <span class="wc-chip" title="NIP"><i class="fa-solid fa-id-badge"></i><span>{{ auth()->user()->nip }}</span></span>
                         <span class="wc-chip"><i class="fa-solid fa-briefcase"></i><span>{{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}</span></span>
                     </div>
