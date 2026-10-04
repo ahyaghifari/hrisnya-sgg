@@ -92,7 +92,7 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
         .wc-hero .welcome-greeting { grid-column: 2; grid-row: 1; align-self: end; }
         .wc-hero .wc-text { grid-column: 2; grid-row: 2; align-self: start; }
         /* Avatar: ::before dipakai untuk halo (mobile), foto di atasnya. */
-        .wc-face { position: relative; display: flex; align-items: center; justify-content: center; width: 92px; height: 92px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,.9); box-sizing: border-box; }
+        .wc-face { position: relative; display: flex; align-items: center; justify-content: center; width: 92px; height: 92px; border-radius: 50%; object-fit: cover; border: 0; }
         .wc-face-initials { background: #042c6c; color: #fff; font-size: 26px; font-weight: 800; }
         .wc-avatar { position: relative; flex-shrink: 0; border-radius: 50%; padding: 0; line-height: 0; }
         .wc-avatar::before { content: ""; position: absolute; inset: 0; border-radius: 50%; }
@@ -113,21 +113,21 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 12px; font-weight: 600; }
         .wc-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (max-width: 639px) {
-            /* Mobile = susunan kartu identitas Profil Saya: sapaan di paling atas, lalu avatar, nama, chip - semua rata tengah. */
-            .wc-hero { width: 100%; grid-template-columns: minmax(0, 1fr); row-gap: 0; text-align: center; justify-items: center; }
-            .wc-hero .wc-avatar { grid-column: 1; grid-row: 2; margin: 16px 0 14px; }
-            .wc-hero .welcome-greeting { grid-column: 1; grid-row: 1; align-self: auto; margin-bottom: 0; }
-            .wc-hero .wc-text { grid-column: 1; grid-row: 3; align-self: auto; width: 100%; }
-            .wc-chips { justify-content: center; margin-top: 10px; gap: 6px; }
+            /* Mobile: sapaan baris sendiri paling atas (rata kiri); di bawahnya avatar kecil di kiri, nama + chip NIP/jabatan rata kiri di kanannya. Tanpa efek pulse. */
+            .wc-hero { width: 100%; grid-template-columns: auto minmax(0, 1fr); column-gap: 14px; row-gap: 14px; text-align: left; }
+            .wc-hero .welcome-greeting { grid-column: 1 / -1; grid-row: 1; align-self: auto; margin-bottom: 0; }
+            .wc-hero .wc-avatar { grid-column: 1; grid-row: 2; align-self: center; margin: 0; }
+            .wc-hero .wc-text { grid-column: 2; grid-row: 2; align-self: center; }
+            .wc-face { width: 48px; height: 48px; }
+            .wc-face-initials { font-size: 15px; }
+            .wc-chips { justify-content: flex-start; margin-top: 8px; gap: 5px; }
             .welcome-name.wc-big { font-size: 18px; }
-            .wc-chip { font-size: 10.5px; padding: 2px 9px; gap: 5px; }
-            /* Halo berdenyut pelan melebar di kiri-kanan avatar (box-shadow ::before, di belakang foto). */
-            .wc-avatar::before { box-shadow: 0 0 0 8px rgba(255,255,255,.10), 0 0 0 17px rgba(255,255,255,.055), 0 0 0 28px rgba(255,255,255,.03); animation: wc-pulse 5.5s ease-in-out infinite; }
-            @keyframes wc-pulse {
-                0%, 100% { box-shadow: 0 0 0 8px rgba(255,255,255,.10), 0 0 0 17px rgba(255,255,255,.055), 0 0 0 28px rgba(255,255,255,.03); }
-                50% { box-shadow: 0 0 0 11px rgba(255,255,255,.14), 0 0 0 22px rgba(255,255,255,.075), 0 0 0 34px rgba(255,255,255,.04); }
-            }
-            @media (prefers-reduced-motion: reduce) { .wc-avatar::before { animation: none; } }
+            /* NIP · jabatan = teks polos sebaris dipisah middle dot (bukan chip). Desktop tetap chip. */
+            .wc-chips { flex-wrap: wrap; align-items: center; gap: 2px 6px; }
+            .wc-chip { background: none; border: 0; padding: 0; font-size: 10px; font-weight: 500; color: rgba(255,255,255,.8); max-width: 100%; }
+            .wc-chip i { display: none; }
+            .wc-chips .wc-chip:first-child span::before { content: "NIP "; }
+            .wc-chips .wc-chip + .wc-chip::before { content: "\00b7"; margin-right: 2px; font-weight: 800; }
         }
     </style>
     <div class="welcome-card bento-welcome">
