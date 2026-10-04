@@ -63,7 +63,7 @@ class CounselingDetailPage extends Component
      * konsul -> riwayat konsul pribadinya. */
     public function getBackRouteProperty(): string
     {
-        return $this->isCounselor ? route('counseling.kelola') : route('counseling');
+        return $this->isCounselor ? route('counseling.kelola') : route('profil-saya');
     }
 
     public function submitResponse(): void

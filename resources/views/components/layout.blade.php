@@ -15,7 +15,6 @@
         'canAccessTugasSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::TUGAS_SAYA->value),
         'canAccessPelatihanSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PELATIHAN_SAYA->value),
         'canAccessPengajuanAbsensiSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PENGAJUAN_ABSENSI_SAYA->value),
-        'canAccessPembinaanSaya' => auth()->user()->can(\App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value),
         'canAccessCoachingCounseling' => auth()->user()->can(\App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value),
         'canAccessSikartapSaya' => auth()->user()->isKontrakKaryawan(),
         'canAccessOrientasiSaya' => auth()->user()->isOrientasiKaryawan(),

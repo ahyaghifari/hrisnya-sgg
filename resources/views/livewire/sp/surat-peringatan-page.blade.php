@@ -1,5 +1,5 @@
 <div>
-    <x-page-header title="Surat Peringatan" size="lg" />
+    <h4 style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0 0 12px;">Surat Peringatan</h4>
 
     {{-- Berita Acara, Keputusan, dan Surat Peringatan dalam SATU daftar; tahapnya tampil di tiap baris. --}}
     <div class="pwa-list">

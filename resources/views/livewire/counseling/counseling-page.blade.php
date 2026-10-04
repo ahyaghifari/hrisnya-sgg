@@ -1,15 +1,16 @@
 <div>
-    <x-page-header title="Counseling" size="lg" />
-
-    <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-        @if ($this->showInboxButton)
-            <a href="{{ route('counseling.kelola') }}" wire:navigate class="btn-ghost">
-                <i class="fa-solid fa-inbox"></i> Konsul ke Saya
-            </a>
-        @endif
-        <button type="button" wire:click="openConsultModal" class="btn-primary">
-            <i class="fa-solid fa-comment-medical"></i> Konsul
-        </button>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+        <h4 style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0;">Counseling</h4>
+        <span style="display:flex;gap:10px;flex-wrap:wrap;">
+            @if ($this->showInboxButton)
+                <a href="{{ route('counseling.kelola') }}" wire:navigate class="btn-ghost">
+                    <i class="fa-solid fa-inbox"></i> Konsul ke Saya
+                </a>
+            @endif
+            <button type="button" wire:click="openConsultModal" class="btn-primary">
+                <i class="fa-solid fa-comment-medical"></i> Konsul
+            </button>
+        </span>
     </div>
 
     <div class="pwa-list">
