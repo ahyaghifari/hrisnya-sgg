@@ -130,6 +130,12 @@ class OmsetPage extends Component
         return collect($this->omsetValues)->sum(fn ($v) => is_numeric($v) ? (float) $v : 0);
     }
 
+    /** Dasar Jasa Pelayanan LIVE: omset tiap kategori x persentase penjamin (BPJS 2,5% / Umum 7,5%). */
+    public function getJasaPelayananBaseProperty(): float
+    {
+        return $this->categories->sum(fn (OmsetCategory $c) => (float) ($this->omsetValues[$c->id] ?: 0) * $c->payer_type->rate());
+    }
+
     public function getTotalJeProperty(): int
     {
         return (int) $this->jobPositions->sum('job_evaluation_score');

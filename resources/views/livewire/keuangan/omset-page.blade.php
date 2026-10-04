@@ -50,7 +50,7 @@
                             @foreach ($this->categories as $c)
                                 <div>
                                     <div style="display:flex;align-items:center;gap:10px;">
-                                        <span style="flex:1;font-size:12.5px;font-weight:600;">{{ $c->name }}</span>
+                                        <span style="flex:1;font-size:12.5px;font-weight:600;">{{ $c->name }} <small style="font-weight:500;color:var(--text-muted);">· {{ $c->payer_type->getLabel() }} {{ rtrim(rtrim(number_format($c->payer_type->rate() * 100, 1, ',', ''), '0'), ',') }}%</small></span>
                                         <input type="number" step="0.01" class="form-input" style="max-width:220px;font-size:12.5px;padding:7px 10px;" wire:model="omsetValues.{{ $c->id }}" placeholder="Nominal (Rp)">
                                     </div>
                                     @error("omsetValues.{$c->id}") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;text-align:right;">{{ $message }}</p> @enderror
@@ -59,7 +59,9 @@
                         </div>
 
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border-soft);">
-                            <span style="font-size:12.5px;font-weight:700;">Total Omset: Rp {{ number_format($this->totalOmset, 0, ',', '.') }}</span>
+                            <span style="font-size:12.5px;font-weight:700;">Total Omset: Rp {{ number_format($this->totalOmset, 0, ',', '.') }}
+                                <span style="display:block;font-weight:500;color:var(--text-muted);">Dasar Jasa Pelayanan: Rp {{ number_format($this->jasaPelayananBase, 0, ',', '.') }}</span>
+                            </span>
                             @if ($this->canEdit)
                                 <button type="button" wire:click="saveOmset" wire:loading.attr="disabled" wire:target="saveOmset" class="btn-primary" style="padding:9px 20px;font-size:12.5px;">Simpan Omset</button>
                             @endif

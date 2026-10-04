@@ -3,6 +3,7 @@
 namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
+use App\Enum\Payroll\OmsetPayerType;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\AuditLog;
@@ -548,7 +549,7 @@ class MappingKomponenGajiPage extends Component
             ->where('company_id', $this->companyId)
             ->orderBy('name')
             ->get()
-            ->map(fn (OmsetCategory $r) => ['id' => $r->id, 'name' => $r->name])
+            ->map(fn (OmsetCategory $r) => ['id' => $r->id, 'name' => $r->name, 'payer_type' => $r->payer_type->value])
             ->values()
             ->all();
     }
@@ -557,7 +558,7 @@ class MappingKomponenGajiPage extends Component
     {
         $this->assertCanEdit();
 
-        $this->omsetCategoryRows[] = ['id' => null, 'name' => ''];
+        $this->omsetCategoryRows[] = ['id' => null, 'name' => '', 'payer_type' => OmsetPayerType::UMUM->value];
     }
 
     public function removeOmsetCategoryRow(int $index): void
@@ -580,8 +581,10 @@ class MappingKomponenGajiPage extends Component
 
         $this->validate([
             'omsetCategoryRows.*.name' => 'nullable|string|max:100',
+            'omsetCategoryRows.*.payer_type' => ['required', Rule::enum(OmsetPayerType::class)],
         ], [], [
             'omsetCategoryRows.*.name' => 'nama kategori',
+            'omsetCategoryRows.*.payer_type' => 'jenis penjamin',
         ]);
 
         foreach ($this->omsetCategoryRows as $i => $row) {
@@ -590,9 +593,9 @@ class MappingKomponenGajiPage extends Component
             }
 
             if ($row['id']) {
-                OmsetCategory::where('id', $row['id'])->update(['name' => $row['name']]);
+                OmsetCategory::where('id', $row['id'])->update(['name' => $row['name'], 'payer_type' => $row['payer_type']]);
             } else {
-                $created = OmsetCategory::create(['company_id' => $this->companyId, 'name' => $row['name']]);
+                $created = OmsetCategory::create(['company_id' => $this->companyId, 'name' => $row['name'], 'payer_type' => $row['payer_type']]);
                 $this->omsetCategoryRows[$i]['id'] = $created->id;
             }
         }

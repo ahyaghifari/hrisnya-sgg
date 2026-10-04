@@ -126,7 +126,7 @@ trait HandlesDayScheduleForm
         if ($this->scheduleType === ScheduleType::FLEXIBLE->value) {
             $lines = [
                 ['icon' => 'fa-tower-broadcast', 'html' => "Jendela absensi <strong>{$this->flexibleCheckinFrom}</strong> &ndash; <strong>{$this->flexibleCheckinUntil}</strong>"],
-                ['icon' => 'fa-business-time', 'html' => sprintf('Total jam kerja <strong>%d&ndash;%d menit</strong>', (int) ($row['min_work_minutes'] ?? 0), (int) ($row['max_work_minutes'] ?? 0))],
+                ['icon' => 'fa-business-time', 'html' => sprintf('Target jam kerja <strong>%d menit</strong> (boleh pulang duluan sejak <strong>%d menit</strong>)', (int) ($row['max_work_minutes'] ?? 0), (int) ($row['min_work_minutes'] ?? 0))],
                 ['icon' => 'fa-utensils', 'html' => sprintf('Istirahat <strong>%d menit</strong>', (int) ($row['break_minutes'] ?? 0))],
                 ['icon' => 'fa-hourglass-half', 'html' => sprintf('Lembur dihitung <strong>%d&ndash;%d menit</strong> (toleransi %d menit)', (int) ($row['overtime_min_minutes'] ?? 0), (int) ($row['overtime_max_minutes'] ?? 0), (int) ($row['overtime_break_minutes'] ?? 0))],
             ];

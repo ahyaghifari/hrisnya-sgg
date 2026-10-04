@@ -234,7 +234,7 @@ class FixedFlexibleReaderTest extends TestCase
     {
         $user = $this->makeFlexibleUser();
         $this->insertScan($user, '2026-08-06 09:15:00'); // lewat late_checkin_deadline 09:00
-        $this->insertScan($user, '2026-08-06 17:30:00');
+        $this->insertScan($user, '2026-08-06 18:30:00'); // 555 - 60 istirahat = 495 >= target 480
 
         $result = app(AccessLogScheduleReader::class)->readAndGroup('2026-08-06', '2026-08-06');
 
