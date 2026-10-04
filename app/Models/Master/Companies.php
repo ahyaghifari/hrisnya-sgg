@@ -21,9 +21,16 @@ class Companies extends Model
         'code',
         'name',
         'letter_name',
+        'logo',
         'location',
         'is_active',
     ];
+
+    /** URL logo di disk public, null kalau belum diunggah. */
+    public function logoUrl(): ?string
+    {
+        return $this->logo ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->logo) : null;
+    }
 
     /** Nama untuk surat resmi (SP, Berita Acara); fallback ke nama biasa. */
     public function letterName(): string

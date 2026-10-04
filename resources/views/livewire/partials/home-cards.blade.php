@@ -76,31 +76,59 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
 
     <!-- WELCOME CARD (server-rendered, bukan domain attendance) -->
     @php
-        $profilePhotoPath = auth()->user()->profilePhotoPath();
+        $profilePhotoPath = $record->profilePhotoPath(); // $record = Dashboard::$record (segar setelah upload)
         $profilePhotoUrl = $profilePhotoPath && is_string($profilePhotoPath) ? \Illuminate\Support\Facades\Storage::url($profilePhotoPath) : null;
     @endphp
     {{-- Tombol putih "Dashboard" di welcome card: latarnya tetap putih di dark mode, tapi var(--brand) berubah jadi
     biru muda sehingga teksnya nyaris tak terbaca. Dikunci navy (sama dengan .data-diri-btn di app.css; inline
     supaya langsung berlaku tanpa build). Tombol emas "Profil Saya" punya warna sendiri. --}}
-    <style>.welcome-actions .data-diri-btn:not(.gold) { color: #042c6c; }</style>
+    {{-- Avatar pakai kelas .wc-avatar (bukan .welcome-avatar yang di-hide di HP): tampil di semua ukuran,
+    fallback inisial kalau belum upload foto. Inline supaya langsung berlaku tanpa build. --}}
+    <style>
+        .welcome-actions .data-diri-btn:not(.gold) { color: #042c6c; }
+        .wc-hero { display: flex; align-items: center; gap: 18px; min-width: 0; }
+        /* Avatar: cincin emas tipis (::before duluan di DOM, cropper position:relative di atasnya - tanpa z-index negatif/stacking context). */
+        .wc-avatar { position: relative; flex-shrink: 0; border-radius: 50%; padding: 3px; line-height: 0; }
+        .wc-avatar::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(135deg, #fde68a, #f5c518 55%, #d4a017); }
+        .welcome-name.wc-big { font-size: 28px; line-height: 1.15; margin-top: 1px; }
+        .wc-chips { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        /* Logo perusahaan: lingkaran putih polos sejajar chip (putih supaya logo warna apa pun terbaca). */
+        .wc-seal { width: 26px; height: 26px; border-radius: 50%; background: #fff; padding: 4px; box-sizing: border-box; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .wc-seal img { display: block; width: 100%; height: 100%; object-fit: contain; }
+        .wc-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 11px; border-radius: 999px;
+            background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 12px; font-weight: 600; }
+        .wc-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        @media (max-width: 639px) {
+            .wc-hero { gap: 14px; }
+            .welcome-name.wc-big { font-size: 20px; }
+            .wc-chips { margin-top: 8px; }
+            .wc-seal { width: 24px; height: 24px; padding: 3px; }
+            .wc-chip { font-size: 11px; padding: 3px 9px; }
+        }
+    </style>
     <div class="welcome-card bento-welcome">
         <div class="w-deco-1"></div><div class="w-deco-2"></div><div class="w-deco-4"></div>
-        <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-            <div style="display:flex;align-items:center;gap:14px;">
-                {{-- Foto profil cuma ditampilkan kalau memang sudah upload - tidak ada fallback
-                inisial/placeholder di sini (beda dari x-avatar), biar welcome-card tidak boros
-                ruang untuk user yang belum punya foto. --}}
-                @if ($profilePhotoUrl)
-                    <img src="{{ $profilePhotoUrl }}" alt="{{ auth()->user()->full_name }}" class="welcome-avatar">
-                @endif
-                <div>
+        {{-- Tanpa z-index di baris ini: kalau punya, jadi stacking context & overlay crop foto (fixed, z-200) terjebak di dalamnya.
+        Posisi relative + urutan DOM sudah cukup menaikkannya di atas dekorasi. --}}
+        <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div class="wc-hero">
+                {{-- Ganti foto langsung dari sini (crop + upload), komponen & trait sama dengan halaman
+                Data Diri: Dashboard::updatedPhoto() lewat HandlesProfilePhotoUpload. Ukuran tetap 72px
+                (komponen cropper pakai px inline, tidak bisa diperkecil khusus HP). --}}
+                <div class="wc-avatar">
+                    <x-photo-upload-cropper :avatar-url="$profilePhotoUrl" :initials="$record->initials() ?: '?'" :size="72" />
+                </div>
+                <div style="min-width:0;">
+                    @error('photo') <p style="color:#fecaca;font-size:11px;font-weight:600;margin-bottom:4px;">{{ $message }}</p> @enderror
                     <p class="welcome-greeting">Selamat datang kembali 👋</p>
-                    <h2 class="welcome-name">{{ auth()->user()->full_name }}</h2>
-                    <p class="welcome-meta">
-                        {{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}
-                        &nbsp;·&nbsp; NIP {{ auth()->user()->nip }}
-                        &nbsp;·&nbsp; {{ auth()->user()->company?->name ?? '-' }}
-                    </p>
+                    <h2 class="welcome-name wc-big">{{ auth()->user()->full_name }}</h2>
+                    <div class="wc-chips">
+                        @if ($logoUrl = auth()->user()->company?->logoUrl())
+                            <span class="wc-seal" title="{{ auth()->user()->company->name }}"><img src="{{ $logoUrl }}" alt="{{ auth()->user()->company->name }}"></span>
+                        @endif
+                        <span class="wc-chip"><i class="fa-solid fa-id-badge"></i><span>NIP {{ auth()->user()->nip }}</span></span>
+                        <span class="wc-chip"><i class="fa-solid fa-briefcase"></i><span>{{ auth()->user()->profile?->jobPosition?->name ?? 'Karyawan' }}</span></span>
+                    </div>
                 </div>
             </div>
 

@@ -9,6 +9,7 @@ use App\Models\Master\JobPositions;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -54,6 +55,16 @@ class CompaniesResource extends BaseResource
                     ->label('Nama Perusahaan untuk Surat')
                     ->helperText('Dipakai di SP dan Berita Acara. Kosongkan untuk memakai Nama Perusahaan.')
                     ->maxLength(255),
+
+                FileUpload::make('logo')
+                    ->label('Logo Perusahaan')
+                    ->helperText('Tampil di welcome card beranda karyawan. PNG transparan paling bagus; kosongkan kalau tidak ada.')
+                    ->image()
+                    ->imageEditor()
+                    ->maxSize(1024)
+                    ->disk('public')
+                    ->directory('company-logos')
+                    ->visibility('public'),
 
                 TextInput::make('location')
                     ->label('Lokasi Perusahaan')
