@@ -127,11 +127,13 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
             @media (prefers-reduced-motion: reduce) { .wc-avatar::before { animation: none; } }
             .wc-face { width: 58px; height: 58px; }
             .wc-face-initials { font-size: 17px; }
-            .wc-chips { margin-top: 12px; gap: 5px; flex-wrap: nowrap; }
-            .wc-chip { min-width: 0; }
-            .wc-chips .wc-chip:first-child { flex-shrink: 0; }
-            .welcome-name.wc-big { font-size: 16px; }
-            .wc-chip { font-size: 10.5px; padding: 2px 8px; gap: 4px; }
+            /* Mobile: NIP · jabatan = teks polos sebaris dipisah middle dot (bukan chip), nama besar. Desktop tetap chip. */
+            .wc-chips { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 2px 6px; margin-top: 8px; }
+            .wc-chip { background: none; border: 0; padding: 0; font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,.8); max-width: 100%; }
+            .wc-chip i { display: none; }
+            .wc-chips .wc-chip:first-child span::before { content: "NIP "; }
+            .wc-chips .wc-chip + .wc-chip::before { content: "\00b7"; margin-right: 2px; font-weight: 800; }
+            .welcome-name.wc-big { font-size: 20px; }
         }
     </style>
     <div class="welcome-card bento-welcome">
