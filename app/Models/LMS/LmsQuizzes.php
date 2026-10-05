@@ -89,8 +89,9 @@ class LmsQuizzes extends Model
             }
         }
 
-        // Multiple choice: each question worth 100 points
-        $multipleChoiceScore = $multipleChoiceCount * 100;
+        // Semua soal pilihan ganda bersama-sama bernilai 100 (tiap soal 100 / jumlah soal PG),
+        // sama dengan QuizService::submitQuiz().
+        $multipleChoiceScore = $multipleChoiceCount > 0 ? 100 : 0;
         
         // Total score is sum of multiple choice and essay scores
         return $multipleChoiceScore + $essayTotalScore;

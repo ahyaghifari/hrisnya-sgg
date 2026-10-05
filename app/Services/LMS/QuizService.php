@@ -118,7 +118,7 @@ class QuizService
         $pointsPerMultipleChoice = $totalMultipleChoiceQuestions > 0 ? (100 / $totalMultipleChoiceQuestions) : 0;
 
         $totalAutoScore = 0;
-        $maxAutoScore = 100;
+        $maxAutoScore = $totalMultipleChoiceQuestions > 0 ? 100 : 0;
         $hasEssay = false;
         $correct_count = 0;
         $wrong_count = 0;
@@ -160,6 +160,8 @@ class QuizService
             ]);
         }
 
+        // Kolom skor integer: 100 / jumlah soal bisa pecahan (mis. 33,33), jadi total dibulatkan sekali di sini.
+        $totalAutoScore = (int) round($totalAutoScore);
         $status = $hasEssay ? 'pending_review' : 'completed';
 
         $this->quizRepo->saveUserResult([

@@ -154,6 +154,35 @@ class LmsApprovalAndReviewTest extends TestCase
         $this->assertNotNull($storedResult->reviewed_at);
     }
 
+    public function test_multiple_choice_score_is_100_divided_by_question_count(): void
+    {
+        $company = $this->makeCompany();
+        $user = User::factory()->create(['company_id' => $company->id]);
+        ['course' => $course, 'meeting' => $meeting] = $this->makeCourseWithMeeting($company);
+
+        $quiz = LmsQuizzes::create(['title' => 'Quiz PG', 'total_score' => 0]);
+        $answers = [];
+        foreach (range(1, 3) as $i) {
+            $question = LmsQuestionBanks::create(['question' => "Soal {$i}", 'type' => QuestionType::MultipleChoice]);
+            LmsQuizQuestions::create(['quiz_id' => $quiz->id, 'question_bank_id' => $question->id]);
+            $right = LmsQuestionOptions::create(['question_id' => $question->id, 'option_text' => 'Benar', 'is_correct' => true]);
+            $wrong = LmsQuestionOptions::create(['question_id' => $question->id, 'option_text' => 'Salah', 'is_correct' => false]);
+            // Soal 1 & 2 dijawab benar, soal 3 salah.
+            $answers[] = ['question_id' => $question->id, 'answer_id' => $i < 3 ? $right->id : $wrong->id];
+        }
+        $meetingQuiz = LmsMeetingQuizzes::create(['meeting_id' => $meeting->id, 'quiz_id' => $quiz->id, 'duration' => 30]);
+
+        app(CourseUserRepository::class)->assignUserToCourse($user->id, $course->id);
+        LmsCourseUsers::where('user_id', $user->id)->update(['status' => CourseUserStatus::APPROVED->value]);
+        $respondent = app(RespondentService::class)->resolveForEmployee($user->id, $course->id);
+
+        $result = app(QuizService::class)->submitQuiz($meetingQuiz->id, $answers, $respondent->id, $user->id);
+
+        $this->assertSame(67, $result['user_score']); // 2 x 33,33 dibulatkan
+        $this->assertSame(100, $result['max_score']);
+        $this->assertSame(100, $quiz->fresh()->calculateTotalScore());
+    }
+
     public function test_essay_review_score_is_clamped_to_question_max_score(): void
     {
         $company = $this->makeCompany();
