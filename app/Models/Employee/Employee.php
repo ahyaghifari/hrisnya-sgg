@@ -30,6 +30,7 @@ class Employee extends Model
         'nip',
         'nama_lengkap',
         'nickname',
+        'is_dokter',
         'gender',
         'marital_status',
         'place_of_birth',
@@ -49,6 +50,7 @@ class Employee extends Model
     ];
 
     protected $casts = [
+        'is_dokter' => 'boolean',
         'date_of_birth' => 'date',
         'joining_date' => 'date',
         'tmt_tetap' => 'date',

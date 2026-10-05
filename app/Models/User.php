@@ -98,6 +98,13 @@ class User extends Authenticatable implements FilamentUser
             $builder->whereNotIn('users.id', self::NON_KARYAWAN_IDS);
         });
 
+        // Dokter tidak ikut daftar karyawan biasa. Scope terpisah dari 'non_karyawan' supaya
+        // route binding (resolveRouteBinding) bisa melewatinya tanpa membuka 4 akun eksekutif.
+        static::addGlobalScope('dokter', function (Builder $builder) {
+            $builder->whereNotIn('users.id', \App\Models\Employee\Employee::query()
+                ->select('user_id')->where('is_dokter', true)->whereNotNull('user_id'));
+        });
+
         static::creating(function ($model) {
             if (empty($model->id)) {
                 $model->id = (string) \Illuminate\Support\Str::ulid();
@@ -244,6 +251,19 @@ class User extends Authenticatable implements FilamentUser
      * (tanpa join) sehingga aman dipakai di dalam `whereHas('user', fn ($q) => $q->searchName(..))`
      * dan tidak mengubah daftar kolom/alias query pemanggil.
      */
+    /** Hanya dokter (employees.is_dokter); 4 akun non-karyawan tetap terbuang. */
+    public function scopeOnlyDokter(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('dokter')->whereIn('users.id', \App\Models\Employee\Employee::query()
+            ->select('user_id')->where('is_dokter', true)->whereNotNull('user_id'));
+    }
+
+    /** Dokter tetap bisa dibuka lewat URL {record} (Lihat/Edit dari tab Dokter). */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->withoutGlobalScope('dokter')->where($field ?? $this->getRouteKeyName(), $value)->first();
+    }
+
     public function scopeWhereNip(Builder $query, string|array $nip): Builder
     {
         return $query->whereIn('users.id', \App\Models\Employee\Employee::query()->select('user_id')->whereIn('nip', (array) $nip));

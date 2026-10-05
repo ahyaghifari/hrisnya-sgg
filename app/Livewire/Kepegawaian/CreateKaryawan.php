@@ -51,6 +51,7 @@ class CreateKaryawan extends Component
 
         $profileData = [
             'nickname' => $this->nickname ?: null,
+            'is_dokter' => $this->is_dokter,
             'gender' => $this->gender,
             'marital_status' => $this->marital_status,
             'place_of_birth' => $this->place_of_birth ?: null,

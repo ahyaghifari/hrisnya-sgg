@@ -38,6 +38,7 @@ trait HasKaryawanForm
     /** @var array<int, string> */
     public array $role_ids = [];
     public bool $is_active = true;
+    public bool $is_dokter = false;
 
     // Step 2 — Data Pribadi, Alamat, Kontak
     public string $nickname = '';

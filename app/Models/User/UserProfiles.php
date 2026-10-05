@@ -22,6 +22,7 @@ class UserProfiles extends Model
     protected $fillable = [
         'user_id',
         'nickname',
+        'is_dokter',
         'gender',
         'marital_status',
         'place_of_birth',
@@ -58,6 +59,7 @@ class UserProfiles extends Model
 
     protected $casts = [
         'profile_picture' => 'array',
+        'is_dokter' => 'boolean',
     ];
 
     protected static function boot(): void
@@ -168,6 +170,7 @@ class UserProfiles extends Model
     {
         return [
             'nickname' => 'Nama Panggilan',
+            'is_dokter' => 'Dokter',
             'gender' => 'Jenis Kelamin',
             'marital_status' => 'Status Perkawinan',
             'religion_id' => 'Agama',

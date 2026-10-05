@@ -77,6 +77,7 @@ class EmployeeSyncService
             $employee = Employee::updateOrCreate(['user_id' => $user->id], [
                 ...$this->userSource($user),
                 'nickname' => $profile?->nickname,
+                'is_dokter' => (bool) $profile?->is_dokter,
                 'gender' => $profile?->gender,
                 'marital_status' => $profile?->marital_status,
                 'place_of_birth' => $profile?->place_of_birth,

@@ -36,9 +36,6 @@
             @endif
             @error('photo') <p style="color:var(--danger-text);font-size:11px;margin-top:3px;">{{ $message }}</p> @enderror
         </div>
-        <a href="{{ route('profil-saya') }}" wire:navigate style="color:var(--text-faint);">
-            <i class="fa-solid fa-chevron-right" style="font-size:12px;"></i>
-        </a>
     </div>
 </div>
 
