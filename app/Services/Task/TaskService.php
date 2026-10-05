@@ -683,9 +683,11 @@ class TaskService
     }
 
     /**
-     * Centang tugas Board berulang: kartu lama pindah ke List Selesai (lewat moveCardsAcrossLists, jadi
-     * aturan review/izin tetap berlaku), lalu dibuat salinan baru - tenggat periode berikutnya, status
-     * Todo, checklist belum dicentang, pelaksana sama - di List asal. Kartu lama tidak berulang lagi.
+     * Centang tugas Board berulang: tugas yang SAMA dijadwalkan ulang, bukan dibuat salinan - kode,
+     * komentar, lampiran, dan log aktivitas tetap menempel (jadi riwayat). Kartu dulu lewat
+     * moveCardsAcrossLists ke List Selesai (aturan review/izin/notifikasi tetap berlaku), lalu
+     * dikembalikan ke List asal: status Todo, tenggat periode berikutnya, checklist di-unceklis
+     * (yang sudah tercentang dicatat di log aktivitas). Pengulangan tetap aktif.
      */
     public function completeRecurring(Task $task, User $actor): Task
     {
@@ -696,8 +698,9 @@ class TaskService
             $final = $task->project->lists()->where('is_final', true)->first();
             abort_unless($final, 422, 'Board ini belum punya List Selesai.');
 
+            $oldDue = $task->due_date;
             $nextDue = $task->nextDueDate();
-            // Salinan kembali ke List asal; kalau asalnya List Review, ke List kerja pertama.
+            // Kembali ke List asal; kalau asalnya List Review, ke List kerja pertama.
             $listId = $task->list?->is_review
                 ? $task->project->lists()->where('is_review', false)->where('is_final', false)->orderBy('position')->value('id')
                 : $task->list_id;
@@ -708,28 +711,27 @@ class TaskService
                 $task->id
             );
 
-            $copy = $this->taskRepository->create([
-                ...$task->only(['department_id', 'project_id', 'company_id', 'requirement', 'description', 'priority', 'recurrence', 'created_by', 'reviewer_id', 'assigned_to', 'is_self_assigned', 'needs_review', 'notify_creator_on_review', 'notify_creator_on_complete']),
-                'code' => $this->generateCode($task->department_id),
+            $doneItems = $task->checklistItems()->where('is_done', true)->pluck('title')->all();
+            $task->checklistItems()->update(['is_done' => false, 'done_at' => null, 'done_by' => null]);
+
+            $this->taskRepository->update($task->id, [
                 'list_id' => $listId,
+                'position' => (int) Task::where('list_id', $listId)->max('position') + 1,
+                'status' => TaskStatus::TODO->value,
                 'due_date' => $nextDue,
                 'responded_date' => Carbon::now(),
-                'status' => TaskStatus::TODO->value,
+                'started_date' => null,
+                'completed_date' => null,
+                'is_overdue' => false,
             ]);
 
-            foreach ($task->assignees as $assignee) {
-                if ($assignee->user_id !== $task->assigned_to) {
-                    $copy->assignees()->create(['user_id' => $assignee->user_id]);
-                }
-            }
-            foreach ($task->checklistItems as $item) {
-                $copy->checklistItems()->create(['title' => $item->title, 'position' => $item->position, 'created_by' => $item->created_by]);
-            }
+            $task->refresh();
+            $this->logActivity($task, $actor, 'recurred', 'Periode selesai, dijadwalkan ulang ke ' . Carbon::parse($nextDue)->translatedFormat('j M Y'), [
+                'previous_due_date' => $oldDue,
+                'checklist_done' => $doneItems,
+            ]);
 
-            $this->taskRepository->update($task->id, ['recurrence' => null]);
-            $this->logActivity($copy, $actor, 'created', 'Dibuat otomatis dari tugas berulang ' . $task->code);
-
-            return $copy;
+            return $task;
         });
     }
 

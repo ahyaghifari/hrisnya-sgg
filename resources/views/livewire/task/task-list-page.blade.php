@@ -561,7 +561,7 @@
                                         <div class="task-card-top">
                                             @if ($task->recurrence && $canMoveCard && ! $list->is_final && ! $list->is_review)
                                                 <label class="custom-checkbox" style="--accent:#16a34a;width:16px;height:16px;margin-top:2px;" title="Selesai &amp; ulangi ({{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }})" onclick="event.stopPropagation()">
-                                                    <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan buat salinan untuk periode berikutnya?">
+                                                    <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan jadwalkan ulang untuk periode berikutnya?">
                                                     <span class="box"><i class="fa-solid fa-check"></i></span>
                                                 </label>
                                             @endif
@@ -1074,7 +1074,7 @@
                     <div style="display:flex;align-items:center;gap:10px;">
                         @if ($task->recurrence && $task->project_id && $task->status !== \App\Enum\Task\TaskStatus::COMPLETE->value && ! $this->isProjectArchived && ($task->isAssignee(auth()->id()) || $this->isProjectOwner))
                             <label class="custom-checkbox" style="--accent:#16a34a;width:24px;height:24px;" title="Selesai &amp; ulangi ({{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }})">
-                                <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan buat salinan untuk periode berikutnya?">
+                                <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan jadwalkan ulang untuk periode berikutnya?">
                                 <span class="box"><i class="fa-solid fa-check" style="font-size:13px;"></i></span>
                             </label>
                         @endif
@@ -1360,7 +1360,7 @@
 
                     {{-- Todo Saya (catatan pribadi, bukan tugas Board) nggak ada lampiran. --}}
                     @unless ($task->is_self_assigned && ! $task->project_id)
-                    <div x-data="{ showAddAttachment: false }" style="margin-bottom:18px;padding-top:18px;border-top:1px solid var(--border-soft);">
+                    <div x-data="{ showAddAttachment: false, tab: 'file', drag: false }" style="margin-bottom:18px;padding-top:18px;border-top:1px solid var(--border-soft);">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                             <h4 style="font-size:16px;font-weight:700;margin:0;"><i class="fa-solid fa-paperclip"></i> Lampiran</h4>
                             @if ($canToggleChecklist)
@@ -1368,17 +1368,65 @@
                             @endif
                         </div>
 
-                        <div x-show="showAddAttachment && @js($canToggleChecklist)" x-cloak style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px;padding:12px;background:var(--surface-alt);border-radius:10px;">
-                            <input type="text" class="form-input" style="width:100%;font-size:12px;padding:6px 8px;" wire:model="newAttachmentDescription" maxlength="255" placeholder="Keterangan lampiran (opsional) - berlaku untuk file maupun link">
-                            <p style="width:100%;font-size:11px;color:var(--text-muted);margin:0;">Foto dikompres otomatis. PDF maksimal 2 MB, file lain maksimal 10 MB.</p>
-                            @error('newAttachmentDescription') <p style="width:100%;font-size:11px;color:var(--danger-text);margin:0;">{{ $message }}</p> @enderror
-                            <input type="file" wire:model="newAttachmentFile" style="font-size:11.5px;max-width:180px;">
-                            <button type="button" wire:click="uploadFileAttachment" wire:loading.attr="disabled" wire:target="newAttachmentFile,uploadFileAttachment" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;">Unggah</button>
-                            <input type="url" class="form-input" style="max-width:180px;font-size:11.5px;padding:6px 8px;" wire:model="newAttachmentLink" placeholder="https://...">
-                            <input type="text" class="form-input" style="max-width:140px;font-size:11.5px;padding:6px 8px;" wire:model="newAttachmentLinkLabel" placeholder="Judul link (opsional)">
-                            <button type="button" wire:click="addLinkAttachment" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;">Tambah Link</button>
-                            @error('newAttachmentFile') <p style="width:100%;font-size:11px;color:var(--danger-text);margin:4px 0 0;">{{ $message }}</p> @enderror
-                            @error('newAttachmentLink') <p style="width:100%;font-size:11px;color:var(--danger-text);margin:4px 0 0;">{{ $message }}</p> @enderror
+                        <div x-show="showAddAttachment && @js($canToggleChecklist)" x-cloak style="margin-bottom:14px;padding:12px;background:var(--surface-alt);border-radius:10px;">
+                            <div style="display:flex;gap:4px;margin-bottom:12px;">
+                                <button type="button" @click="tab = 'file'" class="btn-ghost btn-sm" :style="tab === 'file' ? 'background:var(--brand-fill);color:#fff;' : ''"><i class="fa-solid fa-file"></i> File</button>
+                                <button type="button" @click="tab = 'link'" class="btn-ghost btn-sm" :style="tab === 'link' ? 'background:var(--brand-fill);color:#fff;' : ''"><i class="fa-solid fa-link"></i> Link</button>
+                            </div>
+
+                            {{-- Tab File: dropzone. File yang dijatuhkan dimasukkan ke input lalu event "change"
+                                 ditembakkan supaya wire:model Livewire menangkapnya. --}}
+                            <div x-show="tab === 'file'" x-data="{ progress: 0, uploading: false }"
+                                x-on:livewire-upload-start="uploading = true; progress = 0"
+                                x-on:livewire-upload-finish="uploading = false"
+                                x-on:livewire-upload-error="uploading = false"
+                                x-on:livewire-upload-progress="progress = $event.detail.progress">
+                                @if ($newAttachmentFile)
+                                    <div style="display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid var(--border);border-radius:12px;background:var(--surface);">
+                                        <div style="width:38px;height:38px;border-radius:10px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                            <i class="fa-solid fa-file-circle-check" style="font-size:16px;color:var(--brand-success);"></i>
+                                        </div>
+                                        <div style="min-width:0;flex:1;">
+                                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $newAttachmentFile->getClientOriginalName() }}</p>
+                                            <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">{{ number_format($newAttachmentFile->getSize() / 1024, 1) }} KB</p>
+                                        </div>
+                                        <button type="button" wire:click="$set('newAttachmentFile', null)" class="btn-ghost" style="padding:6px 9px;flex-shrink:0;" title="Ganti file"><i class="fa-solid fa-xmark"></i></button>
+                                    </div>
+                                @else
+                                    <label x-data="{ drag: false }"
+                                        @dragover.prevent="drag = true" @dragleave.prevent="drag = false"
+                                        @drop.prevent="drag = false; $refs.attFile.files = $event.dataTransfer.files; $refs.attFile.dispatchEvent(new Event('change', { bubbles: true }))"
+                                        :style="drag ? 'border-color:var(--brand-fill);transform:scale(1.01);' : ''"
+                                        style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 14px;border:2px dashed var(--border);border-radius:14px;cursor:pointer;text-align:center;background:var(--surface);transition:all .15s;">
+                                        <span style="width:46px;height:46px;border-radius:50%;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;">
+                                            <i class="fa-solid fa-cloud-arrow-up" style="font-size:20px;color:var(--brand-fill);"></i>
+                                        </span>
+                                        <span style="font-size:13px;font-weight:700;color:var(--text-heading);" x-text="drag ? 'Lepaskan file di sini' : 'Tarik & lepas file di sini'"></span>
+                                        <span style="font-size:12px;color:var(--text-muted);">atau <span style="color:var(--brand-fill);font-weight:600;text-decoration:underline;">pilih dari perangkat</span></span>
+                                        <span style="font-size:11px;color:var(--text-faint);">Foto dikompres otomatis &middot; PDF maks. 2 MB &middot; file lain maks. 10 MB</span>
+                                        <input type="file" x-ref="attFile" wire:model="newAttachmentFile" style="display:none;">
+                                    </label>
+                                @endif
+                                <div x-show="uploading" x-cloak style="height:5px;border-radius:99px;background:var(--border);overflow:hidden;margin-top:8px;">
+                                    <div :style="'width:' + progress + '%'" style="height:100%;background:var(--brand-fill);transition:width .15s;"></div>
+                                </div>
+                                @error('newAttachmentFile') <p style="font-size:11px;color:var(--danger-text);margin:6px 0 0;">{{ $message }}</p> @enderror
+                            </div>
+
+                            {{-- Tab Link --}}
+                            <div x-show="tab === 'link'" x-cloak style="display:flex;flex-wrap:wrap;gap:8px;">
+                                <input type="url" class="form-input" style="flex:2;min-width:180px;font-size:12.5px;padding:8px 10px;" wire:model="newAttachmentLink" placeholder="https://...">
+                                <input type="text" class="form-input" style="flex:1;min-width:130px;font-size:12.5px;padding:8px 10px;" wire:model="newAttachmentLinkLabel" placeholder="Judul link (opsional)">
+                                @error('newAttachmentLink') <p style="width:100%;font-size:11px;color:var(--danger-text);margin:0;">{{ $message }}</p> @enderror
+                            </div>
+
+                            <input type="text" class="form-input" style="width:100%;font-size:12.5px;padding:8px 10px;margin-top:10px;" wire:model="newAttachmentDescription" maxlength="255" placeholder="Keterangan lampiran (opsional)">
+                            @error('newAttachmentDescription') <p style="font-size:11px;color:var(--danger-text);margin:4px 0 0;">{{ $message }}</p> @enderror
+
+                            <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+                                <button type="button" x-show="tab === 'file'" wire:click="uploadFileAttachment" wire:loading.attr="disabled" wire:target="newAttachmentFile,uploadFileAttachment" @disabled(! $newAttachmentFile) class="btn-primary" style="padding:7px 16px;font-size:12px;"><i class="fa-solid fa-upload"></i> Unggah</button>
+                                <button type="button" x-show="tab === 'link'" x-cloak wire:click="addLinkAttachment" class="btn-primary" style="padding:7px 16px;font-size:12px;"><i class="fa-solid fa-link"></i> Tambah Link</button>
+                            </div>
                         </div>
 
                         @if ($task->attachments->isNotEmpty())

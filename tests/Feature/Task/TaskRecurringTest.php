@@ -2,22 +2,27 @@
 
 namespace Tests\Feature\Task;
 
+use App\Enum\CustomPermissionEnum;
 use App\Enum\Task\TaskStatus;
 use App\Models\Master\Companies;
+use App\Models\Task\Task;
 use App\Models\User;
 use App\Services\Task\TaskService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class TaskRecurringTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_completing_recurring_card_moves_it_to_final_list_and_clones_with_next_due_date(): void
+    public function test_completing_recurring_card_reschedules_same_task_and_keeps_history(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Company Test', 'location' => 'Test', 'is_active' => true]);
         $owner = User::factory()->create(['company_id' => $company->id]);
+        Permission::findOrCreate(CustomPermissionEnum::BUAT_BOARD_TUGAS->value, 'web');
+        $owner->givePermissionTo(CustomPermissionEnum::BUAT_BOARD_TUGAS->value);
         Auth::login($owner);
 
         $service = app(TaskService::class);
@@ -31,18 +36,23 @@ class TaskRecurringTest extends TestCase
             'recurrence' => 'monthly',
             'checklist' => ['Cek data'],
         ]);
+        $originListId = $task->list_id;
+        $task->checklistItems->first()->update(['is_done' => true]);
+        $task->comments()->create(['user_id' => $owner->id, 'comment' => 'catatan periode 1']);
 
-        $copy = $service->completeRecurring($task, $owner);
+        $same = $service->completeRecurring($task, $owner);
 
         $task->refresh();
-        $this->assertSame(TaskStatus::COMPLETE->value, $task->status);
-        $this->assertNull($task->recurrence);
+        $this->assertSame($task->id, $same->id);
+        $this->assertSame(1, Task::where('requirement', 'Laporan bulanan')->count());
+        $this->assertSame(TaskStatus::TODO->value, $task->status);
+        $this->assertSame('monthly', $task->recurrence);
+        $this->assertSame($originListId, $task->list_id);
+        $this->assertSame($due->copy()->addMonthNoOverflow()->toDateString(), \Illuminate\Support\Carbon::parse($task->due_date)->toDateString());
+        $this->assertFalse((bool) $task->checklistItems()->first()->is_done);
+        $this->assertSame(1, $task->comments()->count());
 
-        $this->assertNotSame($task->id, $copy->id);
-        $this->assertSame(TaskStatus::TODO->value, $copy->status);
-        $this->assertSame('monthly', $copy->recurrence);
-        $this->assertSame($task->list_id === $copy->list_id, false); // lama di List Selesai, salinan di List asal
-        $this->assertSame($due->copy()->addMonthNoOverflow()->toDateString(), \Illuminate\Support\Carbon::parse($copy->due_date)->toDateString());
-        $this->assertFalse((bool) $copy->checklistItems->first()->is_done);
+        $log = $task->activities()->where('action', 'recurred')->first();
+        $this->assertSame(['Cek data'], $log->meta['checklist_done']);
     }
 }
