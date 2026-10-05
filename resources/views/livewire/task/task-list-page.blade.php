@@ -561,7 +561,7 @@
                                         <div class="task-card-top">
                                             @if ($task->recurrence && $canMoveCard && ! $list->is_final && ! $list->is_review)
                                                 <label class="custom-checkbox" style="--accent:#16a34a;width:16px;height:16px;margin-top:2px;" title="Selesai &amp; ulangi ({{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }})" onclick="event.stopPropagation()">
-                                                    <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan jadwalkan ulang untuk periode berikutnya?">
+                                                    <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Tandai periode ini selesai? Tugas aktif lagi otomatis di periode berikutnya.">
                                                     <span class="box"><i class="fa-solid fa-check"></i></span>
                                                 </label>
                                             @endif
@@ -1074,7 +1074,7 @@
                     <div style="display:flex;align-items:center;gap:10px;">
                         @if ($task->recurrence && $task->project_id && $task->status !== \App\Enum\Task\TaskStatus::COMPLETE->value && ! $this->isProjectArchived && ($task->isAssignee(auth()->id()) || $this->isProjectOwner))
                             <label class="custom-checkbox" style="--accent:#16a34a;width:24px;height:24px;" title="Selesai &amp; ulangi ({{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }})">
-                                <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Selesaikan tugas ini dan jadwalkan ulang untuk periode berikutnya?">
+                                <input type="checkbox" wire:click="completeRecurringTask('{{ $task->id }}')" wire:confirm="Tandai periode ini selesai? Tugas aktif lagi otomatis di periode berikutnya.">
                                 <span class="box"><i class="fa-solid fa-check" style="font-size:13px;"></i></span>
                             </label>
                         @endif
@@ -1121,6 +1121,7 @@
                             <span class="badge badge-cancelled"><i class="fa-solid fa-rotate"></i> {{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }}</span>
                         @endif
                         @if ($task->is_overdue)<span class="badge badge-rejected">Terlambat</span>@endif
+                        @if ($task->recurrence && $task->recurrence_resume_at)<span class="badge badge-approved"><i class="fa-solid fa-circle-check"></i> Periode ini selesai &middot; aktif lagi {{ $task->recurrence_resume_at->translatedFormat('j M Y') }}</span>@endif
                         @if ($task->project)<span class="badge badge-cancelled"><i class="fa-solid fa-diagram-project"></i> {{ $task->project->name }}</span>@endif
                     </div>
 
