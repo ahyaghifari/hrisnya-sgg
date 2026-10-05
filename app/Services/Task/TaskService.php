@@ -394,19 +394,7 @@ class TaskService
                     $fromReview = (bool) $task->list?->is_review;
                     $isMoved = $movedTaskId ? $task->id === $movedTaskId : $task->list_id !== $listId;
                     if ($isMoved) {
-                        if ($fromReview) {
-                            abort_unless(
-                                ($task->reviewer_id ?? $task->created_by) === $actor->id,
-                                403,
-                                'Cuma pembuat/reviewer tugas yang bisa memutuskan tugas di List Review.'
-                            );
-                        } else {
-                            abort_unless(
-                                $task->isAssignee($actor->id) || $isOwner,
-                                403,
-                                'Cuma yang ditugaskan atau pembuat Board yang bisa memindahkan tugas ini.'
-                            );
-                        }
+                        $this->authorizeCardMove($task, $actor, $isOwner, $fromReview);
                     }
 
                     if ($task->list_id !== $listId) {
@@ -423,24 +411,13 @@ class TaskService
                                 User::find($deciderId)?->notify(new TaskReviewRequested($task, $task->assigneeNames()));
                             }
                         } elseif ($list->is_final) {
-                            abort_if(
-                                // Kalau tanda List Review sudah dilepas dari Board, jangan bikin tugas macet.
-                                $task->needs_review && ! $fromReview && $list->project->lists()->where('is_review', true)->exists(),
-                                422,
-                                'Tugas ini wajib direview - pindahkan ke List Review dulu, dinilai reviewer, baru bisa Selesai.'
-                            );
+                            $this->guardAndNotifyCompletion($task, $actor, $fromReview);
 
                             $updateData['status'] = TaskStatus::COMPLETE->value;
                             $updateData['completed_date'] = Carbon::now();
 
                             if (! $fromReview) {
                                 $updateData['is_overdue'] = $task->due_date && Carbon::now()->gt($task->due_date);
-                            }
-
-                            if ($fromReview) {
-                                $this->notifyAssignees($task, new TaskReviewDecided($task, true, $actor->name), $actor->id);
-                            } elseif ($task->notify_creator_on_complete && ! $task->is_self_assigned && $task->created_by !== $actor->id) {
-                                $task->createdBy?->notify(new TaskCompletedByAssignee($task, $task->assigneeNames()));
                             }
                         } elseif ($task->list?->is_final || $fromReview) {
                             $updateData['status'] = TaskStatus::IN_PROGRESS->value;
@@ -466,6 +443,47 @@ class TaskService
                 }
             }
         });
+    }
+
+    /**
+     * Siapa yang boleh menggeser/menyelesaikan kartu: di List kerja cuma yang ditugaskan & pembuat Board
+     * (owner); di List Review cuma yang berhak memutuskan (reviewer ?? pembuat tugas).
+     */
+    private function authorizeCardMove(Task $task, User $actor, bool $isOwner, bool $fromReview): void
+    {
+        if ($fromReview) {
+            abort_unless(
+                ($task->reviewer_id ?? $task->created_by) === $actor->id,
+                403,
+                'Cuma pembuat/reviewer tugas yang bisa memutuskan tugas di List Review.'
+            );
+        } else {
+            abort_unless(
+                $task->isAssignee($actor->id) || $isOwner,
+                403,
+                'Cuma yang ditugaskan atau pembuat Board yang bisa memindahkan tugas ini.'
+            );
+        }
+    }
+
+    /**
+     * Aturan & notifikasi saat tugas Board dinyatakan selesai - dipakai bersama pemindahan ke List Selesai
+     * dan tugas berulang (completeRecurring), jadi cuma ada satu sumber kebenaran.
+     */
+    private function guardAndNotifyCompletion(Task $task, User $actor, bool $fromReview): void
+    {
+        abort_if(
+            // Kalau tanda List Review sudah dilepas dari Board, jangan bikin tugas macet.
+            $task->needs_review && ! $fromReview && $task->project->lists()->where('is_review', true)->exists(),
+            422,
+            'Tugas ini wajib direview - pindahkan ke List Review dulu, dinilai reviewer, baru bisa Selesai.'
+        );
+
+        if ($fromReview) {
+            $this->notifyAssignees($task, new TaskReviewDecided($task, true, $actor->name), $actor->id);
+        } elseif ($task->notify_creator_on_complete && ! $task->is_self_assigned && $task->created_by !== $actor->id) {
+            $task->createdBy?->notify(new TaskCompletedByAssignee($task, $task->assigneeNames()));
+        }
     }
 
     public function canAccessProject(TaskProject $project, User $user): bool
@@ -684,32 +702,31 @@ class TaskService
 
     /**
      * Centang tugas Board berulang: tugas yang SAMA dijadwalkan ulang, bukan dibuat salinan - kode,
-     * komentar, lampiran, dan log aktivitas tetap menempel (jadi riwayat). Kartu dulu lewat
-     * moveCardsAcrossLists ke List Selesai (aturan review/izin/notifikasi tetap berlaku), lalu
-     * dikembalikan ke List asal: status Todo, tenggat periode berikutnya, checklist di-unceklis
-     * (yang sudah tercentang dicatat di log aktivitas). Pengulangan tetap aktif.
+     * komentar, lampiran, dan log aktivitas tetap menempel (jadi riwayat). Tidak butuh List Selesai:
+     * aturan izin/review/notifikasi dipakai bersama pemindahan ke List Selesai (authorizeCardMove,
+     * guardAndNotifyCompletion). Kartu kembali ke List asal (List Review -> List kerja pertama) dengan
+     * status Todo, tenggat periode berikutnya, dan checklist di-unceklis (yang sudah tercentang dicatat
+     * di log aktivitas). Pengulangan tetap aktif.
      */
     public function completeRecurring(Task $task, User $actor): Task
     {
         abort_unless($task->recurrence && $task->project_id, 422, 'Tugas ini bukan tugas berulang.');
         abort_if($task->status === TaskStatus::COMPLETE->value, 422, 'Tugas ini sudah selesai.');
 
-        return DB::transaction(function () use ($task, $actor) {
-            $final = $task->project->lists()->where('is_final', true)->first();
-            abort_unless($final, 422, 'Board ini belum punya List Selesai.');
+        $project = $task->project;
+        abort_unless($this->canAccessProject($project, $actor), 403);
+        abort_if($project->isArchived(), 422, 'Board ini sudah diarsipkan.');
+
+        return DB::transaction(function () use ($task, $actor, $project) {
+            $fromReview = (bool) $task->list?->is_review;
+            $this->authorizeCardMove($task, $actor, $this->isProjectOwner($project, $actor), $fromReview);
+            $this->guardAndNotifyCompletion($task, $actor, $fromReview);
 
             $oldDue = $task->due_date;
             $nextDue = $task->nextDueDate();
-            // Kembali ke List asal; kalau asalnya List Review, ke List kerja pertama.
-            $listId = $task->list?->is_review
-                ? $task->project->lists()->where('is_review', false)->where('is_final', false)->orderBy('position')->value('id')
+            $listId = $fromReview
+                ? $project->lists()->where('is_review', false)->where('is_final', false)->orderBy('position')->value('id')
                 : $task->list_id;
-
-            $this->moveCardsAcrossLists(
-                [$final->id => $final->tasks()->orderBy('position')->pluck('id')->push($task->id)->all()],
-                $actor,
-                $task->id
-            );
 
             $doneItems = $task->checklistItems()->where('is_done', true)->pluck('title')->all();
             $task->checklistItems()->update(['is_done' => false, 'done_at' => null, 'done_by' => null]);
@@ -734,7 +751,6 @@ class TaskService
             return $task;
         });
     }
-
     /**
      * Todo Saya (self-assigned) bebas dihapus kapan pun. Penugasan Individu cuma boleh dihapus
      * creator-nya sebelum tahap REVIEW (masih TODO/IN_PROGRESS).
