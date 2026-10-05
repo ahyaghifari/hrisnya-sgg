@@ -55,4 +55,49 @@ class TaskRecurringTest extends TestCase
         $log = $task->activities()->where('action', 'recurred')->first();
         $this->assertSame(['Cek data'], $log->meta['checklist_done']);
     }
+
+    private function boardWithRecurringTask(array $extra = []): array
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Company Test', 'location' => 'Test', 'is_active' => true]);
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        Permission::findOrCreate(CustomPermissionEnum::BUAT_BOARD_TUGAS->value, 'web');
+        $owner->givePermissionTo(CustomPermissionEnum::BUAT_BOARD_TUGAS->value);
+        Auth::login($owner);
+
+        $service = app(TaskService::class);
+        $project = $service->createProject(['name' => 'Board R']);
+        $task = $service->createCasualTask([
+            'requirement' => 'Laporan mingguan',
+            'project_id' => $project->id,
+            'due_date' => now()->addDays(2)->format('Y-m-d H:i:s'),
+            'recurrence' => 'weekly',
+            ...$extra,
+        ]);
+
+        return [$service, $owner, $project, $task];
+    }
+
+    public function test_recurring_task_works_without_final_list(): void
+    {
+        [$service, $owner, $project, $task] = $this->boardWithRecurringTask();
+        $project->lists()->where('is_final', true)->delete();
+
+        $service->completeRecurring($task, $owner);
+
+        $this->assertSame(TaskStatus::TODO->value, $task->fresh()->status);
+    }
+
+    public function test_recurring_task_needing_review_must_go_through_review_list(): void
+    {
+        [$service, $owner, $project, $task] = $this->boardWithRecurringTask();
+        // Satu List Review di Board, dan kartu ada di List kerja (bukan di List Review itu).
+        $project->lists()->update(['is_review' => false]);
+        $project->lists()->where('is_final', false)->where('id', '!=', $task->list_id)->first()->update(['is_review' => true]);
+        $task->update(['needs_review' => true]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectExceptionMessage('wajib direview');
+
+        $service->completeRecurring($task->fresh(), $owner);
+    }
 }
