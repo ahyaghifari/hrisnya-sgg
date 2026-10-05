@@ -170,6 +170,9 @@ enum CustomPermissionEnum: string
     /** Buka halaman Laporan Pelatihan (`/lms/laporan`) - laporan read-only murni, tidak ada
      * gerbang EDIT pasangannya (tidak ada aksi tulis di halaman ini). */
     case LIHAT_LAPORAN_PELATIHAN = 'lihat_laporan_pelatihan';
+
+    /** Periksa & setujui klaim pelatihan yang sudah dilakukan (konversi jam ke JP). */
+    case KELOLA_KLAIM_PELATIHAN = 'kelola_klaim_pelatihan';
     case EDIT_PENGATURAN_ABSENSI = 'edit_pengaturan_absensi';
 
     /** Buka halaman Pengaturan Absensi (read-only) - beda dari EDIT_PENGATURAN_ABSENSI yang
@@ -357,6 +360,7 @@ enum CustomPermissionEnum: string
             self::LIHAT_HONORARIUM_LMS => 'Lihat Honorarium LMS',
             self::EDIT_HONORARIUM_LMS => 'Edit Honorarium LMS',
             self::LIHAT_LAPORAN_PELATIHAN => 'Lihat Laporan Pelatihan',
+            self::KELOLA_KLAIM_PELATIHAN => 'Kelola Pelatihan Terlaksana',
             self::EDIT_PENGATURAN_ABSENSI => 'Edit Pengaturan Absensi',
             self::LIHAT_PENGATURAN_ABSENSI => 'Lihat Pengaturan Absensi',
             self::SYNC_DATA_ABSENSI => 'Sync Data Absensi (dari Access Logs)',

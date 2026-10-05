@@ -1,6 +1,8 @@
 <div>
 <x-page-header title="Pengajuan Pelatihan" :back="route('pelatihan')" />
 
+@include('livewire.pelatihan.partials.mode-tabs', ['active' => 'belum', 'list' => true])
+
 @if (auth()->user()->can(\App\Enum\CustomPermissionEnum::AJUKAN_PELATIHAN->value))
     <div style="margin-bottom:20px;">
         <a href="{{ route('pelatihan.pengajuan') }}" wire:navigate class="btn-primary">

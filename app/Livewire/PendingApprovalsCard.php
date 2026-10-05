@@ -12,6 +12,7 @@ use App\Models\Attendance\AttendanceRequestCancellations;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Job\ManpowerRequests;
 use App\Models\LMS\LmsCourseUsers;
+use App\Models\LMS\TrainingClaim;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Master\JobPositions;
 use App\Models\Shift\ShiftSwapRequestCancellations;
@@ -263,6 +264,35 @@ class PendingApprovalsCard extends Component
                     'user_name' => $request->user->name,
                     'created_at' => $request->created_at,
                     'url' => route('pelatihan.pengajuan-saya.show', ['record' => $request->id]),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        // bulk_supported=false - HC/Kepegawaian perlu buka detail buat cek sertifikat & koreksi JP.
+        $trainingClaims = collect();
+        if ($this->wants('training_claim')) {
+            $claimIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::TRAINING_CLAIM->value)
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            $trainingClaims = TrainingClaim::with('user')
+                ->whereIn('id', $claimIds)
+                ->whereHas('user')
+                ->get()
+                ->map(fn ($claim) => (object) [
+                    'id' => $claim->id,
+                    'dispatch' => 'training_claim',
+                    'bulk_supported' => false,
+                    'module' => 'training_claim',
+                    'badge' => 'purple',
+                    'label' => 'Pelatihan Terlaksana',
+                    'icon' => 'fa-certificate',
+                    'tile' => 'neutral',
+                    'keterangan' => $claim->title,
+                    'user_name' => $claim->user->name,
+                    'created_at' => $claim->created_at,
+                    'url' => route('pelatihan.klaim.show', ['record' => $claim->id]),
                     'modal' => false,
                     'external' => false,
                 ]);
@@ -713,7 +743,7 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($taskReviews)->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($cancellationRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($shiftSwapCancellationRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->concat($scheduleRosterChanges)->sortByDesc('created_at')->values();
+        $requests = $attendanceRequests->concat($taskReviews)->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($trainingClaims)->concat($cancellationRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($shiftSwapCancellationRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->concat($scheduleRosterChanges)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;

@@ -94,6 +94,7 @@ class RoleForm
                 CustomPermissionEnum::EDIT_PENGATURAN_LMS->value,
                 CustomPermissionEnum::LIHAT_PENGATURAN_LMS->value,
                 CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value,
+                CustomPermissionEnum::KELOLA_KLAIM_PELATIHAN->value,
                 // Halaman portal Gaji Pemateri (`/keuangan/gaji-pemateri`) - route-nya di bawah
                 // Keuangan tapi datanya rekap honor pemateri LMS (TrainerAssessmentResults),
                 // jadi permission-nya dikelompokkan di sini bareng permission LMS lain, bukan

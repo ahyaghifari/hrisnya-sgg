@@ -66,6 +66,8 @@
                             @foreach ($courses as $course)
                                 <th style="text-align:center;padding:10px 14px;white-space:nowrap;min-width:120px;">{{ $course->title }}</th>
                             @endforeach
+                            <th style="text-align:center;padding:10px 14px;white-space:nowrap;">JP Eksternal (Terlaksana)</th>
+                            <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Jam Eksternal (Terlaksana)</th>
                             <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Total Jam Pelatihan</th>
                             <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Jam Belum Terpenuhi</th>
                             <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Total Pelatihan</th>
@@ -90,6 +92,15 @@
                                     </td>
                                 @endforeach
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
+                                    {{ $row['external_jp'] }} JP
+                                    @if ($row['external_jp'] > 0)
+                                        <button type="button" wire:click="openDetail('{{ $row['user_id'] }}')" class="btn-ghost" style="padding:3px 9px;font-size:11px;margin-left:6px;">
+                                            <i class="fa-solid fa-list"></i> Detail
+                                        </button>
+                                    @endif
+                                </td>
+                                <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ number_format($row['external_hours'], 1, ',', '.') }} jam</td>
+                                <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <span class="badge" style="background:{{ $row['total_hours'] >= $b->min_hours ? 'rgba(4,124,84,0.12)' : 'rgba(234,179,8,0.15)' }};color:{{ $row['total_hours'] >= $b->min_hours ? 'var(--brand-success)' : '#a16207' }};">
                                         {{ number_format($row['total_hours'], 0) }} jam
                                     </span>
@@ -105,7 +116,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ 5 + $courses->count() }}" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada data karyawan untuk perusahaan ini.</td>
+                                <td colspan="{{ 7 + $courses->count() }}" style="padding:24px;text-align:center;color:var(--text-faint);">Belum ada data karyawan untuk perusahaan ini.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -113,4 +124,20 @@
             </div>
         @endif
     </div>
+
+    @if ($detailUserId)
+        @php $detailUser = \App\Models\User::find($detailUserId); @endphp
+        <div class="modal-overlay ms-modal" wire:click="closeDetail">
+            <div class="modal-box modal-box-lg" onclick="event.stopPropagation()">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px;">
+                    <div>
+                        <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">Pelatihan Eksternal Terlaksana</h3>
+                        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">{{ $detailUser?->name }} &middot; periode baseline terpilih</p>
+                    </div>
+                    <button type="button" class="btn-ghost" wire:click="closeDetail" style="padding:4px 10px;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                @include('livewire.lms.partials.external-claims-list', ['claims' => $this->detailClaims])
+            </div>
+        </div>
+    @endif
 </div>

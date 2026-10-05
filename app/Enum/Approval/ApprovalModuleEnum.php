@@ -17,6 +17,7 @@ enum ApprovalModuleEnum: string
     case ATTENDANCE_REQUEST_CANCELLATION = 'attendance_request_cancellation';
     case SHIFT_SWAP_REQUEST_CANCELLATION = 'shift_swap_request_cancellation';
     case SCHEDULE_ROSTER_CHANGE = 'schedule_roster_change';
+    case TRAINING_CLAIM = 'training_claim';
 
     /** Label deskriptif — dropdown & kolom "Modul" di /admin/approval-flows. */
     public function label(): string
@@ -31,10 +32,11 @@ enum ApprovalModuleEnum: string
             self::ADDITIONAL_EMPLOYEE_REQUEST => 'Permintaan Penambahan Karyawan',
             self::EMPLOYEE_REPLACEMENT_REQUEST => 'Permintaan Penggantian Karyawan',
             self::ADDITIONAL_QUOTA_REQUEST => 'Permintaan Penambahan Kuota',
-            self::TRAINING_REQUEST => 'Pengajuan Pelatihan',
+            self::TRAINING_REQUEST => 'Pengajuan Pelatihan (Belum Terlaksana)',
             self::ATTENDANCE_REQUEST_CANCELLATION => 'Pembatalan Cuti/Izin',
             self::SHIFT_SWAP_REQUEST_CANCELLATION => 'Pembatalan Tukar Shift',
             self::SCHEDULE_ROSTER_CHANGE => 'Perubahan Jadwal Shift (Kepala Ruangan)',
+            self::TRAINING_CLAIM => 'Pengajuan Pelatihan (Sudah Terlaksana)',
         };
     }
 
@@ -55,6 +57,7 @@ enum ApprovalModuleEnum: string
             self::ATTENDANCE_REQUEST_CANCELLATION => 'Pengajuan pembatalan cuti/izin',
             self::SHIFT_SWAP_REQUEST_CANCELLATION => 'Pengajuan pembatalan tukar shift',
             self::SCHEDULE_ROSTER_CHANGE => 'Pengajuan perubahan jadwal shift',
+            self::TRAINING_CLAIM => 'Pengajuan pelatihan terlaksana',
         };
     }
 

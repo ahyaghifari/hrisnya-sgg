@@ -637,6 +637,12 @@ return [
 
     // Laporan Pelatihan — padanan portal dari Filament TrainingReportResource. Halaman
     // read-only (filter + export Excel), tidak ada Create/Update/Delete jadi cukup SISTEM_LMS.
+    'pelatihan.klaim.kelola' => [
+        'label' => 'Pelatihan Terlaksana',
+        'permission' => \App\Enum\CustomPermissionEnum::KELOLA_KLAIM_PELATIHAN->value,
+        'guard' => null,
+    ],
+
     'pelatihan.laporan' => [
         'label' => 'Laporan Pelatihan',
         'permission' => \App\Enum\CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value,
