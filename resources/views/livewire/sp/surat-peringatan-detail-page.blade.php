@@ -56,9 +56,13 @@
             {{ $record->end_date ? $record->end_date->translatedFormat('d M Y') : 'Tidak pernah berakhir' }}
         </span>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
         <span style="font-size:12.5px;color:var(--text-muted);">Diterbitkan Oleh</span>
         <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->createdBy?->name ?? '-' }}</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;">
+        <span style="font-size:12.5px;color:var(--text-muted);">Mengetahui</span>
+        <span style="font-size:13.5px;font-weight:600;color:var(--text-body);">{{ $record->knowsBy?->name ?? '-' }}</span>
     </div>
 </div>
 
