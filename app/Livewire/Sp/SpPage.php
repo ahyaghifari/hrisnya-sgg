@@ -102,7 +102,7 @@ class SpPage extends Component
         $page = $this->getPage();
 
         return new LengthAwarePaginator($cases->forPage($page, 10)->values(), $cases->count(), 10, $page, [
-            'path' => request()->url(),
+            'path' => \Livewire\Livewire::originalPath(),
             'query' => ['companyId' => $this->companyId, 'search' => $this->search],
         ]);
     }
