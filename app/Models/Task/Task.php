@@ -55,6 +55,7 @@ class Task extends Model
         'unit_cost',
         'due_date',
         'recurrence',
+        'recurrence_resume_at',
         'responded_date',
         'started_date',
         'completed_date',
@@ -74,6 +75,7 @@ class Task extends Model
         'notify_creator_on_review' => 'boolean',
         'notify_creator_on_complete' => 'boolean',
         'is_overdue' => 'boolean',
+        'recurrence_resume_at' => 'datetime',
     ];
 
     protected static function booted(): void

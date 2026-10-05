@@ -451,7 +451,7 @@ class TaskListPage extends Component
             $this->selectedTaskId = null;
             unset($this->selectedTask);
             $this->dispatch('task-completed');
-            Notification::make()->title('Tugas selesai, dijadwalkan ulang ke ' . Carbon::parse($copy->due_date)->translatedFormat('j M Y'))->success()->send();
+            Notification::make()->title('Tugas selesai untuk periode ini, aktif lagi ' . Carbon::parse($copy->recurrence_resume_at)->translatedFormat('j M Y'))->success()->send();
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa menyelesaikan tugas ini')->danger()->send();
         }

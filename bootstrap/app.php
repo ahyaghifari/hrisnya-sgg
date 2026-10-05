@@ -54,6 +54,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Terapkan transisi karyawan (Promosi/Demosi/Mutasi/PHK) yang disetujui dengan tanggal
         // efektif di masa depan, begitu tanggalnya tiba. Jalan sekali sehari lewat cron.
+        // Tugas Board berulang yang periodenya lewat aktif lagi untuk periode berikutnya (awal hari).
+        $schedule->command('tasks:resume-recurring')
+            ->dailyAt('00:05')
+            ->withoutOverlapping();
+
         $schedule->command('transitions:apply-due')
             ->dailyAt('00:15')
             ->withoutOverlapping();

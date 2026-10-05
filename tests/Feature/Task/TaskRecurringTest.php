@@ -17,7 +17,7 @@ class TaskRecurringTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_completing_recurring_card_reschedules_same_task_and_keeps_history(): void
+    public function test_completed_period_stays_done_until_period_ends_then_same_task_resumes(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Company Test', 'location' => 'Test', 'is_active' => true]);
         $owner = User::factory()->create(['company_id' => $company->id]);
@@ -42,12 +42,27 @@ class TaskRecurringTest extends TestCase
 
         $same = $service->completeRecurring($task, $owner);
 
+        // Periode ini selesai: tetap Selesai (bukan Todo baru), checklist masih tercentang.
         $task->refresh();
         $this->assertSame($task->id, $same->id);
         $this->assertSame(1, Task::where('requirement', 'Laporan bulanan')->count());
-        $this->assertSame(TaskStatus::TODO->value, $task->status);
+        $this->assertSame(TaskStatus::COMPLETE->value, $task->status);
         $this->assertSame('monthly', $task->recurrence);
         $this->assertSame($originListId, $task->list_id);
+        $this->assertTrue((bool) $task->checklistItems()->first()->is_done);
+        $this->assertSame($due->copy()->startOfDay()->addDay()->toDateTimeString(), $task->recurrence_resume_at->toDateTimeString());
+
+        // Periodenya belum lewat: job tidak mengaktifkan lagi.
+        $this->assertSame(0, $service->resumeDueRecurring());
+        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
+
+        // Periode lewat: tugas yang sama aktif lagi dengan tenggat berikutnya, checklist di-unceklis.
+        \Illuminate\Support\Carbon::setTestNow($task->recurrence_resume_at->copy()->addHour());
+        $this->assertSame(1, $service->resumeDueRecurring());
+
+        $task->refresh();
+        $this->assertSame(TaskStatus::TODO->value, $task->status);
+        $this->assertNull($task->recurrence_resume_at);
         $this->assertSame($due->copy()->addMonthNoOverflow()->toDateString(), \Illuminate\Support\Carbon::parse($task->due_date)->toDateString());
         $this->assertFalse((bool) $task->checklistItems()->first()->is_done);
         $this->assertSame(1, $task->comments()->count());
@@ -84,7 +99,7 @@ class TaskRecurringTest extends TestCase
 
         $service->completeRecurring($task, $owner);
 
-        $this->assertSame(TaskStatus::TODO->value, $task->fresh()->status);
+        $this->assertSame(TaskStatus::COMPLETE->value, $task->fresh()->status);
     }
 
     public function test_recurring_task_needing_review_must_go_through_review_list(): void

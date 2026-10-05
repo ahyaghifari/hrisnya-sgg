@@ -701,12 +701,11 @@ class TaskService
     }
 
     /**
-     * Centang tugas Board berulang: tugas yang SAMA dijadwalkan ulang, bukan dibuat salinan - kode,
-     * komentar, lampiran, dan log aktivitas tetap menempel (jadi riwayat). Tidak butuh List Selesai:
-     * aturan izin/review/notifikasi dipakai bersama pemindahan ke List Selesai (authorizeCardMove,
-     * guardAndNotifyCompletion). Kartu kembali ke List asal (List Review -> List kerja pertama) dengan
-     * status Todo, tenggat periode berikutnya, dan checklist di-unceklis (yang sudah tercentang dicatat
-     * di log aktivitas). Pengulangan tetap aktif.
+     * Centang tugas Board berulang: periode ini SELESAI (status Selesai, checklist tetap tercentang,
+     * komentar/lampiran/log tetap) dan tugas yang SAMA aktif lagi untuk periode berikutnya begitu periode
+     * ini lewat - awal hari setelah tenggat (atau besok kalau tenggatnya sudah lewat), lihat
+     * reactivateRecurring()/resumeDueRecurring(). Tidak butuh List Selesai: aturan izin/review/notifikasi
+     * dipakai bersama pemindahan ke List Selesai (authorizeCardMove, guardAndNotifyCompletion).
      */
     public function completeRecurring(Task $task, User $actor): Task
     {
@@ -722,34 +721,86 @@ class TaskService
             $this->authorizeCardMove($task, $actor, $this->isProjectOwner($project, $actor), $fromReview);
             $this->guardAndNotifyCompletion($task, $actor, $fromReview);
 
+            $now = Carbon::now();
+            $periodEnd = $task->due_date ? Carbon::parse($task->due_date) : $now;
+            $resumeAt = Carbon::parse($periodEnd->gt($now) ? $periodEnd : $now)->startOfDay()->addDay();
+
+            $update = [
+                'status' => TaskStatus::COMPLETE->value,
+                'completed_date' => $now,
+                'recurrence_resume_at' => $resumeAt,
+            ];
+            if (! $fromReview) {
+                $update['is_overdue'] = $task->due_date && $now->gt($task->due_date);
+            }
+            // Disetujui dari List Review: kartu kembali ke List kerja pertama (List Review cuma untuk yang menunggu keputusan).
+            if ($fromReview) {
+                $update['list_id'] = $project->lists()->where('is_review', false)->where('is_final', false)->orderBy('position')->value('id') ?? $task->list_id;
+            }
+
+            $this->taskRepository->update($task->id, $update);
+            $this->logActivity($task, $actor, 'recurring_completed', 'Menyelesaikan periode ini, aktif lagi ' . $resumeAt->translatedFormat('j M Y'));
+
+            return $task->refresh();
+        });
+    }
+
+    /**
+     * Mulai periode berikutnya untuk tugas berulang yang periodenya sudah lewat: kembali Todo dengan
+     * tenggat berikutnya, checklist di-unceklis, rating periode lama dikosongkan. Yang tercentang dan
+     * rating periode lama dicatat di log aktivitas (jadi riwayat). Komentar & lampiran tidak disentuh.
+     */
+    public function reactivateRecurring(Task $task): Task
+    {
+        abort_unless($task->recurrence && $task->status === TaskStatus::COMPLETE->value && $task->recurrence_resume_at, 422, 'Tugas ini tidak menunggu periode berikutnya.');
+
+        return DB::transaction(function () use ($task) {
             $oldDue = $task->due_date;
             $nextDue = $task->nextDueDate();
-            $listId = $fromReview
-                ? $project->lists()->where('is_review', false)->where('is_final', false)->orderBy('position')->value('id')
-                : $task->list_id;
 
             $doneItems = $task->checklistItems()->where('is_done', true)->pluck('title')->all();
+            $ratings = $task->assignees()->whereNotNull('rating')->pluck('rating', 'user_id')->all();
+
             $task->checklistItems()->update(['is_done' => false, 'done_at' => null, 'done_by' => null]);
+            $task->assignees()->update(['rating' => null, 'rated_by' => null, 'rated_at' => null]);
 
             $this->taskRepository->update($task->id, [
-                'list_id' => $listId,
-                'position' => (int) Task::where('list_id', $listId)->max('position') + 1,
                 'status' => TaskStatus::TODO->value,
                 'due_date' => $nextDue,
+                'recurrence_resume_at' => null,
                 'responded_date' => Carbon::now(),
                 'started_date' => null,
                 'completed_date' => null,
                 'is_overdue' => false,
+                'rating' => null,
             ]);
 
             $task->refresh();
-            $this->logActivity($task, $actor, 'recurred', 'Periode selesai, dijadwalkan ulang ke ' . Carbon::parse($nextDue)->translatedFormat('j M Y'), [
+            $this->logActivity($task, null, 'recurred', 'Periode baru dimulai, tenggat ' . Carbon::parse($nextDue)->translatedFormat('j M Y'), [
                 'previous_due_date' => $oldDue,
                 'checklist_done' => $doneItems,
+                'ratings' => $ratings,
             ]);
 
             return $task;
         });
+    }
+
+    /** Aktifkan lagi semua tugas berulang yang periodenya sudah lewat (dipanggil terjadwal). */
+    public function resumeDueRecurring(): int
+    {
+        $count = 0;
+
+        Task::where('status', TaskStatus::COMPLETE->value)
+            ->whereNotNull('recurrence')
+            ->whereNotNull('recurrence_resume_at')
+            ->where('recurrence_resume_at', '<=', Carbon::now())
+            ->each(function (Task $task) use (&$count) {
+                $this->reactivateRecurring($task);
+                $count++;
+            });
+
+        return $count;
     }
     /**
      * Todo Saya (self-assigned) bebas dihapus kapan pun. Penugasan Individu cuma boleh dihapus
