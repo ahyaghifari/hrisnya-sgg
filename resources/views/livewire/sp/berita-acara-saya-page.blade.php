@@ -7,6 +7,13 @@
 <div class="card-surface" style="margin-bottom:16px;">
     @include('livewire.sp.partials.stage-chips', ['report' => $record, 'sp' => $record->sp?->isIssued() ? $record->sp : null, 'chipsStyle' => 'margin-bottom:10px;', 'chipsSize' => '12px'])
     <p style="font-size:13px;font-weight:700;margin:0;">Tahap Berita Acara: {{ $status->getLabel() }}</p>
+    <p style="font-size:12.5px;color:var(--text-muted);margin:6px 0 0;">
+        Dibuat oleh <strong style="color:var(--text-heading);">{{ $record->createdBy?->name ?? '-' }}</strong>
+        &middot; Mengetahui <strong style="color:var(--text-heading);">{{ $record->knowsBy?->name ?? '-' }}</strong>
+    </p>
+    <p style="font-size:12.5px;color:var(--text-muted);margin:4px 0 0;">
+        Dibuat <strong style="color:var(--text-heading);">{{ $record->created_at->translatedFormat('j M Y, H:i') }}</strong>
+    </p>
     @if ($record->sp?->isIssued())
         <a href="{{ route('sp.saya.show', $record->sp) }}" wire:navigate class="btn-primary" style="margin-top:10px;padding:7px 14px;font-size:12px;">
             Buka Surat Peringatan <i class="fa-solid fa-arrow-right"></i>
