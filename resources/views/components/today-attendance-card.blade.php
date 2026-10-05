@@ -319,7 +319,7 @@
             @endif
 
             @if ($extra['mode'] === 'skip')
-                <p style="font-size:11px;color:rgba(255,255,255,0.8);margin:0 0 10px;">Ada jeda antar shift, WAJIB scan <strong>4x</strong> &mdash; jangan cuma masuk-pulang sekali:</p>
+                <p style="font-size:11px;color:rgba(255,255,255,0.8);margin:0 0 10px;">Ada jeda antar shift, WAJIB scan <strong>4x</strong>:</p>
             @elseif ($extra['mode'] === 'adjacent')
                 <p style="font-size:11px;color:rgba(255,255,255,0.8);margin:0 0 10px;">Shift-nya nempel, cukup scan <strong>2x</strong>:</p>
             @endif

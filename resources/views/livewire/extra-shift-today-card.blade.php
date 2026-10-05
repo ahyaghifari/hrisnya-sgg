@@ -51,7 +51,7 @@
         <div style="position:relative;z-index:1;">
             @if ($data['mode'] === 'skip')
                 <p style="font-size:11px;color:#0c4a6e;opacity:0.75;margin:0 0 10px;">
-                    Ada jeda antar shift, WAJIB scan <strong>4x</strong> &mdash; jangan cuma masuk-pulang sekali:
+                    Ada jeda antar shift, WAJIB scan <strong>4x</strong>:
                 </p>
             @elseif ($data['mode'] === 'adjacent')
                 <p style="font-size:11px;color:#0c4a6e;opacity:0.75;margin:0 0 10px;">
