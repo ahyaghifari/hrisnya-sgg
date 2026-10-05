@@ -6,6 +6,7 @@ use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
 use App\Models\Attendance\AttendanceRequestCancellations;
+use App\Models\LMS\TrainingClaim;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Shift\ScheduleRosterChangeRequest;
 use App\Models\Shift\ShiftSwapRequestCancellations;
@@ -134,6 +135,15 @@ class ApprovalFlowService
                         'status' => 'rejected',
                         'rejected_by' => $actorId,
                         'rejected_at' => now(),
+                    ]);
+                }
+
+                // Pelatihan Terlaksana
+                if ($snapshot->module_type === ApprovalModuleEnum::TRAINING_CLAIM->value) {
+                    TrainingClaim::where('id', $snapshot->module_id)->update([
+                        'status' => 'rejected',
+                        'reviewed_by' => $actorId,
+                        'reviewed_at' => now(),
                     ]);
                 }
 
@@ -330,6 +340,16 @@ class ApprovalFlowService
                         'status' => 'approved',
                         'approved_by' => $actorId,
                         'approved_at' => now(),
+                    ]);
+                }
+
+                // Pelatihan Terlaksana - approved final: jp (saran sistem / koreksi HC) jadi sah
+                // & mulai dihitung ke Laporan Pelatihan (TrainingClaim::approvedHoursByUser()).
+                if ($snapshot->module_type === ApprovalModuleEnum::TRAINING_CLAIM->value) {
+                    TrainingClaim::where('id', $snapshot->module_id)->update([
+                        'status' => 'approved',
+                        'reviewed_by' => $actorId,
+                        'reviewed_at' => now(),
                     ]);
                 }
 

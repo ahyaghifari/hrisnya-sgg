@@ -37,6 +37,12 @@
     <span class="pwa-menu-grid-label">Pelatihan Eksternal</span>
 </a>
 @endif
+@if (auth()->user()->can(\App\Enum\CustomPermissionEnum::KELOLA_KLAIM_PELATIHAN->value))
+<a href="{{ route('pelatihan.klaim.kelola') }}" wire:navigate class="pwa-menu-grid-item">
+    <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-certificate"></i></span>
+    <span class="pwa-menu-grid-label">Terlaksana (Eksternal)</span>
+</a>
+@endif
 @if ($canViewBankSoal)
 <a href="{{ route('pelatihan.bank-soal') }}" wire:navigate class="pwa-menu-grid-item">
     <span class="pwa-menu-grid-icon teal"><i class="fa-solid fa-clipboard-list"></i></span>

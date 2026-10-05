@@ -10,17 +10,21 @@
     $canViewHonorarium = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_HONORARIUM_LMS->value);
     $canViewLaporan = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_LAPORAN_PELATIHAN->value);
     $canViewGajiPemateri = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_GAJI_PEMATERI->value);
+    $canKelolaKlaim = auth()->user()->can(\App\Enum\CustomPermissionEnum::KELOLA_KLAIM_PELATIHAN->value);
 @endphp
 <div class="dropdown">
-    <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.honorarium', 'pelatihan.kategori', 'pelatihan.kelola', 'pelatihan.pemateri', 'pelatihan.eksternal*', 'pelatihan.bank-soal', 'pelatihan.kuis', 'pelatihan.evaluasi', 'pelatihan.baseline', 'pelatihan.laporan', 'pelatihan.pengaturan', 'keuangan.gaji-pemateri']) ? 'active' : '' }}">
+    <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.honorarium', 'pelatihan.kategori', 'pelatihan.kelola', 'pelatihan.pemateri', 'pelatihan.eksternal*', 'pelatihan.klaim.kelola', 'pelatihan.bank-soal', 'pelatihan.kuis', 'pelatihan.evaluasi', 'pelatihan.baseline', 'pelatihan.laporan', 'pelatihan.pengaturan', 'keuangan.gaji-pemateri']) ? 'active' : '' }}">
         <i class="fa-solid fa-graduation-cap text-xs"></i> Learning Management System <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
-        @if ($canViewPelatihan || $canViewKategori || $canViewPemateri || $canViewPengaturanLms)
+        @if ($canViewPelatihan || $canViewKategori || $canViewPemateri || $canViewPengaturanLms || $canKelolaKlaim)
         <div class="dropdown-col">
             <div class="dropdown-col-label">Pelatihan</div>
             @if ($canViewPelatihan)
                 <a href="{{ route('pelatihan.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-book"></i> Pelatihan</a>
+            @endif
+            @if ($canKelolaKlaim)
+                <a href="{{ route('pelatihan.klaim.kelola') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-certificate"></i> Terlaksana (Eksternal)</a>
             @endif
             @if ($canViewKategori)
                 <a href="{{ route('pelatihan.kategori') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-tags"></i> Kategori Pelatihan</a>

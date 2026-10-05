@@ -1389,6 +1389,8 @@ button.ms-stat-solid:hover { border-color: var(--t); box-shadow: 0 8px 18px colo
    (navy = Cuti, default di atas; gold = Izin; green = Lembur). */
 .page-hero.gold { background: linear-gradient(130deg, #92400e 0%, #d97706 100%); }
 .page-hero.green { background: linear-gradient(130deg, #047C54 0%, #024732 100%); }
+/* Pengajuan Pelatihan - teal, sama dengan warna ikon menu LMS (.pwa-menu-grid-icon.teal). */
+.page-hero.teal { background: linear-gradient(130deg, #115e59 0%, #0d9488 100%); }
 /* Identitas domain Sikartap (Pengajuan Karyawan Tetap + MCU) - ungu, sengaja beda titik warna
    dari .pwa-menu-grid-icon.violet/.pwa-card-header-violet (identitas LMS/Kursus) supaya 2 domain
    tidak kebaca sama biar masih dikenali sebagai ungu berbeda. */

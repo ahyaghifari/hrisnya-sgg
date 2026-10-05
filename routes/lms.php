@@ -16,11 +16,14 @@ use App\Livewire\LMS\MasterHonorariumPage;
 use App\Livewire\LMS\QuizzesPage;
 use App\Livewire\LMS\TrainerDetailPage;
 use App\Livewire\LMS\TrainersPage;
+use App\Livewire\LMS\TrainingClaimsPage;
 use App\Livewire\LMS\TrainingReportPage;
 use App\Livewire\Pelatihan\CourseFeedback;
+use App\Livewire\Pelatihan\MyTrainingClaims;
 use App\Livewire\Pelatihan\MyTrainingRequests;
 use App\Livewire\Pelatihan\QuizAttempt;
 use App\Livewire\Pelatihan\SubmitTrainingRequest;
+use App\Livewire\Pelatihan\TrainingClaimDetail;
 use App\Livewire\Pelatihan\TrainingDetail;
 use App\Livewire\Pelatihan\TrainingList;
 use App\Livewire\Pelatihan\TrainingRequestDetail;
@@ -50,6 +53,15 @@ Route::get('/pelatihan/pengajuan-saya/{record}', TrainingRequestDetail::class)
 
 Route::get('/pelatihan/pengajuan', SubmitTrainingRequest::class)
     ->name('pelatihan.pengajuan');
+
+Route::get('/pelatihan/klaim', MyTrainingClaims::class)
+    ->name('pelatihan.klaim');
+
+Route::get('/pelatihan/klaim/{record}', TrainingClaimDetail::class)
+    ->name('pelatihan.klaim.show');
+
+Route::get('/lms/klaim-pelatihan', TrainingClaimsPage::class)
+    ->name('pelatihan.klaim.kelola');
 
 Route::get('/lms/honorarium', MasterHonorariumPage::class)
     ->name('pelatihan.honorarium');

@@ -1,7 +1,7 @@
 @props(['histories'])
 
 @php
-    $actionLabel = fn (string $action) => ['requested' => 'Diajukan', 'approved' => 'Disetujui', 'rejected' => 'Ditolak', 'completed' => 'Selesai'][$action] ?? $action;
+    $actionLabel = fn (string $action) => ['requested' => 'Diajukan', 'approved' => 'Disetujui', 'rejected' => 'Ditolak', 'completed' => 'Selesai', 'updated' => 'Diubah'][$action] ?? $action;
     $actionBadge = fn (string $action) => match ($action) {
         'approved' => 'badge-pending',
         'rejected' => 'badge-rejected',

@@ -260,11 +260,24 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             );
         }
 
+        // JP pelatihan eksternal terlaksana yang sudah disetujui (sesi di jendela baseline).
+        // company_id & baseline dates = nilai internal, bukan input user.
+        $perJp = \App\Models\LMS\TrainingClaim::minutesPerJp();
+        $externalJpSql = "COALESCE((
+                SELECT SUM(tc.jp) FROM training_claims tc
+                WHERE tc.user_id = users.id AND tc.status = 'approved' AND tc.deleted_at IS NULL
+                AND tc.company_id = '{$baseline->company_id}'
+                AND EXISTS(SELECT 1 FROM training_claim_sessions tcs WHERE tcs.training_claim_id = tc.id AND tcs.date BETWEEN '{$startDate}' AND '{$endDate}')
+            ), 0)";
+        $externalCountSql = str_replace('SUM(tc.jp)', 'COUNT(*)', $externalJpSql);
+        $query->selectRaw("{$externalJpSql} as external_jp");
+
         if ($courses->isNotEmpty()) {
             $courseIdList = $courses->pluck('id')
                 ->map(fn ($id) => "'{$id}'")->implode(',');
 
-            // Total completed training hours (sum of meeting durations where admin sudah absen masuk & pulang manual)
+            // Total training hours = jam pertemuan yang sudah diabsen manual masuk & pulang
+            // + pelatihan eksternal terlaksana (JP final x menit_1_jp / 60).
             $query->selectRaw("
                 COALESCE((
                     SELECT ROUND(SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, lm.start_time, lm.end_time))) / 60.0, 2)
@@ -276,10 +289,10 @@ class TrainingReportPage extends Page implements HasForms, HasTable
                     AND lcmu.absen_pulang = 1
                     AND lm.start_time IS NOT NULL
                     AND lm.end_time IS NOT NULL
-                ), 0) as total_training_hours
+                ), 0) + ROUND({$externalJpSql} * {$perJp} / 60.0, 2) as total_training_hours
             ");
 
-            // Total distinct courses attended
+            // Total pelatihan = kursus LMS distinct yang diikuti + pelatihan eksternal terlaksana (disetujui)
             $query->selectRaw("
                 COALESCE((
                     SELECT COUNT(DISTINCT course_id)
@@ -287,10 +300,10 @@ class TrainingReportPage extends Page implements HasForms, HasTable
                     WHERE user_id = users.id
                     AND course_id IN ({$courseIdList})
                     AND DATE(enrolled_at) BETWEEN '{$startDate}' AND '{$endDate}'
-                ), 0) as total_courses_count
+                ), 0) + {$externalCountSql} as total_courses_count
             ");
         } else {
-            $query->selectRaw('0 as total_training_hours, 0 as total_courses_count');
+            $query->selectRaw("ROUND({$externalJpSql} * {$perJp} / 60.0, 2) as total_training_hours, {$externalCountSql} as total_courses_count");
         }
 
         return $query->orderByName();
@@ -301,6 +314,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
         $baseline = $this->getBaselineModel();
         $minHours = (float) ($baseline?->min_hours ?? 0);
         $courses  = $this->getBaselineCourses();
+        $perJp    = \App\Models\LMS\TrainingClaim::minutesPerJp();
 
         $columns = [
             TextColumn::make('nip')
@@ -326,6 +340,33 @@ class TrainingReportPage extends Page implements HasForms, HasTable
                 ->formatStateUsing(fn ($state) => (bool) $state ? '' : '')
                 ->color(fn ($state) => (bool) $state ? 'success' : 'danger');
         }
+
+        // Klik angka JP -> modal daftar pelatihan eksternal terlaksana yang disetujui.
+        $columns[] = TextColumn::make('external_jp')
+            ->label('JP Eksternal (Terlaksana)')
+            ->alignCenter()
+            ->formatStateUsing(fn ($state) => (int) $state . ' JP')
+            ->icon(fn ($state) => (int) $state > 0 ? Heroicon::ListBullet : null)
+            ->iconPosition('after')
+            ->tooltip(fn ($state) => (int) $state > 0 ? 'Lihat detail' : null)
+            ->action(
+                Action::make('detail_eksternal')
+                    ->modalHeading('Pelatihan Eksternal Terlaksana')
+                    ->modalContent(fn ($record) => view('livewire.lms.partials.external-claims-list', [
+                        'claims' => $baseline
+                            ? \App\Models\LMS\TrainingClaim::approvedFor($baseline, $record->id)
+                            : collect(),
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup')
+            )
+            ->sortable();
+
+        $columns[] = TextColumn::make('external_hours_virtual')
+            ->label('Jam Eksternal (Terlaksana)')
+            ->alignCenter()
+            ->getStateUsing(fn ($record) => round((int) ($record->external_jp ?? 0) * $perJp / 60, 2))
+            ->formatStateUsing(fn ($state) => number_format((float) $state, 1, ',', '.') . ' jam');
 
         $columns[] = TextColumn::make('total_training_hours')
             ->label('Total Jam Pelatihan')
@@ -417,6 +458,8 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             ->groupBy('user_id')
             ->pluck('total', 'user_id');
 
+        $external = \App\Models\LMS\TrainingClaim::approvedByUser($baseline);
+
         $matrix = [];
 
         foreach ($users as $user) {
@@ -447,10 +490,13 @@ class TrainingReportPage extends Page implements HasForms, HasTable
                 }
             }
 
-            $totalHours = round($totalMinutes / 60, 2);
+            $externalHours = $external[$user->id]['hours'] ?? 0;
+            $totalHours = round($totalMinutes / 60, 2) + $externalHours;
 
+            $row['external_jp']        = $external[$user->id]['jp'] ?? 0;
+            $row['external_hours']     = $externalHours;
             $row['total_hours']        = $totalHours;
-            $row['total_courses']      = $totalCoursesByUser[$user->id] ?? 0;
+            $row['total_courses']      = ($totalCoursesByUser[$user->id] ?? 0) + ($external[$user->id]['count'] ?? 0);
             $row['unfulfilled_hours']  = max(0, round($baseline->min_hours - $totalHours, 2));
 
             $matrix[] = $row;

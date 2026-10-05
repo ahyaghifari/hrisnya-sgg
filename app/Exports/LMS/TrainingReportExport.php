@@ -35,6 +35,8 @@ class TrainingReportExport implements FromArray, WithHeadings, WithStyles, WithC
             $headers[] = $title;
         }
 
+        $headers[] = 'JP Eksternal (Terlaksana)';
+        $headers[] = 'Jam Eksternal (Terlaksana)';
         $headers[] = 'Jam Belum Terpenuhi';
         $headers[] = 'Total Jam Pelatihan';
         $headers[] = 'Total Pelatihan Diikuti';
@@ -57,6 +59,8 @@ class TrainingReportExport implements FromArray, WithHeadings, WithStyles, WithC
                 $line[] = ($row['courses'][$courseId] ?? false) ? '✓' : '✗';
             }
 
+            $line[] = ($row['external_jp'] ?? 0) . ' JP';
+            $line[] = number_format($row['external_hours'] ?? 0, 1) . ' jam';
             $line[] = $row['unfulfilled_hours'] > 0
                 ? number_format($row['unfulfilled_hours'], 1) . ' jam'
                 : 'Terpenuhi';
@@ -84,18 +88,17 @@ class TrainingReportExport implements FromArray, WithHeadings, WithStyles, WithC
             $col++;
         }
 
-        // Last 3 summary columns
-        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-        $widths[$colLetter] = 22;
-        $widths[\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 1)] = 20;
-        $widths[\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 2)] = 22;
+        // Last 5 summary columns: JP Eksternal, Jam Eksternal, Belum Terpenuhi, Total Jam, Total Pelatihan
+        foreach ([24, 24, 22, 20, 22] as $i => $width) {
+            $widths[\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + $i)] = $width;
+        }
 
         return $widths;
     }
 
     public function styles(Worksheet $sheet): array
     {
-        $totalCols  = 3 + count($this->courseHeaders) + 3;
+        $totalCols  = 3 + count($this->courseHeaders) + 5;
         $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalCols);
         $lastRow    = count($this->matrix) + 2; // +1 for info row, +1 for heading row
 
@@ -156,7 +159,7 @@ class TrainingReportExport implements FromArray, WithHeadings, WithStyles, WithC
             }
         }
 
-        // Summary columns (last 3) center-aligned
+        // Summary columns (last 5) center-aligned
         $sumStart = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($endCourseColIdx + 1);
         $sumEnd   = $lastColLetter;
         $sheet->getStyle($sumStart . '2:' . $sumEnd . ($lastRow + 1))->applyFromArray([

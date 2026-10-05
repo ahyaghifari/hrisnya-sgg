@@ -9,6 +9,7 @@ use App\Models\LMS\LmsCourseBaselines;
 use App\Models\LMS\LmsCourseMeetingUsers;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsCourseUsers;
+use App\Models\LMS\TrainingClaim;
 use App\Models\User;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
@@ -34,6 +35,26 @@ use Maatwebsite\Excel\Facades\Excel;
 class TrainingReportPage extends Component
 {
     public ?string $baselineId = null;
+
+    /** Karyawan yang modal Detail Eksternal Terlaksana-nya sedang dibuka. */
+    public ?string $detailUserId = null;
+
+    public function openDetail(string $userId): void
+    {
+        $this->detailUserId = $userId;
+    }
+
+    public function closeDetail(): void
+    {
+        $this->detailUserId = null;
+    }
+
+    public function getDetailClaimsProperty()
+    {
+        return $this->detailUserId && $this->baseline
+            ? TrainingClaim::approvedFor($this->baseline, $this->detailUserId)
+            : collect();
+    }
 
     public function mount(): void
     {
@@ -143,12 +164,15 @@ class TrainingReportPage extends Component
             ->groupBy('user_id')
             ->pluck('total', 'user_id');
 
+        $external = TrainingClaim::approvedByUser($baseline);
+
         $matrix = [];
 
         foreach ($users as $user) {
             $userEnrollments = $enrollments->get($user->id, collect())->keyBy('course_id');
 
             $row = [
+                'user_id' => $user->id,
                 'nip' => $user->nip,
                 'name' => $user->name,
                 'company' => $baseline->company->name,
@@ -174,10 +198,17 @@ class TrainingReportPage extends Component
                 }
             }
 
-            $totalHours = round($totalMinutes / 60, 2);
+            // + pelatihan eksternal terlaksana yang sudah disetujui (JP final x menit_1_jp), juga
+            // ditampilkan terpisah di kolom Jam/JP Eksternal.
+            $externalJp = $external[$user->id]['jp'] ?? 0;
+            $externalHours = $external[$user->id]['hours'] ?? 0;
+            $totalHours = round($totalMinutes / 60, 2) + $externalHours;
 
+            $row['external_jp'] = $externalJp;
+            $row['external_hours'] = $externalHours;
             $row['total_hours'] = $totalHours;
-            $row['total_courses'] = $totalCoursesByUser[$user->id] ?? 0;
+            // Total Pelatihan = kursus LMS yang diikuti + pelatihan eksternal terlaksana (disetujui).
+            $row['total_courses'] = ($totalCoursesByUser[$user->id] ?? 0) + ($external[$user->id]['count'] ?? 0);
             $row['unfulfilled_hours'] = max(0, round($baseline->min_hours - $totalHours, 2));
 
             $matrix[] = $row;

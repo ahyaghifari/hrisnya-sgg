@@ -892,7 +892,9 @@ class RekapPresensiPage extends Component
             $rows->count(),
             $perPage,
             $page,
-            ['path' => request()->url(), 'query' => $this->queryAppends()],
+            // originalPath (tanpa host), bukan request()->url(): URL penuh/endpoint /livewire/update
+            // bikin href paginasi rusak (lihat RiwayatApprovalPage & livewire/partials/pagination).
+            ['path' => \Livewire\Livewire::originalPath(), 'query' => $this->queryAppends()],
         );
     }
 
