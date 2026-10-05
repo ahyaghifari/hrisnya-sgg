@@ -22,11 +22,13 @@ class SpReportUpdated extends Notification implements ShouldQueue
         protected string $body,
         protected ?string $url = null,
         protected ?string $documentSignId = null,
+        // true = abaikan pengaturan notifikasi penerima (pembuat BA wajib dikabari tiap langkah alurnya).
+        protected bool $always = false,
     ) {}
 
     public function via(object $notifiable): array
     {
-        if (! app(NotificationPreferenceService::class)->isEnabled($notifiable, NotificationTypeEnum::SP_REPORT_UPDATE)) {
+        if (! $this->always && ! app(NotificationPreferenceService::class)->isEnabled($notifiable, NotificationTypeEnum::SP_REPORT_UPDATE)) {
             return [];
         }
 

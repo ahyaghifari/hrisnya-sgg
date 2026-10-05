@@ -305,7 +305,8 @@ class SpReportService
 
     private function notifyCreator(SpReport $report, string $title, string $body): void
     {
-        $report->createdBy?->notify(new SpReportUpdated($title, $body, route('ba.show', $report)));
+        // Pembuat BA selalu dikabari (tidak bisa dimatikan lewat pengaturan notifikasi).
+        $report->createdBy?->notify(new SpReportUpdated($title, $body, route('ba.show', $report), always: true));
     }
 
     private function assertCanManage(User $actor, ?string $companyId): void
