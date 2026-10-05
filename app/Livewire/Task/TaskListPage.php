@@ -443,7 +443,7 @@ class TaskListPage extends Component
         unset($this->tasks, $this->selectedTask);
     }
 
-    /** Centang tugas Board berulang: selesai + otomatis dibuat salinan untuk periode berikutnya. */
+    /** Centang tugas Board berulang: selesai + tugas yang sama dijadwalkan ulang ke periode berikutnya. */
     public function completeRecurringTask(string $taskId): void
     {
         try {
@@ -451,7 +451,7 @@ class TaskListPage extends Component
             $this->selectedTaskId = null;
             unset($this->selectedTask);
             $this->dispatch('task-completed');
-            Notification::make()->title('Tugas selesai, salinan berikutnya dibuat untuk ' . Carbon::parse($copy->due_date)->translatedFormat('j M Y'))->success()->send();
+            Notification::make()->title('Tugas selesai, dijadwalkan ulang ke ' . Carbon::parse($copy->due_date)->translatedFormat('j M Y'))->success()->send();
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa menyelesaikan tugas ini')->danger()->send();
         }
