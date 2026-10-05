@@ -108,6 +108,53 @@ class TwoScanExtraShiftSplitTest extends TestCase
         $this->assertSame('15:00:00', $extraEntry['check_out']);
     }
 
+    /** Scan di titik transisi (15:00) ditolak - bukan pulang Pagi, hitungan lanjut ke Siang. */
+    public function test_batch_transition_scan_is_rejected(): void
+    {
+        [$user, $company, $pagi, $siang] = $this->makeUser('TWO005');
+
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $user->id, 'shift_type_id' => $pagi->id, 'date' => '2026-08-10', 'off_day' => false]);
+        ExtraShiftAssignment::create(['company_id' => $company->id, 'user_id' => $user->id, 'shift_type_id' => $siang->id, 'date' => '2026-08-10', 'status' => 'approved', 'source' => 'assigned', 'created_by' => $user->id]);
+
+        $this->insertScan($user, '2026-08-10 07:00:00');
+        $this->insertScan($user, '2026-08-10 15:00:00');
+        $this->insertScan($user, '2026-08-10 23:00:00');
+
+        $result = app(\App\Services\Attendance\AccessLogScheduleReader::class)->readAndGroup('2026-08-10', '2026-08-10');
+
+        $this->assertSame('15:00:00', $result['buckets']['shift'][0]['check_out']);
+        $this->assertSame('15:00:00', $result['buckets']['extra_shift'][0]['check_in']);
+        $this->assertSame('23:00:00', $result['buckets']['extra_shift'][0]['check_out']);
+    }
+
+    /** Pagi + scan 15:00 saja setelah masuk: scan transisi ditolak, shift masih terbuka. */
+    public function test_batch_only_transition_scan_after_checkin_leaves_open(): void
+    {
+        [$user, $company, $pagi, $siang] = $this->makeUser('TWO006');
+
+        ScheduleShiftAssignment::create(['company_id' => $company->id, 'user_id' => $user->id, 'shift_type_id' => $pagi->id, 'date' => '2026-08-10', 'off_day' => false]);
+        ExtraShiftAssignment::create(['company_id' => $company->id, 'user_id' => $user->id, 'shift_type_id' => $siang->id, 'date' => '2026-08-10', 'status' => 'approved', 'source' => 'assigned', 'created_by' => $user->id]);
+
+        $this->insertScan($user, '2026-08-10 07:00:00');
+        $this->insertScan($user, '2026-08-10 15:00:00');
+
+        $result = app(\App\Services\Attendance\AccessLogScheduleReader::class)->readAndGroup('2026-08-10', '2026-08-10');
+
+        $this->assertSame('07:00:00', $result['buckets']['shift'][0]['check_in']);
+        $this->assertNull($result['buckets']['shift'][0]['check_out']);
+    }
+
+    public function test_adjacent_ignores_time_format_difference(): void
+    {
+        [$user, $company, $pagi, $siang] = $this->makeUser('TWO007');
+        $pagi->end_time = '15:00';
+
+        $extra = new ExtraShiftAssignment;
+        $extra->setRelation('shiftType', $siang);
+
+        $this->assertTrue(app(\App\Services\Attendance\ShiftAttendanceReader::class)->isAdjacent($pagi, $extra));
+    }
+
     public function test_incremental_two_scans_arriving_in_one_tick(): void
     {
         [$user, $company, $pagi, $siang] = $this->makeUser('TWO003');

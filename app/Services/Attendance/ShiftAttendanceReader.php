@@ -91,7 +91,13 @@ class ShiftAttendanceReader
         $later = $extraIsEarlier ? $normalConfig : $extraShift->shiftType;
         $earlierIsNormal = ! $extraIsEarlier;
 
-        $whole = $this->buildEntryFromScans($user, $date, $scans, $byDate, $consumedFirstScan, allowNextDayBorrow: true);
+        // Scan di titik transisi (mis. 14:00 untuk Pagi 08-14 + Siang 14-20) ditolak - bukan pulang
+        // shift awal, perhitungan langsung lanjut ke shift kedua. Scan pertama selalu dipakai.
+        $from = $this->checkInWindowStart($later);
+        $to = $this->checkOutWindowEnd($earlier);
+        $scans = $scans->filter(fn ($s, $i) => $i === 0 || $s->access_time < $from || $s->access_time > $to)->values();
+
+        $whole = $this->buildEntryFromScans($user, $date, $scans, $byDate, $consumedFirstScan, allowNextDayBorrow: (bool) $later->is_overnight);
         $in = $whole['check_in'];
         $out = $whole['check_out'];
 
@@ -140,7 +146,10 @@ class ShiftAttendanceReader
         $earlierConfig  = $extraIsEarlier ? $extraShift->shiftType : $normalConfig;
         $laterConfig    = $extraIsEarlier ? $normalConfig : $extraShift->shiftType;
 
-        return $earlierConfig->end_time === $laterConfig->start_time;
+        // Bandingkan H:i (DB bisa "14:00" vs "14:00:00"), dan jam overlap (selesai >= mulai) juga
+        // dianggap nempel - bukan cuma sama persis.
+        // ponytail: shift overnight sebagai "earlier" tidak ditangani (end < start), tambah kalau ada kasusnya.
+        return substr($earlierConfig->end_time, 0, 5) >= substr($laterConfig->start_time, 0, 5);
     }
 
     public function find(User $user, string $date): ?ExtraShiftAssignment
