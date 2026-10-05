@@ -115,9 +115,6 @@ class CutiRecapPage extends Component
             return ['types' => [], 'rows' => [], 'overall' => ['counts' => [], 'total' => 0, 'employee_count' => 0, 'request_count' => 0], 'ready' => false];
         }
 
-        $rangeStart = Carbon::parse($this->date_from);
-        $rangeEnd   = Carbon::parse($this->date_to);
-
         $requests = AttendanceRequests::query()
             ->where('type', 'leave')
             ->where('status', 'approved')
@@ -143,24 +140,15 @@ class CutiRecapPage extends Component
 
         $emptyCounts = collect($types)->mapWithKeys(fn ($t) => [$t => 0])->all();
 
-        $rows = $requests->groupBy('user_id')->map(function ($group) use ($emptyCounts, $rangeStart, $rangeEnd) {
+        $rows = $requests->groupBy('user_id')->map(function ($group) use ($emptyCounts) {
             $user   = $group->first()->user;
             $counts = $emptyCounts;
             $items  = [];
 
             foreach ($group as $request) {
                 foreach ($request->leaveDetails as $detail) {
-                    $detailStart = Carbon::parse($detail->start_date);
-                    $detailEnd   = $detail->end_date ? Carbon::parse($detail->end_date) : $detailStart->copy();
-
-                    $clampStart = $detailStart->lt($rangeStart) ? $rangeStart->copy() : $detailStart;
-                    $clampEnd   = $detailEnd->gt($rangeEnd) ? $rangeEnd->copy() : $detailEnd;
-
-                    if ($clampStart->gt($clampEnd)) {
-                        continue;
-                    }
-
-                    $days = $this->countDaysExcludingSunday($clampStart, $clampEnd);
+                    // Hari = total_days tersimpan di DB apa adanya (tidak dihitung ulang/diclamp ke periode).
+                    $days = (float) $detail->total_days;
                     $type = $detail->leave_type ?: 'Lainnya';
 
                     $counts[$type] = ($counts[$type] ?? 0) + $days;
@@ -215,21 +203,6 @@ class CutiRecapPage extends Component
             ],
             'ready' => true,
         ];
-    }
-
-    /** Minggu tidak dihitung sebagai hari cuti terpakai (Sabtu tetap dihitung, dikonfirmasi
-     * user - beda dari perhitungan hari kerja lain di sistem ini yang mengecualikan Sabtu+Minggu). */
-    private function countDaysExcludingSunday(Carbon $start, Carbon $end): int
-    {
-        $days = 0;
-
-        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-            if (! $date->isSunday()) {
-                $days++;
-            }
-        }
-
-        return $days;
     }
 
     /**

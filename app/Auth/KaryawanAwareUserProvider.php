@@ -21,7 +21,7 @@ class KaryawanAwareUserProvider extends EloquentUserProvider
         /** @var Builder $query */
         $query = parent::newModelQuery($model);
 
-        return $query->withoutGlobalScope('non_karyawan');
+        return $query->withoutGlobalScopes(['non_karyawan', 'dokter']);
     }
 
     public function retrieveByCredentials(array $credentials)

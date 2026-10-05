@@ -125,6 +125,7 @@ class KaryawanPage extends Component
         $query = match ($this->status) {
             'tidak_aktif' => User::query()->where('is_active', false),
             'arsip' => User::onlyTrashed(),
+            'dokter' => User::onlyDokter(),
             default => User::query()->where('is_active', true),
         };
 
