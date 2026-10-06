@@ -463,6 +463,10 @@ class User extends Authenticatable implements FilamentUser
             return $this->can(\App\Enum\CustomPermissionEnum::KELOLA_KEYCLOAK->value);
         }
 
+        if ($panel->getId() === 'dokter') {
+            return $this->can(\App\Enum\CustomPermissionEnum::KELOLA_DOKTER->value);
+        }
+
         return $this->can(\App\Enum\CustomPermissionEnum::AKSES_PANEL_ADMIN->value);
     }
 

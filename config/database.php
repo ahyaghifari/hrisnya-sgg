@@ -90,6 +90,33 @@ return [
             ]) : [],
         ],
 
+        /*
+         * Koneksi DB `doctor` — master data dokter (data diri, spesialisasi, penempatan RS,
+         * dokumen, lisensi, credentialing), terpisah dari DB HRIS. HRIS pemilik skemanya: migrasi
+         * di database/migrations/doctor dijalankan manual ke koneksi ini (bukan ikut `migrate`
+         * biasa): php artisan migrate --database=doctor --path=database/migrations/doctor
+         * Model di App\Models\Doctor\* set `protected $connection = 'doctor'`. Isi DB_DOCTOR_* di .env.
+         */
+        'doctor' => [
+            'driver' => 'mysql',
+            'url' => env('DB_DOCTOR_URL'),
+            'host' => env('DB_DOCTOR_HOST', '127.0.0.1'),
+            'port' => env('DB_DOCTOR_PORT', '3306'),
+            'database' => env('DB_DOCTOR_DATABASE'),
+            'username' => env('DB_DOCTOR_USERNAME'),
+            'password' => env('DB_DOCTOR_PASSWORD', ''),
+            'unix_socket' => env('DB_DOCTOR_SOCKET', ''),
+            'charset' => env('DB_DOCTOR_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_DOCTOR_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

@@ -8,4 +8,6 @@ return [
     App\Providers\Filament\RekrutmenPanelProvider::class,
     // Panel /keycloak — kelola user Keycloak via Admin REST API. Lihat KeycloakPanelProvider.
     App\Providers\Filament\KeycloakPanelProvider::class,
+    // Panel /dokter — master data dokter di DB `doctor` (terpisah dari HRIS). Lihat DokterPanelProvider.
+    App\Providers\Filament\DokterPanelProvider::class,
 ];
