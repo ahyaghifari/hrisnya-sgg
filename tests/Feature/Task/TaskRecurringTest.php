@@ -51,6 +51,7 @@ class TaskRecurringTest extends TestCase
         $this->assertSame($originListId, $task->list_id);
         $this->assertTrue((bool) $task->checklistItems()->first()->is_done);
         $this->assertSame($due->copy()->startOfDay()->addDay()->toDateTimeString(), $task->recurrence_resume_at->toDateTimeString());
+        $this->assertSame($due->copy()->addMonthNoOverflow()->toDateString(), \Illuminate\Support\Carbon::parse($task->due_date)->toDateString());
 
         // Periodenya belum lewat: job tidak mengaktifkan lagi.
         $this->assertSame(0, $service->resumeDueRecurring());
