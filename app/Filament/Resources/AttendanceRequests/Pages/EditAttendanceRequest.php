@@ -5,6 +5,7 @@ namespace App\Filament\Resources\AttendanceRequests\Pages;
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Filament\Resources\AttendanceRequests\AttendanceRequestResource;
+use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Services\Approval\ApprovalFlowService;
 use Filament\Actions\Action;
@@ -53,6 +54,63 @@ class EditAttendanceRequest extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            // Batalkan lembur yang SUDAH approved atas nama admin yang membatalkan (cancelled_by +
+            // riwayat approval). Status cancelled otomatis keluar dari payroll & rekap lembur
+            // (keduanya cuma ambil status approved). Lembur yang masih in_review dibatalkan lewat
+            // tombol "Batalkan" approver di bawah.
+            Action::make('cancelOvertime')
+                ->label('Batalkan Lembur')
+                ->icon('heroicon-o-x-circle')
+                ->color('warning')
+                ->modalHeading('Batalkan Lembur')
+                ->modalDescription('Lembur yang dibatalkan tidak lagi dihitung di rekap lembur dan payroll. Pembatalan tercatat atas nama Anda.')
+                ->modalSubmitActionLabel('Ya, Batalkan')
+                ->visible(fn ($record) => $record->type === 'overtime' && in_array($record->status, [
+                    AttendanceReqStatus::SUBMITTED->value,
+                    AttendanceReqStatus::IN_REVIEW->value,
+                    AttendanceReqStatus::APPROVED->value,
+                ]))
+                ->schema([
+                    Textarea::make('reason')
+                        ->label('Alasan Pembatalan')
+                        ->rows(3)
+                        ->required(),
+                ])
+                ->action(function ($record, array $data) {
+                    DB::transaction(function () use ($record, $data) {
+                        $record->update([
+                            'status' => AttendanceReqStatus::CANCELLED->value,
+                            'cancelled_by' => Auth::id(),
+                            'cancelled_at' => now(),
+                        ]);
+
+                        if ($snapshot = $record->approvalSnapshot) {
+                            $snapshot->update(['status' => 'cancelled']);
+                            $snapshot->activity?->update([
+                                'status' => 'cancelled',
+                                'acted_by' => Auth::id(),
+                                'acted_at' => now(),
+                                'note' => $data['reason'],
+                            ]);
+
+                            ApprovalHistories::create([
+                                'requestable_type' => $snapshot->module_type,
+                                'requestable_id' => $snapshot->module_id,
+                                'snapshot_id' => $snapshot->id,
+                                'activity_id' => $snapshot->activity?->id,
+                                'action' => 'cancelled',
+                                'actor_id' => Auth::id(),
+                                'actor_name' => Auth::user()->name,
+                                'note' => $data['reason'],
+                            ]);
+                        }
+                    });
+
+                    Notification::make()->title('Lembur berhasil dibatalkan')->success()->send();
+
+                    $this->redirect(AttendanceRequestResource::getUrl('edit', ['record' => $record, 'type' => $this->type]));
+                }),
+
             // Cuma boleh hapus pengajuan yang dibuat admin lewat /admin (created_by beda dari
             // user_id pemilik izin/cuti/lembur) - pengajuan mandiri karyawan lewat portal
             // (created_by === user_id) tetap bisa diedit tapi tidak bisa dihapus dari sini.
