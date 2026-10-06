@@ -8,6 +8,7 @@ use App\Filament\Resources\AttendanceRequests\AttendanceRequestResource;
 use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Services\Approval\ApprovalFlowService;
+use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -51,6 +52,15 @@ class EditAttendanceRequest extends EditRecord
         return $data;
     }
 
+    /** Batas batal lembur sama seperti cuti/izin (AttendaceReqService::cancellationCutoffPassed):
+     *  boleh sampai hari H lembur, lewat dari itu tidak bisa. Tanpa tanggal dianggap sudah lewat. */
+    private function overtimeDatePassed($record): bool
+    {
+        $date = $record->overtimeDetails()->min('date');
+
+        return ! $date || now()->startOfDay()->gt(Carbon::parse($date)->startOfDay());
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -69,7 +79,7 @@ class EditAttendanceRequest extends EditRecord
                     AttendanceReqStatus::SUBMITTED->value,
                     AttendanceReqStatus::IN_REVIEW->value,
                     AttendanceReqStatus::APPROVED->value,
-                ]))
+                ]) && ! $this->overtimeDatePassed($record))
                 ->schema([
                     Textarea::make('reason')
                         ->label('Alasan Pembatalan')
@@ -77,6 +87,13 @@ class EditAttendanceRequest extends EditRecord
                         ->required(),
                 ])
                 ->action(function ($record, array $data) {
+                    // Cek ulang di server - visible() saja tidak cukup kalau halaman terbuka lintas hari.
+                    if ($this->overtimeDatePassed($record)) {
+                        Notification::make()->title('Tanggal lembur sudah lewat, tidak bisa dibatalkan lagi')->danger()->send();
+
+                        return;
+                    }
+
                     DB::transaction(function () use ($record, $data) {
                         $record->update([
                             'status' => AttendanceReqStatus::CANCELLED->value,
