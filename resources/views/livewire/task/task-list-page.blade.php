@@ -24,7 +24,7 @@
     $fmtDate = fn ($d, $f = 'j M') => $d ? \Carbon\Carbon::parse($d)->translatedFormat($f) : null;
     // Warna tenggat di kartu: lewat = hitam/teks putih, hari H = merah, H-2..H-1 = oranye. Tugas Selesai tanpa warna.
     $dueStyle = function ($task) {
-        if (! $task->due_date || $task->status === TaskStatus::COMPLETE->value) return '';
+        if (! $task->due_date || $task->status === TaskStatus::COMPLETE->value || $task->is_done) return '';
         $due = \Carbon\Carbon::parse($task->due_date);
         $days = now()->startOfDay()->diffInDays($due->copy()->startOfDay(), false);
         $base = 'padding:1px 6px;border-radius:4px;';
@@ -1330,6 +1330,9 @@
                                                     Selesai{{ $item->doneBy ? ' oleh '.($item->doneBy->profile?->nickname ?: $item->doneBy->name) : '' }} &middot; {{ $item->done_at->translatedFormat('j M Y, H:i') }}
                                                 </span>
                                             @endif
+                                            @if ($item->due_date)
+                                                <span style="display:inline-block;margin-top:3px;padding:0 6px;border-radius:4px;font-size:11px;font-weight:400;{{ $dueStyle($item) ?: 'color:var(--text-faint);' }}"><i class="fa-regular fa-clock"></i> {{ $item->due_date->translatedFormat('j M Y, H:i') }}</span>
+                                            @endif
                                         </span>
                                     </div>
                                     {{-- Penugasan: avatar pelaksana terpilih tampil di samping tombol ubah; klik (kalau berhak) untuk ganti/lepas. --}}
@@ -1357,6 +1360,13 @@
                                         <span style="display:flex;flex-shrink:0;"><x-avatar :user="$item->assignee" :size="22" /></span>
                                     @endif
                                     @if ($canModifyItem($item))
+                                        {{-- Tenggat item: ikon jam, input muncul sebagai tooltip saat di-hover (tetap terbuka selama input fokus). --}}
+                                        <div x-data="{ open: false, focused: false }" @mouseenter="open = true" @mouseleave="open = focused" style="position:relative;flex-shrink:0;">
+                                            <button type="button" style="background:none;border:none;color:{{ $item->due_date ? 'var(--primary,#2563eb)' : 'var(--text-faint)' }};cursor:pointer;padding:2px;" title="Tenggat item"><i class="fa-regular fa-clock" style="font-size:12px;"></i></button>
+                                            <div x-show="open" x-cloak style="display:none;position:absolute;right:0;bottom:100%;padding-bottom:4px;z-index:30;">
+                                                <input type="datetime-local" class="form-input" value="{{ $item->due_date?->format('Y-m-d\TH:i') }}" wire:change="setChecklistItemDueDate('{{ $item->id }}', $event.target.value)" @focus="focused = true" @blur="focused = false; open = false" style="width:auto;padding:3px 8px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.15);">
+                                            </div>
+                                        </div>
                                         <button type="button" wire:click="startEditChecklistItem('{{ $item->id }}', @js($item->title))" style="background:none;border:none;color:var(--text-faint);cursor:pointer;padding:2px;" title="Ubah"><i class="fa-solid fa-pen" style="font-size:11px;"></i></button>
                                         <button type="button" wire:click="deleteChecklistItem('{{ $item->id }}')" wire:confirm="Hapus item checklist ini?" style="background:none;border:none;color:var(--text-faint);cursor:pointer;padding:2px;" title="Hapus"><i class="fa-solid fa-trash" style="font-size:11px;"></i></button>
                                     @endif
