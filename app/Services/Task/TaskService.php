@@ -729,6 +729,7 @@ class TaskService
                 'status' => TaskStatus::COMPLETE->value,
                 'completed_date' => $now,
                 'recurrence_resume_at' => $resumeAt,
+                'due_date' => $task->nextDueDate(), // tenggat langsung maju ke periode berikutnya
             ];
             if (! $fromReview) {
                 $update['is_overdue'] = $task->due_date && $now->gt($task->due_date);
@@ -739,7 +740,7 @@ class TaskService
             }
 
             $this->taskRepository->update($task->id, $update);
-            $this->logActivity($task, $actor, 'recurring_completed', 'Menyelesaikan periode ini, aktif lagi ' . $resumeAt->translatedFormat('j M Y'));
+            $this->logActivity($task, $actor, 'recurring_completed', 'Menyelesaikan periode ini, tenggat berikutnya ' . Carbon::parse($update['due_date'])->translatedFormat('j M Y') . ', aktif lagi ' . $resumeAt->translatedFormat('j M Y'), ['previous_due_date' => $task->due_date]);
 
             return $task->refresh();
         });
@@ -755,8 +756,6 @@ class TaskService
         abort_unless($task->recurrence && $task->status === TaskStatus::COMPLETE->value && $task->recurrence_resume_at, 422, 'Tugas ini tidak menunggu periode berikutnya.');
 
         return DB::transaction(function () use ($task) {
-            $oldDue = $task->due_date;
-            $nextDue = $task->nextDueDate();
 
             $doneItems = $task->checklistItems()->where('is_done', true)->pluck('title')->all();
             $ratings = $task->assignees()->whereNotNull('rating')->pluck('rating', 'user_id')->all();
@@ -766,7 +765,6 @@ class TaskService
 
             $this->taskRepository->update($task->id, [
                 'status' => TaskStatus::TODO->value,
-                'due_date' => $nextDue,
                 'recurrence_resume_at' => null,
                 'responded_date' => Carbon::now(),
                 'started_date' => null,
@@ -776,8 +774,7 @@ class TaskService
             ]);
 
             $task->refresh();
-            $this->logActivity($task, null, 'recurred', 'Periode baru dimulai, tenggat ' . Carbon::parse($nextDue)->translatedFormat('j M Y'), [
-                'previous_due_date' => $oldDue,
+            $this->logActivity($task, null, 'recurred', 'Periode baru dimulai, tenggat ' . Carbon::parse($task->due_date)->translatedFormat('j M Y'), [
                 'checklist_done' => $doneItems,
                 'ratings' => $ratings,
             ]);
