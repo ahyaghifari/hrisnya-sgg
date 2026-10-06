@@ -84,6 +84,14 @@ class SikartapReviewerResolver
         return collect();
     }
 
+    /** Atasan langsung = pemegang aktif jabatan parent terdekat (kosong -> naik lagi). */
+    public function directSupervisorOf(User $user): ?User
+    {
+        $jobPosition = $user->activeJobPosition?->jobPosition;
+
+        return $jobPosition ? $this->directSupervisorHolders($jobPosition)->first() : null;
+    }
+
     public function canReview(string $context, User $target, User $actor): bool
     {
         return $this->reviewersFor($context, $target)->contains('id', $actor->id);

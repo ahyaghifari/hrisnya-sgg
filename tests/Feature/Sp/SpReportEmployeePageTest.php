@@ -66,43 +66,34 @@ class SpReportEmployeePageTest extends TestCase
         Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])->assertOk();
     }
 
-    public function test_employee_submits_clarification_and_hc_is_notified(): void
+    public function test_employee_is_not_asked_for_clarification(): void
     {
         $report = $this->draft();
-        $this->service->requestClarification($report, $this->hc);
 
         Notification::fake();
+        $this->service->requestClarification($report, $this->hc);
 
+        Notification::assertNothingSent();
         Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])
-            ->set('klarifikasi', '')
-            ->call('submitClarification');
-        $this->assertSame(SpReportStatus::MENUNGGU_KLARIFIKASI, $report->fresh()->status); // kosong ditolak
-
-        Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])
-            ->set('klarifikasi', 'macet di jalan')
-            ->call('submitClarification');
-
-        $this->assertSame(SpReportStatus::KLARIFIKASI_DIAJUKAN, $report->fresh()->status);
-        $this->assertSame('macet di jalan', $report->fresh()->subject_clarification);
-        Notification::assertSentTo($this->hc, SpReportUpdated::class);
+            ->assertSee('sedang menyusun klarifikasi');
     }
 
     public function test_employee_sees_hc_content_only_after_sent_for_signing_and_can_reclarify(): void
     {
         $report = $this->draft();
         $this->service->requestClarification($report, $this->hc);
-        $this->service->submitClarification($report->fresh(), $this->employee, 'macet');
+        $this->service->fillClarificationByHc($report->fresh(), $this->hc, 'macet');
         $this->service->saveAnalysis($report->fresh(), $this->hc, [
-            'klarifikasi_parafrase' => 'PARAFRASE-RAHASIA', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f',
+            'analysis' => 'ANALISIS-RAHASIA', 'kesimpulan' => 'k', 'followup_plan' => 'f',
         ]);
 
         Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])
-            ->assertDontSee('PARAFRASE-RAHASIA');
+            ->assertDontSee('ANALISIS-RAHASIA');
 
         $this->service->sendForSigning($report->fresh(), $this->hc);
 
         $page = Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])
-            ->assertSee('PARAFRASE-RAHASIA')
+            ->assertSee('ANALISIS-RAHASIA')
             ->assertSee('Menunggu pembuat')
             ->set('alasan_ajukan_ulang', 'Bukan itu maksud saya')
             ->call('requestReclarification');
@@ -124,7 +115,7 @@ class SpReportEmployeePageTest extends TestCase
     {
         $report = $this->draft();
         $this->service->requestClarification($report, $this->hc);
-        $this->service->submitClarification($report->fresh(), $this->employee, 'macet');
+        $this->service->fillClarificationByHc($report->fresh(), $this->hc, 'macet');
         $this->service->saveAnalysis($report->fresh(), $this->hc, [
             'klarifikasi_parafrase' => 'p', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f',
         ]);
@@ -133,8 +124,11 @@ class SpReportEmployeePageTest extends TestCase
         Notification::fake();
         app(DocumentSigningService::class)->sign($report->fresh()->document, $this->hc);
 
-        Notification::assertSentTo($this->employee, SpReportUpdated::class);
         Notification::assertSentTo($this->knower, SpReportUpdated::class);
+        Notification::assertNotSentTo($this->employee, SpReportUpdated::class);
+
+        app(DocumentSigningService::class)->sign($report->fresh()->document, $this->knower);
+        Notification::assertSentTo($this->employee, SpReportUpdated::class);
 
         Livewire::actingAs($this->employee)->test(PembinaanSayaList::class)->assertSee('Berita Acara');
     }

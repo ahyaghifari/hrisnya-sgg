@@ -122,6 +122,7 @@ class SpPdfService
         return [
             'created_by' => $this->verificationBlock($signable, 'created_by'),
             'knows_by' => $this->verificationBlock($signable, 'knows_by'),
+            'supervisor' => $this->verificationBlock($signable, 'supervisor'),
             'employee' => $this->verificationBlock($signable, 'employee'),
         ];
     }
@@ -211,9 +212,11 @@ class SpPdfService
             'user.activeJobPosition.jobPosition.orgStructure.parent',
             'createdBy.activeJobPosition.jobPosition',
             'knowsBy.activeJobPosition.jobPosition',
+            'supervisor.activeJobPosition.jobPosition',
         ]);
 
         return Pdf::loadView('pdf.sp.berita-acara', [
+            'supervisor' => $report->supervisor,
             'report' => $report,
             'user' => $report->user,
             'company' => $report->company,

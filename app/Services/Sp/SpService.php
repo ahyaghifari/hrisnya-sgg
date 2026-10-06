@@ -68,7 +68,10 @@ class SpService
     {
         $this->refreshBalance($employeeSp->user_id);
 
-        User::find($employeeSp->user_id)?->notify(new SpIssued($employeeSp));
+        // SP alur baru: karyawan baru dikabari saat gilirannya TTD (setelah "Mengetahui"), bukan saat terbit.
+        if (! $employeeSp->requiresEmployeeSignature()) {
+            User::find($employeeSp->user_id)?->notify(new SpIssued($employeeSp));
+        }
 
         app(MeritPointService::class)->applyEvent(
             MeritPointEvent::from($employeeSp->sp_level->value),

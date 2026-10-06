@@ -16,6 +16,20 @@ use App\Services\Sp\SpService;
  */
 class SpFixtures
 {
+    /** Jadikan $user pemegang jabatan aktif di level Departemen (syarat penanda tangan "Mengetahui"). */
+    public static function makeDepartmentHead(User $user): void
+    {
+        $department = \App\Models\Master\OrgStructure::create([
+            'company_id' => $user->company_id, 'name' => 'Dept ' . $user->id, 'level' => \App\Enum\OrgStructurLevel::LEVEL_DEPARTMENT->value,
+        ]);
+        $position = \App\Models\Master\JobPositions::create([
+            'company_id' => $user->company_id, 'name' => 'Manager ' . $user->id, 'planned_manpower' => 1, 'org_structure_id' => $department->id,
+        ]);
+        \App\Models\User\UserJobPositions::create([
+            'user_id' => $user->id, 'job_position_id' => $position->id, 'start_date' => now()->subYear(), 'status' => 'active',
+        ]);
+    }
+
     /**
      * @param  array<string, string>  $report  kolom Berita Acara lama (kejadian, dasar_klarifikasi, ...); kosong = tanpa BA
      */

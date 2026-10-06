@@ -45,24 +45,11 @@
         <span class="section-title">Klarifikasi Anda</span>
     </div>
     @if ($status === S::MENUNGGU_KLARIFIKASI)
-        @if ($record->klarifikasi_diisi_hc)
-            <p style="font-size:13px;color:var(--text-muted);margin:0;">Anda telah mengizinkan HC mengisikan klarifikasi atas nama Anda. Menunggu HC mengisi.</p>
-        @else
-            <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Terangkan kejadian ini sejelas-jelasnya.</p>
-            <textarea wire:model="klarifikasi" rows="7" class="form-input"></textarea>
-            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-                <button type="button" wire:click="submitClarification" wire:confirm="Ajukan klarifikasi ini ke HC?" class="btn-primary">
-                    <i class="fa-solid fa-paper-plane"></i> Ajukan Klarifikasi
-                </button>
-                <button type="button" wire:click="delegateToHc" wire:confirm="Izinkan HC mengisikan klarifikasi atas nama Anda? Setelah diizinkan, Anda tidak dapat menulisnya sendiri." class="btn-secondary">
-                    <i class="fa-solid fa-user-pen"></i> Izinkan HC Mengisikan Klarifikasi
-                </button>
-            </div>
-        @endif
+        <p style="font-size:13px;color:var(--text-muted);margin:0;">Pembuat Berita Acara sedang menyusun klarifikasi Anda.</p>
     @else
         <div class="prose">{!! $record->subjectClarificationHtml() !!}</div>
         @if ($record->klarifikasi_diisi_hc)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">Diisikan oleh HC atas izin Anda.</p>
+            <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">Diisikan oleh pembuat/HC.</p>
         @endif
         @if ($status === S::KLARIFIKASI_DIAJUKAN)
             <p style="font-size:12px;color:var(--text-muted);margin:10px 0 0;">Klarifikasi sudah diajukan, menunggu HC memproses.</p>
@@ -74,9 +61,9 @@
     <div class="form-card">
         <div class="section-head">
             <div class="section-icon"><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--brand);font-size:12px;"></i></div>
-            <span class="section-title">Parafrase &amp; Analisis HC</span>
+            <span class="section-title">Analisis HC</span>
         </div>
-        @foreach ([['klarifikasi_parafrase', 'Parafrase Klarifikasi Anda'], ['analysis', 'Analisis'], ['kesimpulan', 'Kesimpulan'], ['followup_plan', 'Rencana Tindak Lanjut']] as [$field, $label])
+        @foreach ([['analysis', 'Analisis'], ['kesimpulan', 'Kesimpulan'], ['followup_plan', 'Rencana Tindak Lanjut']] as [$field, $label])
             <p class="form-label">{{ $label }}</p>
             <div class="prose" style="margin-bottom:12px;">{!! $record->{$field} !!}</div>
         @endforeach
@@ -105,11 +92,11 @@
         @else
             <p style="font-size:13px;margin:0 0 12px;">Menunggu pembuat Berita Acara menandatangani lebih dulu. Anda akan diminta menandatangani setelahnya.</p>
 
-            <p style="font-size:13px;font-weight:700;margin:0 0 6px;">Parafrase tidak sesuai maksud Anda?</p>
+            <p style="font-size:13px;font-weight:700;margin:0 0 6px;">Isi klarifikasi tidak sesuai keterangan Anda?</p>
             <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Ajukan ulang klarifikasi dan jelaskan bagian yang tidak sesuai. Ini hanya bisa dilakukan sebelum pembuat menandatangani.</p>
             <textarea wire:model="alasan_ajukan_ulang" rows="3" class="form-input" placeholder="Bagian yang tidak sesuai..."></textarea>
             <div style="margin-top:12px;">
-                <button type="button" wire:click="requestReclarification" wire:confirm="Ajukan ulang klarifikasi? Parafrase HC saat ini akan dibatalkan." class="btn-secondary">Ajukan Ulang Klarifikasi</button>
+                <button type="button" wire:click="requestReclarification" wire:confirm="Ajukan ulang klarifikasi? Berita Acara kembali ke tahap penyusunan klarifikasi." class="btn-secondary">Ajukan Ulang Klarifikasi</button>
             </div>
         @endif
     </div>

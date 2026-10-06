@@ -15,11 +15,13 @@
         <x-collapse-field label="Kejadian">{!! $record->kejadian !!}</x-collapse-field>
         <x-collapse-field label="Klarifikasi Karyawan">
             <p style="font-size:11px;color:var(--text-muted);margin:0 0 4px;">
-                {{ $record->klarifikasi_diisi_hc ? 'Diisikan HC atas izin karyawan' : 'Diajukan karyawan' }} {{ $record->klarifikasi_diajukan_at?->translatedFormat('d M Y H:i') }}
+                {{ $record->klarifikasi_diisi_hc ? 'Diisikan pembuat/HC' : 'Diajukan karyawan' }} {{ $record->klarifikasi_diajukan_at?->translatedFormat('d M Y H:i') }}
             </p>
             {!! $record->subjectClarificationHtml() !!}
         </x-collapse-field>
-        <x-collapse-field label="Parafrase Klarifikasi">{!! $record->klarifikasi_parafrase !!}</x-collapse-field>
+        @if (filled($record->klarifikasi_parafrase))
+            <x-collapse-field label="Parafrase Klarifikasi">{!! $record->klarifikasi_parafrase !!}</x-collapse-field>
+        @endif
         <x-collapse-field label="Analisis">{!! $record->analysis !!}</x-collapse-field>
         <x-collapse-field label="Kesimpulan">{!! $record->kesimpulan !!}</x-collapse-field>
         <x-collapse-field label="Rencana Tindak Lanjut">{!! $record->followup_plan !!}</x-collapse-field>
@@ -30,7 +32,6 @@
             <summary style="font-size:12.5px;cursor:pointer;">Riwayat pengajuan ulang #{{ $i + 1 }} &middot; {{ $old['at'] ?? '' }}</summary>
             <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Alasan mengajukan ulang</p><p style="font-size:12.5px;margin:0;">{{ $old['alasan_ajukan_ulang'] ?? '' }}</p>
             <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Klarifikasi saat itu</p><div style="font-size:12.5px;">{!! $record->subjectClarificationHtml($old['klarifikasi'] ?? '', $old['diisi_hc'] ?? false) !!}</div>
-            <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Parafrase HC saat itu</p><p style="font-size:12.5px;margin:0;">{!! nl2br(e($old['parafrase'] ?? '')) !!}</p>
         </details>
     @endforeach
 
@@ -38,7 +39,7 @@
 
     @include('livewire.document.partials.signature-boxes', [
         'signable' => $record,
-        'boxes' => ['created_by' => 'TTD Pembuat', 'knows_by' => 'TTD Mengetahui', 'employee' => 'TTD YBS'],
+        'boxes' => ['created_by' => 'TTD Pembuat', 'knows_by' => 'TTD Mengetahui'] + ($record->supervisor_id ? ['supervisor' => 'TTD Atasan Langsung'] : []) + ['employee' => 'TTD YBS'],
         'signatures' => $record->document?->signatures->keyBy('signer_role') ?? collect(),
     ])
 </div>

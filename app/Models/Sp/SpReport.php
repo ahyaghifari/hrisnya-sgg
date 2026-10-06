@@ -44,6 +44,7 @@ class SpReport extends Model implements Signable
         'company_id',
         'created_by',
         'knows_by',
+        'supervisor_id',
         'status',
         'keputusan',
         'nomor',
@@ -112,8 +113,8 @@ class SpReport extends Model implements Signable
         return new HtmlString(($byHc ?? $this->klarifikasi_diisi_hc) ? (string) $text : nl2br(e($text)));
     }
 
-    /** @param  array<int, string>  $texts */
-    public function syncDasarItems(array $texts): void
+    /** @param  array<int, string|array{reason_id?:?string, note?:?string}>  $items  string = teks lama tanpa master */
+    public function syncDasarItems(array $items): void
     {
         // Dasar Klarifikasi ikut di-hash TTD, jadi sama terkunci dengan kolom isi lainnya.
         if ($this->status === SpReportStatus::SELESAI || $this->isFixed()) {
@@ -122,8 +123,10 @@ class SpReport extends Model implements Signable
 
         $this->dasarItems()->delete();
 
-        foreach (array_values(array_filter(array_map('trim', $texts), 'filled')) as $index => $text) {
-            $this->dasarItems()->create(['text' => $text, 'sort_order' => $index]);
+        $rows = array_map(fn ($item) => SpReason::composeItem(is_string($item) ? trim($item) : $item), $items);
+
+        foreach (array_values(array_filter($rows, fn ($row) => filled($row['text']))) as $index => $row) {
+            $this->dasarItems()->create(['text' => $row['text'], 'reason_id' => $row['reason_id'], 'note' => $row['note'], 'sort_order' => $index]);
         }
 
         $this->unsetRelation('dasarItems');
@@ -147,6 +150,12 @@ class SpReport extends Model implements Signable
     public function knowsBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'knows_by');
+    }
+
+    /** Atasan langsung karyawan - penanda tangan tambahan (null kalau tidak ada / sama dengan pembuat). */
+    public function supervisor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'supervisor_id');
     }
 
     /** BA generasi lama (bagian dari SP) - tidak punya status/alur klarifikasi. */
@@ -229,15 +238,16 @@ class SpReport extends Model implements Signable
 
         return [
             'created_by' => 'Dibuat oleh',
-            'employee' => 'Karyawan yang Bersangkutan',
             'knows_by' => 'Mengetahui',
-        ];
+        ] + ($this->supervisor_id ? ['supervisor' => 'Atasan Langsung'] : [])
+          + ['employee' => 'Karyawan yang Bersangkutan'];
     }
 
     /**
      * BA lama: dipinjam dari SP induk. BA baru: hanya terisi saat status MENUNGGU_TTD, dan
      * PEMBUAT (HC) menandatangani lebih dulu (instruksi user 2026-10-02: Parafrase & Analisis
-     * HC sudah merupakan Berita Acara-nya) - karyawan dan yang mengetahui ditugaskan setelahnya.
+     * HC sudah merupakan Berita Acara-nya), lalu yang mengetahui, atasan langsung (kalau ada), dan
+     * karyawan terakhir (instruksi user 2026-10-06).
      * Pengajuan ulang klarifikasi oleh karyawan hanya mungkin selama belum ada tanda tangan.
      */
     public function assignedSigners(): array
@@ -250,15 +260,19 @@ class SpReport extends Model implements Signable
         }
 
         if ($this->status !== SpReportStatus::MENUNGGU_TTD) {
-            return ['employee' => null, 'created_by' => null, 'knows_by' => null];
+            return ['employee' => null, 'created_by' => null, 'knows_by' => null, 'supervisor' => null];
         }
 
-        $creatorSigned = $this->document?->signatures()->where('signer_role', 'created_by')->exists() ?? false;
+        $signedRoles = $this->document?->signatures()->pluck('signer_role') ?? collect();
+        $creatorSigned = $signedRoles->contains('created_by');
+        $knowsSigned = $creatorSigned && $signedRoles->contains('knows_by');
+        $supervisorDone = $knowsSigned && (! $this->supervisor_id || $signedRoles->contains('supervisor'));
 
         return [
             'created_by' => $this->createdBy,
-            'employee' => $creatorSigned ? $this->user : null,
             'knows_by' => $creatorSigned ? $this->knowsBy : null,
+            'supervisor' => $knowsSigned ? $this->supervisor : null,
+            'employee' => $supervisorDone ? $this->user : null,
         ];
     }
 }

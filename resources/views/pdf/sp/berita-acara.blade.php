@@ -352,6 +352,21 @@
                 <span class="sign-name">{{ $knowsBy?->name ?? '-' }}</span><br>
                 {{ $jabatan($knowsBy) }}
             </div>
+            @if ($supervisor ?? null)
+                <div class="sign-col">
+                    Atasan Langsung
+                    @if ($verification['supervisor'] ?? null)
+                        <div class="verify-block">
+                            <img src="{{ $verification['supervisor']['qr'] }}" alt="QR Verifikasi" class="verify-qr">
+                            <div class="verify-code">{{ $verification['supervisor']['code'] }}</div>
+                        </div>
+                    @else
+                        <span class="ttd-space">&nbsp;</span>
+                    @endif
+                    <span class="sign-name">{{ $supervisor->name }}</span><br>
+                    {{ $jabatan($supervisor) }}
+                </div>
+            @endif
         </div>
     </div>
 

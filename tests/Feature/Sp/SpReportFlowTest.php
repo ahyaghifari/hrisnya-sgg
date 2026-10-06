@@ -57,7 +57,7 @@ class SpReportFlowTest extends TestCase
     {
         $report = $this->draft();
         $this->service->requestClarification($report, $this->hc);
-        $this->service->submitClarification($report, $this->employee, 'macet di jalan');
+        $this->service->fillClarificationByHc($report, $this->hc, 'macet di jalan');
         $this->service->saveAnalysis($report, $this->hc, [
             'klarifikasi_parafrase' => 'Karyawan terlambat karena kemacetan.',
             'analysis' => 'Berulang', 'kesimpulan' => 'Melanggar', 'followup_plan' => 'SP1',
@@ -72,41 +72,25 @@ class SpReportFlowTest extends TestCase
         app(DocumentSigningService::class)->sign($document, $user);
     }
 
-    public function test_hc_filled_clarification_needs_no_separate_paraphrase(): void
+    public function test_there_is_no_paraphrase_step(): void
     {
         $report = $this->draft();
         $this->service->requestClarification($report, $this->hc);
-        $this->service->delegateClarificationToHc($report, $this->employee);
         $this->service->fillClarificationByHc($report, $this->hc, '<div>macet di jalan</div>');
 
-        $this->assertSame('<div>macet di jalan</div>', $report->fresh()->klarifikasi_parafrase);
+        $this->assertNull($report->fresh()->klarifikasi_parafrase);
 
-        $this->service->saveAnalysis($report->fresh(), $this->hc, ['klarifikasi_parafrase' => '', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
+        $this->service->saveAnalysis($report->fresh(), $this->hc, ['analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
         $this->service->sendForSigning($report->fresh(), $this->hc);
 
-        $this->assertSame('<div>macet di jalan</div>', $report->fresh()->klarifikasi_parafrase);
+        $this->assertSame(SpReportStatus::MENUNGGU_TTD, $report->fresh()->status);
+        $this->assertNull($report->fresh()->klarifikasi_parafrase);
     }
 
-    public function test_employee_can_delegate_clarification_to_hc(): void
+    public function test_clarification_is_filled_by_creator_without_employee_step(): void
     {
         $report = $this->draft();
         $this->service->requestClarification($report, $this->hc);
-
-        // HC belum boleh mengisi sebelum karyawan memilih.
-        try {
-            $this->service->fillClarificationByHc($report, $this->hc, 'x');
-            $this->fail('HC mengisi tanpa permintaan karyawan');
-        } catch (ValidationException) {
-        }
-
-        $this->service->delegateClarificationToHc($report, $this->employee);
-
-        // Setelah didelegasikan, karyawan tidak menulis sendiri.
-        try {
-            $this->service->submitClarification($report, $this->employee, 'x');
-            $this->fail('karyawan menulis setelah delegasi');
-        } catch (ValidationException) {
-        }
 
         $this->service->fillClarificationByHc($report, $this->hc, 'macet di jalan');
 
@@ -122,9 +106,9 @@ class SpReportFlowTest extends TestCase
         $this->assertSame(SpReportStatus::MENUNGGU_TTD, $report->status);
 
         $this->sign($report, $this->hc);
-        $this->sign($report, $this->employee);
-        $this->assertSame(SpReportStatus::MENUNGGU_TTD, $report->fresh()->status);
         $this->sign($report, $this->knower);
+        $this->assertSame(SpReportStatus::MENUNGGU_TTD, $report->fresh()->status);
+        $this->sign($report, $this->employee);
 
         $report = $report->fresh();
         $this->assertSame(SpReportStatus::SELESAI, $report->status);
@@ -136,7 +120,7 @@ class SpReportFlowTest extends TestCase
     public function test_decision_after_selesai_is_allowed_and_only_once(): void
     {
         $report = $this->untilWaitingSignature();
-        foreach ([$this->hc, $this->employee, $this->knower] as $user) {
+        foreach ([$this->hc, $this->knower, $this->employee] as $user) {
             $this->sign($report, $user);
         }
 
@@ -155,6 +139,25 @@ class SpReportFlowTest extends TestCase
         $this->sign($report, $this->employee);
     }
 
+    public function test_supervisor_signs_after_knower_and_before_employee(): void
+    {
+        $supervisor = User::factory()->create(['company_id' => $this->company->id]);
+        $report = $this->untilWaitingSignature();
+        $report->update(['supervisor_id' => $supervisor->id]);
+
+        $this->assertSame(['created_by', 'knows_by', 'supervisor', 'employee'], array_keys($report->fresh()->expectedSignerRoles()));
+
+        $this->sign($report, $this->hc);
+        $this->assertNull($report->fresh()->assignedSigners()['supervisor']);
+        $this->sign($report, $this->knower);
+        $this->assertNull($report->fresh()->assignedSigners()['employee']);
+        $this->sign($report, $supervisor);
+        $this->assertSame($this->employee->id, $report->fresh()->assignedSigners()['employee']->id);
+        $this->sign($report, $this->employee);
+
+        $this->assertSame(SpReportStatus::SELESAI, $report->fresh()->status);
+    }
+
     public function test_employee_can_request_reclarification_and_old_version_is_kept(): void
     {
         $report = $this->untilWaitingSignature();
@@ -163,8 +166,7 @@ class SpReportFlowTest extends TestCase
 
         $report = $report->fresh();
         $this->assertSame(SpReportStatus::MENUNGGU_KLARIFIKASI, $report->status);
-        $this->assertNull($report->klarifikasi_parafrase);
-        $this->assertSame('Karyawan terlambat karena kemacetan.', $report->riwayat_klarifikasi[0]['parafrase']);
+        $this->assertSame('macet di jalan', $report->riwayat_klarifikasi[0]['klarifikasi']);
     }
 
     public function test_reclarification_blocked_after_creator_signed(): void
@@ -194,12 +196,12 @@ class SpReportFlowTest extends TestCase
         $this->assertSame("A\nB", $report->dasar_klarifikasi);
     }
 
-    public function test_only_the_employee_can_submit_clarification(): void
+    public function test_only_creator_or_hc_can_fill_clarification(): void
     {
         $report = $this->draft();
         $this->service->requestClarification($report, $this->hc);
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        $this->service->submitClarification($report, $this->knower, 'bukan saya');
+        $this->service->fillClarificationByHc($report, $this->employee, 'diisi sendiri');
     }
 }

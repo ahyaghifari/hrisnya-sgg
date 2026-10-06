@@ -14,6 +14,9 @@ class SpItem extends Model
     protected $fillable = [
         'sp_id',
         'text',
+        'reason_id',
+        'note',
+        'repeat_sp_id',
         'sort_order',
     ];
 
@@ -32,6 +35,11 @@ class SpItem extends Model
         static::creating($guard);
         static::updating($guard);
         static::deleting($guard);
+    }
+
+    public function reason(): BelongsTo
+    {
+        return $this->belongsTo(SpReason::class, 'reason_id');
     }
 
     public function sp(): BelongsTo

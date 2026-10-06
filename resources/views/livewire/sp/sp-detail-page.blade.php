@@ -181,23 +181,9 @@
     </div>
 
     @if ($editingItems)
-        @foreach ($items as $index => $text)
-            <div wire:key="'edit-item-'.{{ $index }}" style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;">
-                <div wire:ignore style="flex:1;">
-                    <input type="hidden" id="trix-edit-item-{{ $index }}" wire:model="items.{{ $index }}" value="{{ $text }}">
-                    <trix-editor input="trix-edit-item-{{ $index }}" style="min-height:70px;"></trix-editor>
-                </div>
-                <button type="button" wire:click="removeItem({{ $index }})" class="btn-secondary" style="font-size:12px;padding:6px 10px;">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-            </div>
-        @endforeach
-        @error('items') <p style="font-size:12px;color:#b91c1c;margin:0 0 8px;">{{ $message }}</p> @enderror
+        @include('livewire.sp.partials.reason-items-editor', ['field' => 'items', 'add' => 'addItem', 'remove' => 'removeItem', 'addLabel' => 'Tambah Pelanggaran', 'repeatOptions' => $this->repeatOptions])
 
         <div style="display:flex;gap:8px;margin-top:8px;">
-            <button type="button" wire:click="addItem" class="btn-secondary" style="font-size:12px;padding:4px 10px;">
-                <i class="fa-solid fa-plus"></i> Tambah Uraian
-            </button>
             <button type="button" wire:click="saveItems" class="btn-primary" style="font-size:12px;padding:4px 10px;">Simpan</button>
             <button type="button" wire:click="cancelEditItems" class="btn-secondary" style="font-size:12px;padding:4px 10px;">Batal</button>
         </div>
@@ -243,7 +229,7 @@
 
         <div style="margin-bottom:12px;">
             <label class="form-label">Dasar Klarifikasi</label>
-            @include('livewire.sp.partials.dasar-items-editor', ['idPrefix' => 'trix-report-dasar'])
+            @include('livewire.sp.partials.reason-items-editor', ['field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
         </div>
 
         @foreach (['kejadian' =>'Uraian Kronologi Permasalahan', 'subject_clarification' => 'Klarifikasi Karyawan', 'analysis' => 'Analisis', 'kesimpulan' => 'Kesimpulan Sementara', 'followup_plan' => 'Rencana Tindak Lanjut'] as $field => $label)

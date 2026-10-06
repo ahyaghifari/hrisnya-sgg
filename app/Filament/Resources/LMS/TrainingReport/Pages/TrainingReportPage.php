@@ -371,7 +371,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
         $columns[] = TextColumn::make('total_training_hours')
             ->label('Total Jam Pelatihan')
             ->alignCenter()
-            ->formatStateUsing(fn ($state) => number_format((float) $state, 0) . ' jam')
+            ->formatStateUsing(fn ($state) => rtrim(rtrim(number_format((float) $state, 1, ',', '.'), '0'), ',') . ' jam')
             ->color(fn ($state) => (float) $state >= $minHours ? 'success' : 'warning')
             ->badge()
             ->sortable();
@@ -380,7 +380,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             ->label('Jam Belum Terpenuhi')
             ->alignCenter()
             ->getStateUsing(fn ($record) => max(0.0, round($minHours - (float) ($record->total_training_hours ?? 0), 2)))
-            ->formatStateUsing(fn ($state) => $state > 0 ? number_format($state, 0) . ' jam' : 'Terpenuhi')
+            ->formatStateUsing(fn ($state) => $state > 0 ? rtrim(rtrim(number_format($state, 1, ',', '.'), '0'), ',') . ' jam' : 'Terpenuhi')
             ->color(fn ($state) => $state > 0 ? 'danger' : 'success')
             ->badge();
 
