@@ -8,6 +8,4 @@ return [
     App\Providers\Filament\RekrutmenPanelProvider::class,
     // Panel /keycloak — kelola user Keycloak via Admin REST API. Lihat KeycloakPanelProvider.
     App\Providers\Filament\KeycloakPanelProvider::class,
-    // Panel /surat — penomoran & arsip surat, DB terpisah (koneksi `persuratan`).
-    App\Providers\Filament\PersuratanPanelProvider::class,
 ];
