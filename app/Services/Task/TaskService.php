@@ -1034,6 +1034,23 @@ class TaskService
         $users->filter(fn ($u) => $u && $u->id !== $exceptUserId)->each->notify($notification);
     }
 
+    /** Atur/hapus tenggat satu item checklist. Guard sama dengan menugaskan item. */
+    public function setChecklistItemDueDate(TaskChecklistItem $item, ?string $dueDate, User $user): void
+    {
+        abort_unless($this->canModifyChecklistItem($item, $user), 403, 'Kamu tidak bisa mengatur tenggat checklist ini.');
+
+        $item->update(['due_date' => $dueDate ? Carbon::parse($dueDate) : null]);
+
+        $this->logActivity(
+            $item->task,
+            $user,
+            'checklist_due_set',
+            $item->due_date
+                ? 'Mengatur tenggat ceklis "' . $item->title . '" ke ' . $item->due_date->translatedFormat('j M Y, H:i')
+                : 'Menghapus tenggat ceklis "' . $item->title . '"'
+        );
+    }
+
     public function canModifyChecklistItem(TaskChecklistItem $item, User $user): bool
     {
         $task = $item->task;

@@ -93,6 +93,23 @@ class TaskRecurringTest extends TestCase
         return [$service, $owner, $project, $task];
     }
 
+    public function test_checklist_item_due_date_can_be_set_and_cleared(): void
+    {
+        $company = Companies::create(['code' => 'TST', 'name' => 'Company Test', 'location' => 'Test', 'is_active' => true]);
+        $owner = User::factory()->create(['company_id' => $company->id]);
+        Permission::findOrCreate(CustomPermissionEnum::BUAT_BOARD_TUGAS->value, 'web');
+        $owner->givePermissionTo(CustomPermissionEnum::BUAT_BOARD_TUGAS->value);
+        Auth::login($owner);
+        $service = app(TaskService::class);
+        $project = $service->createProject(['name' => 'Board C']);
+        $task = $service->createCasualTask(['requirement' => 'Tugas', 'project_id' => $project->id, 'checklist' => ['Item']]);
+        $item = $task->checklistItems->first();
+        $service->setChecklistItemDueDate($item, '2026-12-01T10:00', $owner);
+        $this->assertSame('2026-12-01 10:00', $item->fresh()->due_date->format('Y-m-d H:i'));
+        $service->setChecklistItemDueDate($item, null, $owner);
+        $this->assertNull($item->fresh()->due_date);
+    }
+
     public function test_recurring_task_works_without_final_list(): void
     {
         [$service, $owner, $project, $task] = $this->boardWithRecurringTask();

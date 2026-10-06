@@ -15,6 +15,7 @@ class TaskChecklistItem extends Model
         'created_by',
         'assigned_to',
         'title',
+        'due_date',
         'is_done',
         'done_at',
         'done_by',
@@ -24,6 +25,7 @@ class TaskChecklistItem extends Model
     protected $casts = [
         'is_done' => 'boolean',
         'done_at' => 'datetime',
+        'due_date' => 'datetime',
     ];
 
     public function task(): BelongsTo

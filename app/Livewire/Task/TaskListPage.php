@@ -626,6 +626,17 @@ class TaskListPage extends Component
         unset($this->selectedTask, $this->tasks);
     }
 
+    public function setChecklistItemDueDate(string $itemId, ?string $value): void
+    {
+        try {
+            app(TaskService::class)->setChecklistItemDueDate(TaskChecklistItem::findOrFail($itemId), $value ?: null, Auth::user());
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengatur tenggat checklist ini')->danger()->send();
+        }
+
+        unset($this->selectedTask, $this->tasks);
+    }
+
     public function reorderChecklist(string $taskId, array $orderedIds): void
     {
         try {
