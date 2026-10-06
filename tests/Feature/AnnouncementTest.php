@@ -28,7 +28,8 @@ class AnnouncementTest extends TestCase
         $admin->assignRole(Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'web']));
 
         $dept = OrgStructure::forceCreate(['company_id' => $company->id, 'name' => 'Dept A', 'level' => 'DEPARTMENT']);
-        $kept = JobPositions::forceCreate(['company_id' => $company->id, 'org_structure_id' => $dept->id, 'name' => 'Staf', 'status' => 'approved']);
+        OrgStructure::forceCreate(['company_id' => $company->id, 'name' => 'Dept Kosong', 'level' => 'DEPARTMENT']); // tanpa jabatan: tidak boleh bikin form error
+        $kept =JobPositions::forceCreate(['company_id' => $company->id, 'org_structure_id' => $dept->id, 'name' => 'Staf', 'status' => 'approved']);
         $skipped = JobPositions::forceCreate(['company_id' => $company->id, 'org_structure_id' => $dept->id, 'name' => 'Kepala', 'status' => 'approved']);
 
         $receiver = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);

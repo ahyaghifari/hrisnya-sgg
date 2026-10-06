@@ -1,5 +1,6 @@
-@php($leaves = $node['leaves'])
-@if ($node['children'])
+@php($leaves = $node["leaves"])
+@if ($leaves)
+@if (isset($node['children'][0]))
     <details @if ($depth === 0) open @endif style="margin-left: {{ $depth ? 18 : 0 }}px; margin-top: 4px;">
         <summary style="cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 2px 0;">
             <input type="checkbox" @disabled($disabled)
@@ -22,4 +23,5 @@
         <span>{{ $node['name'] }}</span>
         <span style="font-size: 12px; opacity: .6;">({{ $node['users'] }} karyawan)</span>
     </label>
+@endif
 @endif
