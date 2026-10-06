@@ -9,7 +9,7 @@
                 @click.stop
                 @change="toggle(@js($leaves), $event.target.checked)">
             <span style="font-weight: {{ $depth < 2 ? 600 : 500 }};">{{ $node['name'] }}</span>
-            <span style="font-size: 12px; opacity: .6;">({{ count($leaves) }} jabatan)</span>
+            <span style="font-size: 12px; opacity: .6;">({{ $node['users'] !== null ? $node['users'] . ' karyawan' : count($leaves) . ' jabatan' }})</span>
         </summary>
         @foreach ($node['children'] as $child)
             @include('filament.forms.announcement-target-node', ['node' => $child, 'depth' => $depth + 1])
