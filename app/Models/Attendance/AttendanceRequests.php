@@ -31,7 +31,8 @@ class AttendanceRequests extends Model
 
     public function user()
     {
-        return $this->belongsTo(\App\Models\User::class, 'user_id', 'id');
+        // Pemohon bisa akun yang disaring global scope User (dokter/Direktur) - jangan sampai null.
+        return $this->belongsTo(\App\Models\User::class, 'user_id', 'id')->withoutGlobalScopes(['non_karyawan', 'dokter']);
     }
 
     public function createdBy()
