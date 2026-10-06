@@ -5,10 +5,9 @@ namespace App\Filament\Resources\AttendanceRequests\Pages;
 use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Filament\Resources\AttendanceRequests\AttendanceRequestResource;
-use App\Models\ApprovalManagement\ApprovalHistories;
 use App\Models\ApprovalManagement\ApprovalSnapshots;
 use App\Services\Approval\ApprovalFlowService;
-use Carbon\Carbon;
+use App\Services\Attendance\AttendaceReqService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -52,34 +51,39 @@ class EditAttendanceRequest extends EditRecord
         return $data;
     }
 
-    /** Batas batal lembur sama seperti cuti/izin (AttendaceReqService::cancellationCutoffPassed):
-     *  boleh sampai hari H lembur, lewat dari itu tidak bisa. Tanpa tanggal dianggap sudah lewat. */
-    private function overtimeDatePassed($record): bool
+    private function typeLabel($record): string
     {
-        $date = $record->overtimeDetails()->min('date');
+        return ['overtime' => 'Lembur', 'leave' => 'Cuti', 'permission' => 'Izin'][$record->type] ?? 'Pengajuan';
+    }
 
-        return ! $date || now()->startOfDay()->gt(Carbon::parse($date)->startOfDay());
+    /** Batas batal sama dengan portal (AttendaceReqService::cancellationCutoffPassed): boleh sampai hari H. */
+    private function cutoffPassed($record): bool
+    {
+        return app(AttendaceReqService::class)->cancellationCutoffPassed($record);
     }
 
     protected function getHeaderActions(): array
     {
         return [
-            // Batalkan lembur yang SUDAH approved atas nama admin yang membatalkan (cancelled_by +
-            // riwayat approval). Status cancelled otomatis keluar dari payroll & rekap lembur
-            // (keduanya cuma ambil status approved). Lembur yang masih in_review dibatalkan lewat
-            // tombol "Batalkan" approver di bawah.
-            Action::make('cancelOvertime')
-                ->label('Batalkan Lembur')
+            // Batalkan Cuti/Izin/Lembur atas nama admin yang membatalkan, baik masih diproses maupun
+            // sudah approved - logikanya di AttendaceReqService::cancelRequestDirectly() (sama dengan
+            // reschedule cuti di portal): kalau sudah approved, roster shift & attendance_records
+            // hasil sinkron cuti/izin ikut dicabut; lembur otomatis keluar dari rekap & payroll
+            // (keduanya cuma ambil status approved). Batas tanggal sama dengan portal.
+            Action::make('cancelRequest')
+                ->label(fn ($record) => 'Batalkan ' . $this->typeLabel($record))
                 ->icon('heroicon-o-x-circle')
                 ->color('warning')
-                ->modalHeading('Batalkan Lembur')
-                ->modalDescription('Lembur yang dibatalkan tidak lagi dihitung di rekap lembur dan payroll. Pembatalan tercatat atas nama Anda.')
+                ->modalHeading(fn ($record) => 'Batalkan ' . $this->typeLabel($record))
+                ->modalDescription(fn ($record) => $record->status === AttendanceReqStatus::APPROVED->value && $record->type !== 'overtime'
+                    ? 'Jadwal shift dan data absensi hasil pengajuan ini akan dicabut. Pembatalan tercatat atas nama Anda dan karyawan dikabari.'
+                    : 'Pembatalan tercatat atas nama Anda dan karyawan dikabari.')
                 ->modalSubmitActionLabel('Ya, Batalkan')
-                ->visible(fn ($record) => $record->type === 'overtime' && in_array($record->status, [
+                ->visible(fn ($record) => in_array($record->status, [
                     AttendanceReqStatus::SUBMITTED->value,
                     AttendanceReqStatus::IN_REVIEW->value,
                     AttendanceReqStatus::APPROVED->value,
-                ]) && ! $this->overtimeDatePassed($record))
+                ], true) && ! $this->cutoffPassed($record))
                 ->schema([
                     Textarea::make('reason')
                         ->label('Alasan Pembatalan')
@@ -88,42 +92,15 @@ class EditAttendanceRequest extends EditRecord
                 ])
                 ->action(function ($record, array $data) {
                     // Cek ulang di server - visible() saja tidak cukup kalau halaman terbuka lintas hari.
-                    if ($this->overtimeDatePassed($record)) {
-                        Notification::make()->title('Tanggal lembur sudah lewat, tidak bisa dibatalkan lagi')->danger()->send();
+                    if ($this->cutoffPassed($record)) {
+                        Notification::make()->title('Tanggal pengajuan sudah lewat, tidak bisa dibatalkan lagi')->danger()->send();
 
                         return;
                     }
 
-                    DB::transaction(function () use ($record, $data) {
-                        $record->update([
-                            'status' => AttendanceReqStatus::CANCELLED->value,
-                            'cancelled_by' => Auth::id(),
-                            'cancelled_at' => now(),
-                        ]);
+                    app(AttendaceReqService::class)->cancelRequestDirectly($record, Auth::user(), $data['reason']);
 
-                        if ($snapshot = $record->approvalSnapshot) {
-                            $snapshot->update(['status' => 'cancelled']);
-                            $snapshot->activity?->update([
-                                'status' => 'cancelled',
-                                'acted_by' => Auth::id(),
-                                'acted_at' => now(),
-                                'note' => $data['reason'],
-                            ]);
-
-                            ApprovalHistories::create([
-                                'requestable_type' => $snapshot->module_type,
-                                'requestable_id' => $snapshot->module_id,
-                                'snapshot_id' => $snapshot->id,
-                                'activity_id' => $snapshot->activity?->id,
-                                'action' => 'cancelled',
-                                'actor_id' => Auth::id(),
-                                'actor_name' => Auth::user()->name,
-                                'note' => $data['reason'],
-                            ]);
-                        }
-                    });
-
-                    Notification::make()->title('Lembur berhasil dibatalkan')->success()->send();
+                    Notification::make()->title($this->typeLabel($record) . ' berhasil dibatalkan')->success()->send();
 
                     $this->redirect(AttendanceRequestResource::getUrl('edit', ['record' => $record, 'type' => $this->type]));
                 }),

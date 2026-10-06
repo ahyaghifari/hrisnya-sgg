@@ -28,8 +28,8 @@ class AttendanceCancellationService
 
     public function requestCancellation(AttendanceRequests $record, User $requester, string $reason): AttendanceRequestCancellations
     {
-        if (! in_array($record->type, ['leave', 'permission'], true)) {
-            throw new \RuntimeException('Pembatalan setelah disetujui hanya berlaku untuk Cuti dan Izin.');
+        if (! in_array($record->type, ['leave', 'permission', 'overtime'], true)) {
+            throw new \RuntimeException('Pembatalan setelah disetujui hanya berlaku untuk Cuti, Izin, dan Lembur.');
         }
 
         if ($record->status !== 'approved') {
@@ -73,7 +73,7 @@ class AttendanceCancellationService
 
                 if (! $first || ! $originalFlow) {
                     throw new \RuntimeException(
-                        'Tidak ada alur persetujuan pembatalan cuti/izin dan approver pengajuan asli tidak ditemukan. Hubungi admin.'
+                        'Tidak ada alur persetujuan pembatalan cuti/izin/lembur dan approver pengajuan asli tidak ditemukan. Hubungi admin.'
                     );
                 }
 

@@ -1143,6 +1143,7 @@ class AttendaceReqService
         $start = match ($request->type) {
             'leave' => $request->leaveDetails->first()?->start_date,
             'permission' => $request->permissionDetails->first()?->date,
+            'overtime' => $request->overtimeDetails->min('date'),
             default => null,
         };
 
@@ -1162,6 +1163,57 @@ class AttendaceReqService
     {
         ScheduleShiftAssignment::where('source_request_id', $request->id)->delete();
         AttendanceRecords::where('source_request_id', $request->id)->delete();
+    }
+
+    /**
+     * Batalkan pengajuan (Cuti/Izin/Lembur) LANGSUNG tanpa alur approval pembatalan - dipakai
+     * reschedule cuti (self-service) dan tombol Batalkan di admin panel. Yang dikerjakan:
+     * status pengajuan -> cancelled (+ cancelled_by/at atas nama $actor), approval snapshot &
+     * aktivitas ikut cancelled, riwayat approval dicatat, dan kalau sebelumnya SUDAH approved,
+     * roster shift (schedule_shift_assignments) & attendance_records hasil sinkron cuti/izin
+     * dicabut (revertApprovedAbsenceSync). Lembur tidak punya sinkron roster/absensi, jadi
+     * pencabutan itu no-op untuknya. Pemilik dikabari kalau pembatalnya orang lain.
+     *
+     * Guard (status, batas tanggal) TIDAK di sini - tiap pemanggil punya aturannya sendiri.
+     */
+    public function cancelRequestDirectly(AttendanceRequests $record, User $actor, string $reason, ?string $historyNote = null): void
+    {
+        DB::transaction(function () use ($record, $actor, $reason, $historyNote) {
+            $wasApproved = $record->status === AttendanceReqStatus::APPROVED->value;
+
+            $this->attendanceReqRepository->updateAttendanceRequest($record, [
+                'status' => AttendanceReqStatus::CANCELLED->value,
+                'cancelled_by' => $actor->id,
+                'cancelled_at' => now(),
+            ]);
+
+            $snapshot = $record->approvalSnapshot;
+            if ($snapshot) {
+                $snapshot->activity?->update(['status' => 'cancelled', 'acted_by' => $actor->id, 'acted_at' => now(), 'note' => $reason]);
+                $snapshot->update(['status' => 'cancelled']);
+            }
+
+            $this->approvalHistoryRepository->create([
+                'requestable_type' => ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
+                'requestable_id' => $record->id,
+                'snapshot_id' => $snapshot?->id,
+                'activity_id' => $snapshot?->activity?->id,
+                'action' => 'cancelled',
+                'actor_id' => $actor->id,
+                'actor_name' => $actor->name,
+                'note' => $historyNote ?? "Dibatalkan oleh {$actor->name}: {$reason}",
+            ]);
+
+            if ($wasApproved) {
+                $this->revertApprovedAbsenceSync($record);
+            }
+        });
+
+        if ($record->user_id !== $actor->id) {
+            $record->user?->notify(new \App\Notifications\RequestStatusChanged(
+                ApprovalModuleEnum::ATTENDANCE_REQUEST->value, $record->id, 'cancelled', $actor->name
+            ));
+        }
     }
 
     /**
@@ -1212,34 +1264,7 @@ class AttendaceReqService
         }
 
         return DB::transaction(function () use ($record, $newStart, $newEnd, $actingUser, $reason, $category) {
-            $wasApproved = $record->status === 'approved';
-
-            $this->attendanceReqRepository->updateAttendanceRequest($record, [
-                'status' => AttendanceReqStatus::CANCELLED->value,
-                'cancelled_by' => $actingUser->id,
-                'cancelled_at' => now(),
-            ]);
-
-            $snapshot = $record->approvalSnapshot;
-            if ($snapshot) {
-                $snapshot->activity?->update(['status' => 'cancelled', 'acted_by' => $actingUser->id, 'acted_at' => now(), 'note' => $reason]);
-                $snapshot->update(['status' => 'cancelled']);
-            }
-
-            $this->approvalHistoryRepository->create([
-                'requestable_type' => ApprovalModuleEnum::ATTENDANCE_REQUEST->value,
-                'requestable_id' => $record->id,
-                'snapshot_id' => $snapshot?->id,
-                'activity_id' => $snapshot?->activity?->id,
-                'action' => 'cancelled',
-                'actor_id' => $actingUser->id,
-                'actor_name' => $actingUser->name,
-                'note' => "Dijadwalkan ulang oleh {$actingUser->name}: {$reason}",
-            ]);
-
-            if ($wasApproved) {
-                $this->revertApprovedAbsenceSync($record);
-            }
+            $this->cancelRequestDirectly($record, $actingUser, $reason, "Dijadwalkan ulang oleh {$actingUser->name}: {$reason}");
 
             return $this->storeLeaveRequest([
                 'type_id' => $category,
