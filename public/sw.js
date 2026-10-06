@@ -62,8 +62,12 @@ self.addEventListener('notificationclick', (event) => {
     const documentSignId = event.notification.data?.document_sign_id;
     const spReportUrl = event.notification.data?.sp_report_url;
 
+    const announcementId = event.notification.data?.announcement_id;
+
     let url = '/';
-    if (documentSignId) {
+    if (announcementId) {
+        url = `/pengumuman/${announcementId}`;
+    } else if (documentSignId) {
         url = `/dokumen/tandatangani/${documentSignId}`;
     } else if (spReportUrl) {
         url = spReportUrl;

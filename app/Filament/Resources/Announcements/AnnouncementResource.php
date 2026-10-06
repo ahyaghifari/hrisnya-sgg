@@ -13,7 +13,10 @@ use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Textarea;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
@@ -49,18 +52,22 @@ class AnnouncementResource extends BaseResource
         return $schema
             ->disabled(fn (?Announcement $record) => $record?->isPublished())
             ->components([
-                TextInput::make('title')->label('Judul')->required()->maxLength(255)->columnSpanFull(),
-                Textarea::make('body')->label('Isi Pengumuman')->required()->rows(6)->columnSpanFull(),
-                // Pohon target: centang perusahaan/departemen/divisi = semua jabatan di bawahnya
-                // ikut, lalu bisa uncentang jabatan tertentu. State = id jabatan akhir
-                // (tidak ke kolom, disimpan lewat syncTargets()).
-                ViewField::make('job_position_ids')
-                    ->label('Penerima')
-                    ->view('filament.forms.announcement-targets')
-                    ->viewData(fn () => static::targetTree())
-                    ->default([])
-                    ->dehydrated(false)
-                    ->columnSpanFull(),
+                Grid::make(['default' => 1, 'xl' => 2])->columnSpanFull()->schema([
+                    Group::make([
+                        TextInput::make('title')->label('Judul')->required()->maxLength(255),
+                        Textarea::make('summary')->label('Deskripsi Singkat (tampil di notifikasi)')->required()->rows(2)->maxLength(200),
+                        RichEditor::make('body')->label('Isi Pengumuman')->required()->extraInputAttributes(['style' => 'min-height: 16rem;']),
+                    ]),
+                    // Pohon target: centang perusahaan/departemen/divisi = semua jabatan di bawahnya
+                    // ikut, lalu bisa uncentang jabatan tertentu. State = id jabatan akhir
+                    // (tidak ke kolom, disimpan lewat syncTargets()).
+                    ViewField::make('job_position_ids')
+                        ->label('Penerima')
+                        ->view('filament.forms.announcement-targets')
+                        ->viewData(fn () => static::targetTree())
+                        ->default([])
+                        ->dehydrated(false),
+                ]),
             ]);
     }
 

@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Filament\Resources\Announcements\Pages\CreateAnnouncement;
+use App\Livewire\AnnouncementDetailPage;
 use App\Models\Announcement;
+use App\Support\TaskNotificationUrl;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
@@ -53,12 +55,14 @@ class AnnouncementTest extends TestCase
         $this->assertSame('Kepala', $tree[1]['children'][0]['children'][0]['children'][0]['name']);
 
         Livewire::actingAs($admin)->test(CreateAnnouncement::class)
-            ->fillForm(['title' => 'Libur', 'body' => 'Besok libur', 'job_position_ids' => [$kept->id]])
+            ->fillForm(['title' => 'Libur', 'summary' => 'Kantor libur besok', 'body' => ['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Besok libur']]]]],'job_position_ids' => [$kept->id]])
             ->call('create')
             ->assertHasNoFormErrors();
 
         $announcement = Announcement::firstOrFail();
         $this->assertSame('draft', $announcement->status);
+        $this->assertStringContainsString('Besok libur', $announcement->body); // rich text tersimpan sebagai HTML
+        $announcement->update(['body' => '<p>Besok libur <strong>nasional</strong></p>']);
         $this->assertSame([$kept->id], $announcement->jobPositions()->pluck('m_job_positions.id')->all());
 
         Notification::fake();
@@ -68,5 +72,16 @@ class AnnouncementTest extends TestCase
         $this->assertSame('published', $announcement->fresh()->status);
         Notification::assertSentTo($receiver, AnnouncementPublished::class);
         Notification::assertNotSentTo($other, AnnouncementPublished::class);
+
+        // Isi notifikasi: judul berawalan 📢, body = deskripsi singkat (tanpa "Oleh"), klik -> detail.
+        $data = (new AnnouncementPublished($announcement->fresh()))->toDatabase($receiver);
+        $this->assertSame('📢 Libur', $data['title']);
+        $this->assertSame('Kantor libur besok', $data['body']);
+        $this->assertSame(route('pengumuman.show', $announcement->id), TaskNotificationUrl::for($data));
+
+        // Halaman detail: penerima boleh (isi rich text tampil), non-penerima 403.
+        Livewire::actingAs($receiver)->test(AnnouncementDetailPage::class, ['record' => $announcement])
+            ->assertOk()->assertSeeHtml('<strong>nasional</strong>')->assertSee($admin->name);
+        Livewire::actingAs($other)->test(AnnouncementDetailPage::class, ['record' => $announcement])->assertForbidden();
     }
 }

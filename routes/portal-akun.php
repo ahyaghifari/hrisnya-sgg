@@ -28,6 +28,9 @@ Route::get('/dashboard-anda', DashboardAndaPage::class)
 Route::get('/notifikasi', \App\Livewire\NotificationsPage::class)
     ->name('notifikasi');
 
+Route::get('/pengumuman/{record}', \App\Livewire\AnnouncementDetailPage::class)
+    ->name('pengumuman.show');
+
 Route::get('/akun', PwaAkun::class)
     ->name('akun');
 
