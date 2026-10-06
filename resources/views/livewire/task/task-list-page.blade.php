@@ -1331,7 +1331,7 @@
                                                 </span>
                                             @endif
                                             @if ($item->due_date)
-                                                <span style="display:inline-block;margin-top:3px;padding:0 6px;border-radius:4px;font-size:11px;font-weight:400;{{ $dueStyle($item) ?: 'color:var(--text-faint);' }}"><i class="fa-regular fa-clock"></i> {{ $item->due_date->translatedFormat('j M Y, H:i') }}</span>
+                                                <span style="display:table;margin-top:2px;padding:0 4px;border-radius:3px;font-size:10px;font-weight:400;line-height:1.5;{{ $dueStyle($item) ?: 'color:var(--text-faint);' }}"><i class="fa-regular fa-clock"></i> {{ $item->due_date->translatedFormat('j M Y, H:i') }}</span>
                                             @endif
                                         </span>
                                     </div>
