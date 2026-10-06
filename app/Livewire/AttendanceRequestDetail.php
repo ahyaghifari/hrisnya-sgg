@@ -113,12 +113,12 @@ class AttendanceRequestDetail extends Component
         return $this->resolveActiveCancellation();
     }
 
-    /** Pemilik pengajuan boleh batal LANGSUNG - masih in_review, tipe Cuti/Izin saja, belum
+    /** Pemilik pengajuan boleh batal LANGSUNG - masih in_review, tipe Cuti/Izin/Lembur, belum
      *  lewat tanggal mulai. */
     public function getCanSelfCancelProperty(): bool
     {
         return $this->record->user_id === Auth::id()
-            && in_array($this->record->type, ['leave', 'permission'], true)
+            && in_array($this->record->type, ['leave', 'permission', 'overtime'], true)
             && $this->record->approvalSnapshot?->status === 'in_review'
             && ! app(AttendaceReqService::class)->cancellationCutoffPassed($this->record);
     }
@@ -128,7 +128,7 @@ class AttendanceRequestDetail extends Component
     public function getCanRequestCancellationProperty(): bool
     {
         return $this->record->user_id === Auth::id()
-            && in_array($this->record->type, ['leave', 'permission'], true)
+            && in_array($this->record->type, ['leave', 'permission', 'overtime'], true)
             && $this->record->status === 'approved'
             && ! app(AttendaceReqService::class)->cancellationCutoffPassed($this->record)
             && $this->activeCancellation?->status !== 'in_review';

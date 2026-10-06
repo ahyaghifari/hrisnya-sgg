@@ -200,6 +200,45 @@ class AttendanceCancellationApprovalTest extends TestCase
         $this->assertDatabaseHas('attendance_requests', ['id' => $request->id, 'status' => 'cancelled']);
     }
 
+    /** Admin panel: tombol Batalkan -> logika sama dengan portal (cancelRequestDirectly), atas nama admin. */
+    public function test_admin_can_cancel_approved_leave_and_sync_is_reverted(): void
+    {
+        $admin = User::factory()->create(['company_id' => $this->company->id]);
+        $admin->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'web']));
+
+        $employee = User::factory()->create(['company_id' => $this->company->id]);
+        $start = now()->addDays(31)->toDateString();
+        $request = $this->approvedLeave($employee, $start);
+        $this->assertDatabaseHas('attendance_records', ['source_request_id' => $request->id]);
+
+        \Illuminate\Support\Facades\Notification::fake();
+
+        Livewire::actingAs($admin)
+            ->test(\App\Filament\Resources\AttendanceRequests\Pages\EditAttendanceRequest::class, ['record' => $request->id])
+            ->assertActionVisible('cancelRequest')
+            ->callAction('cancelRequest', ['reason' => 'Salah input']);
+
+        $request->refresh();
+        $this->assertSame('cancelled', $request->status);
+        $this->assertSame($admin->id, $request->cancelled_by);
+        $this->assertDatabaseMissing('attendance_records', ['source_request_id' => $request->id]);
+        $this->assertDatabaseHas('approval_histories', ['requestable_id' => $request->id, 'action' => 'cancelled', 'actor_id' => $admin->id]);
+        \Illuminate\Support\Facades\Notification::assertSentTo($employee, \App\Notifications\RequestStatusChanged::class);
+    }
+
+    public function test_admin_cannot_cancel_after_cutoff(): void
+    {
+        $admin = User::factory()->create(['company_id' => $this->company->id]);
+        $admin->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'web']));
+
+        $employee = User::factory()->create(['company_id' => $this->company->id]);
+        $request = $this->approvedLeave($employee, now()->subDay()->toDateString(), createdBy: $this->approver);
+
+        Livewire::actingAs($admin)
+            ->test(\App\Filament\Resources\AttendanceRequests\Pages\EditAttendanceRequest::class, ['record' => $request->id])
+            ->assertActionHidden('cancelRequest');
+    }
+
     public function test_cannot_request_cancellation_after_cutoff(): void
     {
         $employee = User::factory()->create(['company_id' => $this->company->id]);
