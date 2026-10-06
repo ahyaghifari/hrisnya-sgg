@@ -6,6 +6,7 @@ use App\Enum\Task\TaskPriority;
 use App\Enum\Task\TaskStatus;
 use App\Models\Task\Task;
 use App\Models\Task\TaskChecklistItem;
+use App\Models\Task\TaskActivity;
 use App\Models\Task\TaskList;
 use App\Models\Task\TaskProject;
 use App\Models\User;
@@ -14,6 +15,7 @@ use App\Services\Task\TaskService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -71,6 +73,9 @@ class TaskListPage extends Component
 
     // Modal detail task
     public ?string $selectedTaskId = null;
+    // Waktu terakhir user membuka tugas yang sedang tampil di modal (sebelum ditimpa) + apakah user berhak melihat penanda "baru".
+    public ?string $seenBefore = null;
+    public bool $trackNew = false;
     public string $newComment = '';
     public ?string $replyToId = null; // komentar awal yang sedang dibalas (1 tingkat)
     public string $newChecklistTitle = '';
@@ -255,6 +260,41 @@ class TaskListPage extends Component
 
         return $tasks->filter(fn ($task) => str_contains(strtolower($task->requirement ?? ''), strtolower($search))
             || str_contains(strtolower($task->assigneeNames()), strtolower($search)))->values();
+    }
+
+    /** Jumlah aktivitas orang lain (ceklis selesai, komentar, lampiran) sejak tugas terakhir dibuka user ini. [task_id => [action => n]] */
+    public function getUnreadCountsProperty(): array
+    {
+        $me = Auth::id();
+
+        return TaskActivity::query()
+            // Cuma pelaksana/member kartu dan pembuat tugas.
+            ->whereIn('task_activities.task_id', $this->tasks->filter(fn ($t) => $t->created_by === $me || $t->isAssignee($me))->pluck('id'))
+            ->whereIn('task_activities.action', ['checklist_done', 'comment_added', 'attachment_added'])
+            ->where(fn ($q) => $q->whereNull('task_activities.user_id')->orWhere('task_activities.user_id', '!=', $me))
+            ->leftJoin('task_user_seen as s', fn ($j) => $j->on('s.task_id', '=', 'task_activities.task_id')->where('s.user_id', $me))
+            ->where(fn ($q) => $q->whereNull('s.seen_at')->orWhereColumn('task_activities.created_at', '>', 's.seen_at'))
+            ->groupBy('task_activities.task_id', 'task_activities.action')
+            ->selectRaw('task_activities.task_id, task_activities.action, count(*) as n')
+            ->get()
+            ->groupBy('task_id')
+            ->map(fn ($rows) => $rows->pluck('n', 'action')->all())
+            ->all();
+    }
+
+    /** Item (ceklis/komentar/lampiran) oleh orang lain setelah terakhir tugas ini dibuka - untuk warna tipis di modal. */
+    public function isNewItem($at, ?string $by): bool
+    {
+        return $this->trackNew && $at && $by !== Auth::id()
+            && (! $this->seenBefore || Carbon::parse($at)->gt($this->seenBefore));
+    }
+
+    private function markTaskSeen(?string $taskId): void
+    {
+        if ($taskId) {
+            DB::table('task_user_seen')->upsert([['task_id' => $taskId, 'user_id' => Auth::id(), 'seen_at' => now()]], ['task_id', 'user_id'], ['seen_at']);
+            unset($this->unreadCounts);
+        }
     }
 
     public function getTasksByStatusProperty(): array
@@ -527,6 +567,10 @@ class TaskListPage extends Component
     public function openTaskDetail(string $taskId): void
     {
         $this->selectedTaskId = $taskId;
+        $task = $this->selectedTask;
+        $this->trackNew = (bool) $task && ($task->created_by === Auth::id() || $task->isAssignee(Auth::id()));
+        $this->seenBefore = DB::table('task_user_seen')->where('task_id', $taskId)->where('user_id', Auth::id())->value('seen_at');
+        $this->markTaskSeen($taskId);
         $this->replyToId = null;
         $this->newComment = '';
         $this->newChecklistTitle = '';
@@ -543,6 +587,7 @@ class TaskListPage extends Component
             return;
         }
 
+        $this->markTaskSeen($this->selectedTaskId);
         $this->selectedTaskId = null;
         // $this->selectedTask di atas sudah ke-cache (computed) dengan task lama - buang, kalau tidak modal tetap ke-render.
         unset($this->selectedTask);
