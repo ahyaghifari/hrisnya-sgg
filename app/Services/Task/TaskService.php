@@ -731,16 +731,16 @@ class TaskService
                 'recurrence_resume_at' => $resumeAt,
                 'due_date' => $task->nextDueDate(), // tenggat langsung maju ke periode berikutnya
             ];
-            if (! $fromReview) {
-                $update['is_overdue'] = $task->due_date && $now->gt($task->due_date);
-            }
+            // Tenggat sudah pindah ke periode berikutnya, jadi tidak ada label Terlambat; keterlambatan periode ini cukup di log.
+            $wasLate = (bool) ($task->is_overdue || ($task->due_date && $now->gt($task->due_date)));
+            $update['is_overdue'] = false;
             // Disetujui dari List Review: kartu kembali ke List kerja pertama (List Review cuma untuk yang menunggu keputusan).
             if ($fromReview) {
                 $update['list_id'] = $project->lists()->where('is_review', false)->where('is_final', false)->orderBy('position')->value('id') ?? $task->list_id;
             }
 
             $this->taskRepository->update($task->id, $update);
-            $this->logActivity($task, $actor, 'recurring_completed', 'Menyelesaikan periode ini, tenggat berikutnya ' . Carbon::parse($update['due_date'])->translatedFormat('j M Y') . ', aktif lagi ' . $resumeAt->translatedFormat('j M Y'), ['previous_due_date' => $task->due_date]);
+            $this->logActivity($task, $actor, 'recurring_completed', 'Menyelesaikan periode ini, tenggat berikutnya ' . Carbon::parse($update['due_date'])->translatedFormat('j M Y') . ', aktif lagi ' . $resumeAt->translatedFormat('j M Y'), ['previous_due_date' => $task->due_date, 'was_late' => $wasLate]);
 
             return $task->refresh();
         });
