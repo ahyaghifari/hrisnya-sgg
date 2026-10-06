@@ -102,12 +102,12 @@
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ number_format($row['external_hours'], 1, ',', '.') }} jam</td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <span class="badge" style="background:{{ $row['total_hours'] >= $b->min_hours ? 'rgba(4,124,84,0.12)' : 'rgba(234,179,8,0.15)' }};color:{{ $row['total_hours'] >= $b->min_hours ? 'var(--brand-success)' : '#a16207' }};">
-                                        {{ number_format($row['total_hours'], 0) }} jam
+                                        {{ rtrim(rtrim(number_format($row['total_hours'], 1, ',', '.'), '0'), ',') }} jam
                                     </span>
                                 </td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <span class="badge" style="background:{{ $row['unfulfilled_hours'] > 0 ? 'rgba(220,38,38,0.1)' : 'rgba(4,124,84,0.12)' }};color:{{ $row['unfulfilled_hours'] > 0 ? '#dc2626' : 'var(--brand-success)' }};">
-                                        {{ $row['unfulfilled_hours'] > 0 ? number_format($row['unfulfilled_hours'], 0) . ' jam' : 'Terpenuhi' }}
+                                        {{ $row['unfulfilled_hours'] > 0 ? rtrim(rtrim(number_format($row['unfulfilled_hours'], 1, ',', '.'), '0'), ',') . ' jam' : 'Terpenuhi' }}
                                     </span>
                                 </td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">

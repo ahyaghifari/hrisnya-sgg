@@ -40,6 +40,7 @@ class SpReportPagesTest extends TestCase
         $this->hc->givePermissionTo($perms);
         $this->employee = User::factory()->create(['company_id' => $this->company->id]);
         $this->knower = User::factory()->create(['company_id' => $this->company->id]);
+        \Tests\Support\SpFixtures::makeDepartmentHead($this->knower);
     }
 
     public function test_create_page_makes_draft_and_requires_dasar_and_kejadian(): void
@@ -48,17 +49,20 @@ class SpReportPagesTest extends TestCase
             ->set('user_id', $this->employee->id)
             ->set('knows_by', $this->knower->id)
             ->call('save')
-            ->assertHasErrors(['dasar_items.0', 'kejadian']);
+            ->assertHasErrors(['dasar_items.0.reason', 'kejadian']);
+
+        $reason = \App\Models\Sp\SpReason::create(['company_id' => $this->company->id, 'name' => 'Keterlambatan']);
 
         Livewire::actingAs($this->hc)->test(CreateBeritaAcaraPage::class)
             ->set('user_id', $this->employee->id)
             ->set('knows_by', $this->knower->id)
-            ->set('dasar_items', ['Rekap presensi'])
+            ->set('dasar_items', [['reason' => $reason->id, 'note' => 'Rekap presensi']])
             ->set('kejadian', 'Terlambat 5 kali')
             ->call('save')
             ->assertHasNoErrors();
 
         $this->assertSame(SpReportStatus::DRAFT, SpReport::firstOrFail()->status);
+        $this->assertSame('Keterlambatan — Rekap presensi', (string) SpReport::firstOrFail()->dasarKlarifikasiHtml());
     }
 
     public function test_employee_without_permission_cannot_open_hc_pages(): void
@@ -75,16 +79,15 @@ class SpReportPagesTest extends TestCase
         ]);
 
         Livewire::actingAs($this->hc)->test(BeritaAcaraDetailPage::class, ['record' => $report])
-            ->assertSee('Minta Klarifikasi Karyawan')
+            ->assertSee('Lanjut ke Klarifikasi')
             ->call('requestClarification')
-            ->assertSee('Menunggu')
+            ->assertSee('Menyusun Klarifikasi')
             ->assertSee($this->employee->name);
 
-        $service->submitClarification($report->fresh(), $this->employee, 'macet di jalan');
+        $service->fillClarificationByHc($report->fresh(), $this->hc, 'macet di jalan');
 
         Livewire::actingAs($this->hc)->test(BeritaAcaraDetailPage::class, ['record' => $report->fresh()])
             ->assertSee('macet di jalan')
-            ->set('klarifikasi_parafrase', 'Terlambat karena kemacetan')
             ->set('analysis', 'Berulang')
             ->set('kesimpulan', 'Melanggar')
             ->set('followup_plan', '')
@@ -94,7 +97,6 @@ class SpReportPagesTest extends TestCase
         $this->assertSame(SpReportStatus::KLARIFIKASI_DIAJUKAN, $report->fresh()->status);
 
         Livewire::actingAs($this->hc)->test(BeritaAcaraDetailPage::class, ['record' => $report->fresh()])
-            ->set('klarifikasi_parafrase', 'Terlambat karena kemacetan')
             ->set('analysis', 'Berulang')
             ->set('kesimpulan', 'Melanggar')
             ->set('followup_plan', 'SP1')
@@ -111,7 +113,7 @@ class SpReportPagesTest extends TestCase
             'kejadian' => 'x', 'dasar_items' => ['y'],
         ]);
         $service->requestClarification($report, $this->hc);
-        $service->submitClarification($report->fresh(), $this->employee, 'z');
+        $service->fillClarificationByHc($report->fresh(), $this->hc, 'z');
         $service->saveAnalysis($report->fresh(), $this->hc, ['klarifikasi_parafrase' => 'p', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
         $service->sendForSigning($report->fresh(), $this->hc);
 
@@ -132,14 +134,14 @@ class SpReportPagesTest extends TestCase
             'kejadian' => 'Kejadian-X', 'dasar_items' => ['Dasar-Y'],
         ]);
         $service->requestClarification($report, $this->hc);
-        $service->submitClarification($report->fresh(), $this->employee, 'Klarifikasi-Z');
+        $service->fillClarificationByHc($report->fresh(), $this->hc, 'Klarifikasi-Z');
         $service->saveAnalysis($report->fresh(), $this->hc, ['klarifikasi_parafrase' => 'p', 'analysis' => 'Analisis-A', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
         $service->sendForSigning($report->fresh(), $this->hc);
 
         $this->actingAs($this->hc)->get(route('ba.preview', $report))->assertForbidden();
 
         $signing = app(\App\Services\Document\DocumentSigningService::class);
-        foreach ([$this->hc, $this->employee, $this->knower] as $user) {
+        foreach ([$this->hc, $this->knower, $this->employee] as $user) {
             $signing->sign($report->fresh()->document, $user);
         }
 

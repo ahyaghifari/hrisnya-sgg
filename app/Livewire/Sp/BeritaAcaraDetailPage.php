@@ -4,6 +4,7 @@ namespace App\Livewire\Sp;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpReportDecision;
+use App\Livewire\Sp\Concerns\HasReasonItems;
 use App\Models\Sp\SpReport;
 use App\Services\Sp\SpReportService;
 use Filament\Notifications\Notification;
@@ -21,10 +22,12 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Detail Berita Acara'])]
 class BeritaAcaraDetailPage extends Component
 {
+    use HasReasonItems;
+
     public SpReport $record;
 
     public ?string $nomor = null;
-    public array $dasar_items = [''];
+    public array $dasar_items = [['reason' => '', 'note' => '']];
     public ?string $kejadian = null;
 
     /** Draft yang sudah terisi tampil mode lihat; form baru muncul lewat tombol Edit. */
@@ -35,7 +38,6 @@ class BeritaAcaraDetailPage extends Component
 
     public string $klarifikasi_karyawan = '';
 
-    public ?string $klarifikasi_parafrase = null;
     public ?string $analysis = null;
     public ?string $kesimpulan = null;
     public ?string $followup_plan = null;
@@ -90,23 +92,27 @@ class BeritaAcaraDetailPage extends Component
 
     private function fillFromRecord(): void
     {
-        foreach (['nomor', 'kejadian', 'klarifikasi_parafrase', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
+        foreach (['nomor', 'kejadian', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
             $this->{$field} = $this->record->{$field};
         }
 
         $this->record->unsetRelation('dasarItems');
-        $this->dasar_items = $this->record->dasarItems->pluck('text')->all() ?: [''];
+        $this->dasar_items = $this->reasonRowsFrom($this->record->dasarItems);
+    }
+
+    protected function reasonCompanyId(): ?string
+    {
+        return $this->record->company_id;
     }
 
     public function addDasarItem(): void
     {
-        $this->dasar_items[] = '';
+        $this->dasar_items = $this->addReasonRow($this->dasar_items);
     }
 
     public function removeDasarItem(int $index): void
     {
-        unset($this->dasar_items[$index]);
-        $this->dasar_items = array_values($this->dasar_items) ?: [''];
+        $this->dasar_items = $this->removeReasonRow($this->dasar_items, $index);
     }
 
     public function getCanManageProperty(): bool
@@ -145,14 +151,14 @@ class BeritaAcaraDetailPage extends Component
     public function saveDraft(): void
     {
         $this->run(fn ($s) => $s->updateDraft($this->record, Auth::user(), [
-            'nomor' => $this->nomor, 'dasar_items' => $this->dasar_items, 'kejadian' => $this->kejadian,
+            'nomor' => $this->nomor, 'dasar_items' => $this->reasonPayload($this->dasar_items), 'kejadian' => $this->kejadian,
         ]), 'Draft disimpan');
     }
 
     public function requestClarification(): void
     {
         $this->saveDraft();
-        $this->run(fn ($s) => $s->requestClarification($this->record, Auth::user()), 'Klarifikasi diminta dari karyawan');
+        $this->run(fn ($s) => $s->requestClarification($this->record, Auth::user()), 'Lanjut ke klarifikasi');
     }
 
     public function fillClarification(): void
@@ -199,7 +205,6 @@ class BeritaAcaraDetailPage extends Component
     private function analysisFields(): array
     {
         return [
-            'klarifikasi_parafrase' => $this->klarifikasi_parafrase,
             'analysis' => $this->analysis,
             'kesimpulan' => $this->kesimpulan,
             'followup_plan' => $this->followup_plan,

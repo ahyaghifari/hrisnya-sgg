@@ -29,6 +29,7 @@ class SpFromReportTest extends TestCase
     private User $hc;
     private User $employee;
     private User $knower;
+    private \App\Models\Sp\SpReason $reason;
     private SpReportService $service;
 
     protected function setUp(): void
@@ -46,6 +47,8 @@ class SpFromReportTest extends TestCase
         $this->hc->givePermissionTo($perms);
         $this->employee = User::factory()->create(['company_id' => $company->id]);
         $this->knower = User::factory()->create(['company_id' => $company->id]);
+        \Tests\Support\SpFixtures::makeDepartmentHead($this->knower);
+        $this->reason = \App\Models\Sp\SpReason::create(['company_id' => $company->id, 'name' => 'Keterlambatan']);
         $this->service = app(SpReportService::class);
     }
 
@@ -62,10 +65,10 @@ class SpFromReportTest extends TestCase
             'kejadian' => 'Terlambat', 'dasar_items' => ['Rekap'],
         ]);
         $this->service->requestClarification($report, $this->hc);
-        $this->service->submitClarification($report, $this->employee, 'macet');
+        $this->service->fillClarificationByHc($report, $this->hc, 'macet');
         $this->service->saveAnalysis($report, $this->hc, ['klarifikasi_parafrase' => 'p', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
         $this->service->sendForSigning($report, $this->hc);
-        foreach ([$this->hc, $this->employee, $this->knower] as $user) {
+        foreach ([$this->hc, $this->knower, $this->employee] as $user) {
             $this->sign($report->fresh()->document, $user);
         }
         if ($decision) {
@@ -148,12 +151,48 @@ class SpFromReportTest extends TestCase
             ->set('sp_level', 'sp2')
             ->set('knows_by', $this->knower->id)
             ->set('start_date', now()->toDateString())
-            ->set('items', ['Pelanggaran'])
+            ->set('items', [['reason' => $this->reason->id, 'note' => '']])
             ->call('save')
             ->assertHasNoErrors();
 
         $sp = EmployeeSp::where('nomor', 'SP-FR-9')->firstOrFail();
         $this->assertSame($this->employee->id, $sp->user_id);
         $this->assertSame($sp->id, $eligible->fresh()->sp_id);
+        $this->assertSame('Keterlambatan', $sp->items->first()->text);
+    }
+
+    public function test_repeat_of_active_sp_violation_is_offered_suggests_next_level_and_is_stored(): void
+    {
+        $first = $this->service->createSp($this->finishedReport(), $this->hc, [
+            'nomor' => 'SP-1', 'sp_level' => 'sp1', 'start_date' => now()->toDateString(), 'knows_by' => $this->knower->id,
+            'items' => [['reason_id' => $this->reason->id, 'note' => '3 kali']],
+        ]);
+        $first->issueDocument('SP 1', $this->hc);
+        $choice = "repeat:{$first->id}:{$this->reason->id}";
+
+        $page = Livewire::actingAs($this->hc)->test(CreateSpFromReportPage::class, ['reportId' => $this->finishedReport()->id])
+            ->assertSee('berulang dari SP 1')
+            ->set('items.0.reason', $choice)
+            ->assertSet('sp_level', 'sp2');
+
+        $page->set('nomor', 'SP-2')->set('items.0.note', 'lagi')->call('save')->assertHasNoErrors();
+
+        $item = EmployeeSp::where('nomor', 'SP-2')->firstOrFail()->items->first();
+        $this->assertSame($first->id, $item->repeat_sp_id);
+        $this->assertStringContainsString('pelanggaran berulang', $item->text);
+    }
+
+    public function test_repeat_choice_from_sp_that_is_not_offered_is_rejected(): void
+    {
+        $other = $this->service->createSp($this->finishedReport(), $this->hc, [
+            'nomor' => 'SP-X', 'sp_level' => 'sp1', 'start_date' => now()->toDateString(), 'knows_by' => $this->knower->id,
+            'items' => [['reason_id' => $this->reason->id]],
+        ]); // draft, belum terbit -> tidak ditawarkan
+
+        Livewire::actingAs($this->hc)->test(CreateSpFromReportPage::class, ['reportId' => $this->finishedReport()->id])
+            ->set('nomor', 'SP-Y')->set('sp_level', 'sp2')->set('start_date', now()->toDateString())
+            ->set('items', [['reason' => "repeat:{$other->id}:{$this->reason->id}", 'note' => '']])
+            ->call('save')
+            ->assertForbidden();
     }
 }

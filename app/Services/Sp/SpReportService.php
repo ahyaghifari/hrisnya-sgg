@@ -8,6 +8,7 @@ use App\Enum\Sp\SpReportStatus;
 use App\Models\Sp\SpReport;
 use App\Models\User;
 use App\Notifications\SpReportUpdated;
+use App\Services\SikartapReviewerResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -32,7 +33,7 @@ class SpReportService
         foreach (['user_id', 'knows_by', 'kejadian'] as $field) {
             $this->requireFilled($data[$field] ?? null, $field);
         }
-        $this->requireFilled(array_filter(array_map('trim', $data['dasar_items'] ?? []), 'filled'), 'dasar_klarifikasi');
+        $this->requireFilled(array_filter($data['dasar_items'] ?? [], fn ($item) => is_array($item) ? filled($item['reason_id'] ?? null) || filled($item['note'] ?? null) : filled(trim($item))), 'dasar_klarifikasi');
 
         return DB::transaction(function () use ($creator, $data) {
             $report = SpReport::create([
@@ -72,78 +73,38 @@ class SpReportService
         $this->requireFilled($report->kejadian, 'kejadian');
         $this->requireFilled($report->dasarItems()->exists(), 'dasar_klarifikasi');
 
+        // Klarifikasi diisikan pembuat/HC (instruksi user 2026-10-06), tidak lewat karyawan.
         $report->update(['status' => SpReportStatus::MENUNGGU_KLARIFIKASI]);
 
-        $this->notifyEmployee($report, 'Klarifikasi Diminta', 'Anda diminta mengisi klarifikasi atas sebuah Berita Acara.');
-
         return $report;
     }
 
-    /** Karyawan yang bersangkutan mengisi klarifikasinya sendiri (apa adanya) lalu mengajukan. */
-    public function submitClarification(SpReport $report, User $actor, string $text): SpReport
-    {
-        abort_unless($actor->id === $report->user_id, 403, 'Hanya karyawan yang bersangkutan yang dapat mengisi klarifikasi.');
-        $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
-
-        if ($report->klarifikasi_diisi_hc) {
-            throw ValidationException::withMessages(['status' => 'Anda sudah mengizinkan HC mengisikan klarifikasi.']);
-        }
-
-        $this->storeClarification($report, $text);
-        $this->notifyCreator($report, 'Klarifikasi Karyawan Masuk', "{$report->user?->name} sudah mengajukan klarifikasi - silakan parafrase dan analisis.");
-
-        return $report;
-    }
-
-    /** Karyawan memilih klarifikasinya diisikan langsung oleh HC (bukan ditulis sendiri). */
-    public function delegateClarificationToHc(SpReport $report, User $actor): SpReport
-    {
-        abort_unless($actor->id === $report->user_id, 403, 'Hanya karyawan yang bersangkutan yang dapat memilih ini.');
-        $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
-
-        $report->update(['klarifikasi_diisi_hc' => true]);
-        $this->notifyCreator($report, 'HC Diizinkan Mengisikan Klarifikasi', "{$report->user?->name} mengizinkan HC mengisikan klarifikasinya.");
-
-        return $report;
-    }
-
-    /** HC mengisi klarifikasi atas nama karyawan - hanya setelah karyawan memilih itu. */
+    /** Pembuat/HC mengisi klarifikasi karyawan apa adanya sesuai keterangannya. */
     public function fillClarificationByHc(SpReport $report, User $actor, string $text): SpReport
     {
         $this->assertManage($report, $actor);
         $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
 
-        if (! $report->klarifikasi_diisi_hc) {
-            throw ValidationException::withMessages(['status' => 'Karyawan belum mengizinkan HC mengisikan klarifikasi.']);
-        }
-
         // Trix kosong tetap mengirim markup (<div><br></div>) - cek isi teksnya.
         $this->requireFilled(trim(strip_tags($text)), 'klarifikasi');
-        $this->storeClarification($report, $text);
-        // Klarifikasi ditulis HC sendiri - tidak perlu diparafrase lagi, salin saja (masih boleh diedit).
-        $report->update(['klarifikasi_parafrase' => $text]);
+
+        $report->update([
+            'subject_clarification' => $text,
+            'klarifikasi_diisi_hc' => true,
+            'klarifikasi_diajukan_at' => now(),
+            'status' => SpReportStatus::KLARIFIKASI_DIAJUKAN,
+        ]);
 
         return $report;
     }
 
-    private function storeClarification(SpReport $report, string $text): void
-    {
-        $this->requireFilled($text, 'klarifikasi');
-
-        $report->update([
-            'subject_clarification' => $text,
-            'klarifikasi_diajukan_at' => now(),
-            'status' => SpReportStatus::KLARIFIKASI_DIAJUKAN,
-        ]);
-    }
-
-    /** HC menerima klarifikasi: tulis parafrase + analisis, kesimpulan, rencana tindak lanjut. */
+    /** Setelah klarifikasi diisi: tulis analisis, kesimpulan, rencana tindak lanjut (tanpa parafrase, instruksi user 2026-10-06). */
     public function saveAnalysis(SpReport $report, User $actor, array $data): SpReport
     {
         $this->assertManage($report, $actor);
         $this->assertStatus($report, SpReportStatus::KLARIFIKASI_DIAJUKAN);
 
-        $report->update(array_intersect_key($data, array_flip(['klarifikasi_parafrase', 'analysis', 'kesimpulan', 'followup_plan'])));
+        $report->update(array_intersect_key($data, array_flip(['analysis', 'kesimpulan', 'followup_plan'])));
 
         return $report;
     }
@@ -154,27 +115,26 @@ class SpReportService
         $this->assertManage($report, $actor);
         $this->assertStatus($report, SpReportStatus::KLARIFIKASI_DIAJUKAN);
 
-        // Diisikan HC: parafrase dikosongkan pun tidak masalah, otomatis memakai klarifikasi itu sendiri.
-        if ($report->klarifikasi_diisi_hc && ! filled(trim(strip_tags((string) $report->klarifikasi_parafrase)))) {
-            $report->update(['klarifikasi_parafrase' => $report->subject_clarification]);
-        }
-
-        foreach (['klarifikasi_parafrase', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
+        foreach (['analysis', 'kesimpulan', 'followup_plan'] as $field) {
             $this->requireFilled($report->{$field}, $field);
         }
 
-        DB::transaction(function () use ($report, $actor) {
-            $report->update(['status' => SpReportStatus::MENUNGGU_TTD]);
+        // Atasan langsung ikut TTD, kecuali dia sudah pembuat/mengetahui (satu orang tidak TTD dua peran).
+        $supervisor = app(SikartapReviewerResolver::class)->directSupervisorOf($report->user);
+        $supervisorId = $supervisor && ! in_array($supervisor->id, [$report->created_by, $report->knows_by, $report->user_id], true) ? $supervisor->id : null;
+
+        DB::transaction(function () use ($report, $actor, $supervisorId) {
+            $report->update(['status' => SpReportStatus::MENUNGGU_TTD, 'supervisor_id' => $supervisorId]);
             $report->issueDocument("Berita Acara — {$report->user?->name}", $actor);
         });
 
-        $this->notifyEmployee($report, 'Berita Acara Telah Disusun', 'HC telah menyusun Berita Acara Anda dan akan menandatanganinya lebih dulu. Anda diminta menandatangani setelahnya.');
+        $this->notifyEmployee($report, 'Berita Acara Telah Disusun', 'HC telah menyusun Berita Acara Anda dan akan menandatanganinya lebih dulu, disusul yang mengetahui dan atasan langsung. Anda menandatangani terakhir.');
 
         return $report;
     }
 
     /**
-     * Karyawan keberatan dengan parafrase HC -> kembali ke klarifikasi. Hanya sebelum karyawan
+     * Karyawan keberatan dengan isi klarifikasi -> kembali ke klarifikasi. Hanya sebelum karyawan
      * menandatangani (menandatangani = menerima isi BA). Versi sebelumnya disimpan di riwayat.
      */
     public function requestReclarification(SpReport $report, User $actor, string $reason): SpReport
@@ -195,17 +155,15 @@ class SpReportService
                 [
                     'klarifikasi' => $report->subject_clarification,
                     'diisi_hc' => (bool) $report->klarifikasi_diisi_hc,
-                    'parafrase' => $report->klarifikasi_parafrase,
                     'alasan_ajukan_ulang' => $reason,
                     'at' => now()->toDateTimeString(),
                 ],
             ],
-            'klarifikasi_parafrase' => null,
             'klarifikasi_diisi_hc' => false,
             'status' => SpReportStatus::MENUNGGU_KLARIFIKASI,
         ]);
 
-        $this->notifyCreator($report, 'Karyawan Mengajukan Ulang Klarifikasi', "{$report->user?->name} keberatan dengan parafrase: {$reason}");
+        $this->notifyCreator($report, 'Karyawan Mengajukan Ulang Klarifikasi', "{$report->user?->name} keberatan dengan isi klarifikasi: {$reason}");
 
         return $report;
     }
@@ -226,14 +184,20 @@ class SpReportService
             return $report;
         }
 
-        if ($role === 'created_by') {
-            foreach ([$report->user, $report->knowsBy] as $signer) {
-                $signer?->notify(new SpReportUpdated(
-                    'Berita Acara Menunggu Tanda Tangan Anda',
-                    "{$report->createdBy?->name} sudah menandatangani Berita Acara - giliran Anda menandatangani.",
-                    documentSignId: $report->document?->id,
-                ));
-            }
+        // Urutan: pembuat -> mengetahui -> atasan langsung (kalau ada) -> karyawan. Hanya pihak giliran berikutnya yang dikabari.
+        $next = [
+            'created_by' => [$report->knowsBy, $report->createdBy],
+            'knows_by' => $report->supervisor_id ? [$report->supervisor, $report->knowsBy] : [$report->user, $report->knowsBy],
+            'supervisor' => [$report->user, $report->supervisor],
+        ][$role] ?? null;
+
+        if ($next) {
+            [$signer, $previous] = $next;
+            $signer?->notify(new SpReportUpdated(
+                'Berita Acara Menunggu Tanda Tangan Anda',
+                "{$previous?->name} sudah menandatangani Berita Acara - giliran Anda menandatangani.",
+                documentSignId: $report->document?->id,
+            ));
         }
 
         return $report;
@@ -259,7 +223,7 @@ class SpReportService
      * Level SP & isi surat ditentukan di sini, bukan di BA. BA ditautkan lewat sp_id - 1 BA
      * menghasilkan paling banyak 1 SP (dijaga lewat lock baris + unique sp_id).
      *
-     * @param  array{nomor:string, sp_level:string, start_date:string, knows_by:string, items:array<int,string>, coaching_id?:?string}  $data
+     * @param  array{nomor:string, sp_level:string, start_date:string, knows_by:string, items:array<int,string|array{reason_id?:?string, repeat_sp_id?:?string, note?:?string}>, coaching_id?:?string}  $data
      */
     public function createSp(SpReport $report, User $actor, array $data): \App\Models\Sp\EmployeeSp
     {
@@ -288,8 +252,8 @@ class SpReportService
                 'knows_by' => $data['knows_by'],
             ]);
 
-            foreach (array_values($data['items']) as $index => $text) {
-                $sp->items()->create(['text' => $text, 'sort_order' => $index]);
+            foreach (array_values($data['items']) as $index => $item) {
+                $sp->items()->create(\App\Models\Sp\SpReason::composeItem($item) + ['sort_order' => $index]);
             }
 
             $report->update(['sp_id' => $sp->id]);

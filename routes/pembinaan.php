@@ -140,4 +140,7 @@ Route::prefix('pembinaan')->group(function () {
 
     Route::get('/pengaturan', PembinaanSettingsPage::class)
         ->name('pembinaan.pengaturan');
+
+    Route::get('/pengaturan/pelanggaran', \App\Livewire\Pembinaan\SpReasonsPage::class)
+        ->name('pembinaan.pelanggaran');
 });

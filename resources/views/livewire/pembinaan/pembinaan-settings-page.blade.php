@@ -1,6 +1,10 @@
 <div class="p-4 md:p-6">
     <x-page-header title="Pengaturan Pembinaan" subtitle="Durasi SP per perusahaan" />
 
+    <a href="{{ route('pembinaan.pelanggaran') }}" wire:navigate class="btn-secondary" style="margin-top:12px;display:inline-flex;gap:6px;align-items:center;">
+        <i class="fa-solid fa-list-check"></i> Master Pelanggaran
+    </a>
+
     <div class="mt-4">
         <div class="doc-type-layout">
             @if (auth()->user()->canFilterByCompany())

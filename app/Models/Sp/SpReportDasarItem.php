@@ -10,5 +10,5 @@ class SpReportDasarItem extends Model
 {
     use HasUlids;
 
-    protected $fillable = ['sp_report_id', 'text', 'sort_order'];
+    protected $fillable = ['sp_report_id', 'text', 'reason_id', 'note', 'sort_order'];
 }

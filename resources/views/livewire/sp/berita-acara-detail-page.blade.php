@@ -37,7 +37,7 @@
             </div>
             <div>
                 <label class="form-label">Dasar Klarifikasi <span style="color:var(--danger-text);">*</span></label>
-                @include('livewire.sp.partials.dasar-items-editor', ['idPrefix' => 'trix-ba-d-dasar'])
+                @include('livewire.sp.partials.reason-items-editor', ['field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
             </div>
             <div>
                 <label class="form-label">Kejadian <span style="color:var(--danger-text);">*</span></label>
@@ -60,8 +60,8 @@
         @if ($status === S::DRAFT && $editable)
             <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
                 <button type="button" wire:click="editDraft" class="btn-secondary"><i class="fa-solid fa-pen"></i> Edit</button>
-                <button type="button" wire:click="requestClarification" wire:confirm="Minta klarifikasi dari karyawan sekarang? Dasar & kejadian tidak bisa diubah lagi." class="btn-primary">
-                    <i class="fa-solid fa-paper-plane"></i> Minta Klarifikasi Karyawan
+                <button type="button" wire:click="requestClarification" wire:confirm="Lanjut ke klarifikasi karyawan? Dasar & kejadian tidak bisa diubah lagi." class="btn-primary">
+                    <i class="fa-solid fa-paper-plane"></i> Lanjut ke Klarifikasi
                 </button>
             </div>
         @endif
@@ -75,8 +75,8 @@
             <div class="section-icon"><i class="fa-solid fa-comment-dots" style="color:var(--brand);font-size:12px;"></i></div>
             <span class="section-title">Klarifikasi Karyawan</span>
         </div>
-        @if ($status === S::MENUNGGU_KLARIFIKASI && $record->klarifikasi_diisi_hc && $editable)
-            <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">{{ $record->user?->name }} mengizinkan HC mengisikan klarifikasinya. Tulis apa adanya sesuai keterangan karyawan.</p>
+        @if ($status === S::MENUNGGU_KLARIFIKASI && $editable)
+            <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">Tulis klarifikasi {{ $record->user?->name }} apa adanya sesuai keterangannya.</p>
             <div wire:ignore>
                 <input type="hidden" id="trix-ba-klarifikasi" wire:model="klarifikasi_karyawan" value="{{ $klarifikasi_karyawan }}">
                 <trix-editor input="trix-ba-klarifikasi" style="min-height:140px;"></trix-editor>
@@ -88,11 +88,11 @@
             </div>
         @elseif ($status === S::MENUNGGU_KLARIFIKASI)
             <p style="font-size:13px;color:var(--text-muted);margin:0;">
-                {{ $record->klarifikasi_diisi_hc ? "{$record->user?->name} mengizinkan HC mengisikan klarifikasi." : "Menunggu {$record->user?->name} mengisi dan mengajukan klarifikasi." }}
+                Klarifikasi sedang disusun pembuat Berita Acara.
             </p>
         @else
             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">
-                {{ $record->klarifikasi_diisi_hc ? 'Diisikan HC atas izin karyawan' : 'Diajukan karyawan' }} {{ $record->klarifikasi_diajukan_at?->translatedFormat('d M Y H:i') }} &middot; ditampilkan apa adanya
+                {{ $record->klarifikasi_diisi_hc ? 'Diisikan pembuat/HC' : 'Diajukan karyawan' }} {{ $record->klarifikasi_diajukan_at?->translatedFormat('d M Y H:i') }} &middot; ditampilkan apa adanya
             </p>
             <div class="prose">{!! $record->subjectClarificationHtml() !!}</div>
         @endif
@@ -102,28 +102,23 @@
                 <summary style="font-size:12.5px;cursor:pointer;">Riwayat pengajuan ulang #{{ $i + 1 }} &middot; {{ $old['at'] ?? '' }}</summary>
                 <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Alasan mengajukan ulang</p><p style="font-size:12.5px;margin:0;">{{ $old['alasan_ajukan_ulang'] ?? '' }}</p>
                 <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Klarifikasi saat itu</p><p style="font-size:12.5px;margin:0;">{!! $record->subjectClarificationHtml($old['klarifikasi'] ?? '', $old['diisi_hc'] ?? false) !!}</p>
-                <p style="font-size:12px;margin:8px 0 2px;font-weight:700;">Parafrase HC saat itu</p><p style="font-size:12.5px;margin:0;">{!! nl2br(e($old['parafrase'] ?? '')) !!}</p>
             </details>
         @endforeach
     </div>
 @endif
 
-{{-- 3. Parafrase, analisis, kesimpulan, tindak lanjut --}}
+{{-- 3. Analisis, kesimpulan, tindak lanjut --}}
 @if (in_array($status, [S::KLARIFIKASI_DIAJUKAN, S::MENUNGGU_TTD, S::SELESAI], true))
     <div class="form-card">
         <div class="section-head">
             <div class="section-icon"><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--brand);font-size:12px;"></i></div>
-            <span class="section-title">Parafrase &amp; Analisis HC</span>
+            <span class="section-title">Analisis HC</span>
         </div>
         @if ($status === S::KLARIFIKASI_DIAJUKAN && $editable && $editingAnalysis)
             <div style="display:flex;flex-direction:column;gap:16px;">
-                @foreach ([['klarifikasi_parafrase', 'Parafrase Klarifikasi'], ['analysis', 'Analisis'], ['kesimpulan', 'Kesimpulan'], ['followup_plan', 'Rencana Tindak Lanjut']] as [$field, $label])
+                @foreach ([['analysis', 'Analisis'], ['kesimpulan', 'Kesimpulan'], ['followup_plan', 'Rencana Tindak Lanjut']] as [$field, $label])
                     <div>
-                        @php $parafraseOpsional = $field === 'klarifikasi_parafrase' && $record->klarifikasi_diisi_hc; @endphp
-                        <label class="form-label">{{ $label }} @unless ($parafraseOpsional)<span style="color:var(--danger-text);">*</span>@endunless</label>
-                        @if ($parafraseOpsional)
-                            <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Klarifikasi ditulis HC sendiri, sudah disalin ke sini. Tidak perlu diparafrase lagi, boleh diubah atau dikosongkan.</p>
-                        @endif
+                        <label class="form-label">{{ $label }} <span style="color:var(--danger-text);">*</span></label>
                         <div wire:ignore>
                             <input type="hidden" id="trix-ba-a-{{ $field }}" wire:model="{{ $field }}" value="{{ $$field }}">
                             <trix-editor input="trix-ba-a-{{ $field }}" style="min-height:90px;"></trix-editor>
@@ -138,7 +133,10 @@
                 @endif
             </div>
         @else
-            @foreach ([['klarifikasi_parafrase', 'Parafrase Klarifikasi'], ['analysis', 'Analisis'], ['kesimpulan', 'Kesimpulan'], ['followup_plan', 'Rencana Tindak Lanjut']] as [$field, $label])
+            @if (filled($record->klarifikasi_parafrase))
+                <p class="form-label">Parafrase Klarifikasi</p><div class="prose" style="margin-bottom:12px;">{!! $record->klarifikasi_parafrase !!}</div>
+            @endif
+            @foreach ([['analysis', 'Analisis'], ['kesimpulan', 'Kesimpulan'], ['followup_plan', 'Rencana Tindak Lanjut']] as [$field, $label])
                 <p class="form-label">{{ $label }}</p><div class="prose" style="margin-bottom:12px;">{!! $record->{$field} !!}</div>
             @endforeach
             @if ($status === S::KLARIFIKASI_DIAJUKAN && $editable)
@@ -162,11 +160,11 @@
         </div>
         @include('livewire.document.partials.signature-boxes', [
             'signable' => $record,
-            'boxes' => ['created_by' => 'TTD Pembuat', 'knows_by' => 'TTD Mengetahui', 'employee' => 'TTD YBS'],
+            'boxes' => ['created_by' => 'TTD Pembuat', 'knows_by' => 'TTD Mengetahui'] + ($record->supervisor_id ? ['supervisor' => 'TTD Atasan Langsung'] : []) + ['employee' => 'TTD YBS'],
             'signatures' => $this->signatures,
         ])
         @if ($status === S::MENUNGGU_TTD)
-            <p style="font-size:12px;color:var(--text-muted);margin:12px 0 0;">Pembuat menandatangani lebih dulu, lalu karyawan dan yang mengetahui.</p>
+            <p style="font-size:12px;color:var(--text-muted);margin:12px 0 0;">Urutan tanda tangan: pembuat, yang mengetahui, atasan langsung (jika ada), lalu karyawan.</p>
             @if ($record->document && $this->canSignNow)
                 <button type="button" wire:click="$dispatch('open-sign-modal', { id: '{{ $record->document->id }}' })" class="btn-primary" style="margin-top:10px;">
                     <i class="fa-solid fa-signature"></i> Tanda Tangani Sekarang

@@ -77,24 +77,8 @@
             </div>
 
             <div>
-                <label class="form-label">Uraian/Kronologi <span style="color:var(--danger-text);">*</span></label>
-                <div style="display:flex;flex-direction:column;gap:8px;">
-                    @foreach ($items as $index => $item)
-                        <div wire:key="sp-item-{{ $index }}" style="display:flex;gap:8px;align-items:flex-start;">
-                            <div wire:ignore style="flex:1;">
-                                <input type="hidden" id="trix-item-{{ $index }}" wire:model="items.{{ $index }}" value="{{ $item }}">
-                                <trix-editor input="trix-item-{{ $index }}" style="min-height:70px;" placeholder="Tulis uraian/kronologi (nomor manual, mis. &quot;1. ...&quot;)"></trix-editor>
-                            </div>
-                            <button type="button" wire:click="removeItem({{ $index }})" class="btn-ghost" style="padding:8px 10px;color:var(--danger-text);">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                        @error('items.' . $index) <p style="color:var(--danger-text);font-size:12px;margin-left:20px;">{{ $message }}</p> @enderror
-                    @endforeach
-                </div>
-                <button type="button" wire:click="addItem" class="btn-ghost" style="margin-top:8px;font-size:12.5px;">
-                    <i class="fa-solid fa-plus"></i> Tambah Uraian
-                </button>
+                <label class="form-label">Pelanggaran <span style="color:var(--danger-text);">*</span></label>
+                @include('livewire.sp.partials.reason-items-editor', ['field' => 'items', 'add' => 'addItem', 'remove' => 'removeItem', 'addLabel' => 'Tambah Pelanggaran', 'repeatOptions' => $this->repeatOptions])
             </div>
         </div>
     </div>

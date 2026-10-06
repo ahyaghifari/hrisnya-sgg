@@ -10,20 +10,32 @@
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
                 <label class="form-label">Karyawan <span style="color:var(--danger-text);">*</span></label>
-                <select data-tom-select data-placeholder="Pilih karyawan" wire:model="user_id" class="form-input">
+                <select data-tom-select data-placeholder="Pilih karyawan" wire:model.live="user_id" class="form-input">
                     <option value="">Pilih karyawan</option>
                     @foreach ($this->employeeOptions as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
                     @endforeach
                 </select>
                 @error('user_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                @if ($user_id)
+                    <p style="font-size:12.5px;color:var(--text-muted);margin:6px 0 0;">
+                        Atasan langsung:
+                        @if ($this->supervisor)
+                            <strong style="color:var(--text-heading);">{{ $this->supervisor->name }}</strong>
+                            {{ $this->supervisor->activeJobPosition?->jobPosition?->name ? '(' . $this->supervisor->activeJobPosition->jobPosition->name . ')' : '' }}
+                            &middot; ikut menandatangani setelah yang mengetahui.
+                        @else
+                            tidak ditemukan.
+                        @endif
+                    </p>
+                @endif
             </div>
 
             <div>
                 <label class="form-label">Mengetahui <span style="color:var(--danger-text);">*</span></label>
                 <select data-tom-select data-placeholder="Pilih yang mengetahui" wire:model="knows_by" class="form-input">
                     <option value="">Pilih yang mengetahui</option>
-                    @foreach ($this->employeeOptions as $id => $name)
+                    @foreach ($this->knowsByOptions as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
                     @endforeach
                 </select>
@@ -46,7 +58,7 @@
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
                 <label class="form-label">Dasar Klarifikasi <span style="color:var(--danger-text);">*</span></label>
-                @include('livewire.sp.partials.dasar-items-editor', ['idPrefix' => 'trix-ba-dasar'])
+                @include('livewire.sp.partials.reason-items-editor', ['field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
             </div>
 
             <div>

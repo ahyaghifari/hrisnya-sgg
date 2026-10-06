@@ -20,7 +20,7 @@ enum SpReportStatus: string implements HasLabel
     {
         return match ($this) {
             self::DRAFT => 'Draft',
-            self::MENUNGGU_KLARIFIKASI => 'Menunggu Klarifikasi Karyawan',
+            self::MENUNGGU_KLARIFIKASI => 'Menyusun Klarifikasi',
             self::KLARIFIKASI_DIAJUKAN => 'Klarifikasi Diajukan',
             self::MENUNGGU_TTD => 'Menunggu Tanda Tangan',
             self::SELESAI => 'Selesai',

@@ -23,6 +23,15 @@ enum SpLevel: string implements HasLabel
         };
     }
 
+    /** Level di atasnya (SP3 tetap SP3) - saran level untuk pelanggaran berulang. */
+    public function next(): self
+    {
+        return match ($this) {
+            self::SP1 => self::SP2,
+            default => self::SP3,
+        };
+    }
+
     public function getColor(): string
     {
         return match ($this) {

@@ -118,6 +118,12 @@
             <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Cari nama atau NIP..." style="padding-left:38px;">
         </div>
     </div>
+
+    <button type="button" wire:click="exportExcel" wire:loading.attr="disabled" wire:target="exportExcel" class="btn-ghost" title="Unduh Excel sesuai mode, tanggal, dan filter yang sedang dipilih">
+        <i class="fa-solid fa-file-excel" wire:loading.remove wire:target="exportExcel"></i>
+        <i class="fa-solid fa-circle-notch fa-spin" wire:loading wire:target="exportExcel" style="display:none;"></i>
+        Export Excel
+    </button>
 </div>
 
 {{-- Filter tipe jadwal (berlaku untuk mode harian maupun periode): Fixed / Flexible / Shift. Klik lagi = semua. --}}

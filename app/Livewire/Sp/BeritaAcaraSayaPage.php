@@ -22,8 +22,6 @@ class BeritaAcaraSayaPage extends Component
 {
     public SpReport $record;
 
-    public string $klarifikasi = '';
-
     public string $alasan_ajukan_ulang = '';
 
     public function mount(SpReport $record): void
@@ -33,7 +31,6 @@ class BeritaAcaraSayaPage extends Component
         abort_if($record->status->value === 'draft', 404);
 
         $this->record = $record;
-        $this->klarifikasi = (string) $record->subject_clarification;
     }
 
     /** HC baru memparafrase/menganalisis setelah klarifikasi diajukan - sebelum dikirim untuk TTD
@@ -70,16 +67,6 @@ class BeritaAcaraSayaPage extends Component
         $this->record->refresh()->unsetRelation('document');
 
         Notification::make()->title($success)->success()->send();
-    }
-
-    public function submitClarification(): void
-    {
-        $this->run(fn ($s) => $s->submitClarification($this->record, Auth::user(), $this->klarifikasi), 'Klarifikasi diajukan');
-    }
-
-    public function delegateToHc(): void
-    {
-        $this->run(fn ($s) => $s->delegateClarificationToHc($this->record, Auth::user()), 'HC akan mengisikan klarifikasi Anda');
     }
 
     public function requestReclarification(): void

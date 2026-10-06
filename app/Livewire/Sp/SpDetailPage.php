@@ -3,7 +3,9 @@
 namespace App\Livewire\Sp;
 
 use App\Enum\CustomPermissionEnum;
+use App\Livewire\Sp\Concerns\HasReasonItems;
 use App\Models\Sp\EmployeeSp;
+use App\Models\Sp\SpReason;
 use App\Models\User;
 use App\Services\Sp\SpService;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +37,8 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Detail Surat Peringatan'])]
 class SpDetailPage extends Component
 {
+    use HasReasonItems;
+
     public EmployeeSp $record;
 
     public bool $editingSp = false;
@@ -58,15 +62,15 @@ class SpDetailPage extends Component
 
     public bool $editingItems = false;
 
-    /** @var array<int, string> */
+    /** @var array<int, array{reason: string, note: string}> */
     public array $items = [];
 
     public bool $editingReport = false;
 
     public ?string $nomor = null;
     public ?string $kejadian = null;
-    /** @var array<int, string> */
-    public array $dasar_items = [''];
+    /** @var array<int, array{reason: string, note: string}> */
+    public array $dasar_items = [['reason' => '', 'note' => '']];
     public ?string $subject_clarification = null;
     public ?string $analysis = null;
     public ?string $kesimpulan = null;
@@ -168,7 +172,7 @@ class SpDetailPage extends Component
 
     public function getKnowsByOptionsProperty()
     {
-        return User::whereCompany($this->record->company_id)->orderByName()->get()->pluck('name', 'id');
+        return User::whereCompany($this->record->company_id)->atDepartmentLevel()->orderByName()->get()->pluck('name', 'id');
     }
 
     public function saveSp(): void
@@ -182,6 +186,7 @@ class SpDetailPage extends Component
             'sp_end_date' => ['nullable', 'date', 'after_or_equal:sp_start_date'],
             'sp_knows_by' => ['required', 'exists:users,id'],
         ]);
+        abort_unless($this->knowsByOptions->has($this->sp_knows_by), 403);
 
         $this->record->update([
             'nomor' => $this->sp_nomor,
@@ -229,19 +234,37 @@ class SpDetailPage extends Component
         abort_unless($this->canManage, 403);
         abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
-        $this->items = $this->record->items->pluck('text')->all();
+        $this->items = $this->reasonRowsFrom($this->record->items);
         $this->editingItems = true;
+    }
+
+    protected function reasonCompanyId(): ?string
+    {
+        return $this->record->company_id;
+    }
+
+    /** Pelanggaran sama dengan SP lain karyawan ini yang aktif & terbit (rantai SP) - kecuali SP ini sendiri. */
+    public function getRepeatOptionsProperty(): array
+    {
+        $options = [];
+
+        foreach (EmployeeSp::active()->issued()->where('user_id', $this->record->user_id)->whereKeyNot($this->record->id)->with('items.reason')->orderBy('start_date')->get() as $sp) {
+            foreach ($sp->items->whereNotNull('reason_id') as $item) {
+                $options["repeat:{$sp->id}:{$item->reason_id}"] = "{$item->reason?->name} - berulang dari {$sp->sp_level->getLabel()} ({$sp->nomor})";
+            }
+        }
+
+        return $options;
     }
 
     public function addItem(): void
     {
-        $this->items[] = '';
+        $this->items = $this->addReasonRow($this->items);
     }
 
     public function removeItem(int $index): void
     {
-        unset($this->items[$index]);
-        $this->items = array_values($this->items);
+        $this->items = $this->removeReasonRow($this->items, $index);
     }
 
     public function saveItems(): void
@@ -249,18 +272,26 @@ class SpDetailPage extends Component
         abort_unless($this->canManage, 403);
         abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
-        $texts = array_values(array_filter(array_map('trim', $this->items), fn ($text) => $text !== ''));
+        $rows = array_values(array_filter($this->reasonPayload($this->items), fn ($row) => filled($row['reason_id']) || filled($row['note'])));
 
-        if ($texts === []) {
-            $this->addError('items', 'Minimal 1 uraian.');
+        if ($rows === []) {
+            $this->addError('items', 'Minimal 1 pelanggaran.');
 
             return;
         }
 
+        foreach ($rows as $row) {
+            abort_unless(
+                (! $row['reason_id'] || $this->reasonOptions->has($row['reason_id']))
+                    && (! $row['repeat_sp_id'] || isset($this->repeatOptions["repeat:{$row['repeat_sp_id']}:{$row['reason_id']}"])),
+                403
+            );
+        }
+
         $this->record->items()->delete();
 
-        foreach ($texts as $index => $text) {
-            $this->record->items()->create(['text' => $text, 'sort_order' => $index + 1]);
+        foreach ($rows as $index => $row) {
+            $this->record->items()->create(SpReason::composeItem($row) + ['sort_order' => $index + 1]);
         }
 
         $this->record->load('items');
@@ -283,7 +314,7 @@ class SpDetailPage extends Component
 
         $this->nomor = $this->record?->report?->nomor;
         $this->kejadian = $this->record->report?->kejadian;
-        $this->dasar_items = $this->record->report?->dasarItems->pluck('text')->all() ?: [''];
+        $this->dasar_items = $this->reasonRowsFrom($this->record->report?->dasarItems ?? []);
         $this->subject_clarification = $this->record->report?->subject_clarification;
         $this->analysis = $this->record->report?->analysis;
         $this->kesimpulan = $this->record->report?->kesimpulan;
@@ -304,7 +335,7 @@ class SpDetailPage extends Component
             'kesimpulan' => $this->kesimpulan,
             'followup_plan' => $this->followup_plan,
         ]);
-        $report->syncDasarItems($this->dasar_items);
+        $report->syncDasarItems($this->reasonPayload($this->dasar_items));
 
         $this->record->load('report');
         $this->editingReport = false;
@@ -312,13 +343,12 @@ class SpDetailPage extends Component
 
     public function addDasarItem(): void
     {
-        $this->dasar_items[] = '';
+        $this->dasar_items = $this->addReasonRow($this->dasar_items);
     }
 
     public function removeDasarItem(int $index): void
     {
-        unset($this->dasar_items[$index]);
-        $this->dasar_items = array_values($this->dasar_items) ?: [''];
+        $this->dasar_items = $this->removeReasonRow($this->dasar_items, $index);
     }
 
     /** Modal tanda tangan selesai - muat ulang dokumen & tanda tangannya (bisa jadi terkunci). */

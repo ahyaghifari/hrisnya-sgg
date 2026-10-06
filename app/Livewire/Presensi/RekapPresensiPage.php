@@ -6,6 +6,7 @@ use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Enum\CustomPermissionEnum;
+use App\Exports\Presensi\RekapPresensiExport;
 use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
@@ -29,6 +30,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Rekap presensi portal - padanan /admin/attendance-records?type=report tapi dengan 2 mode:
@@ -715,6 +717,12 @@ class RekapPresensiPage extends Component
 
     public function getTodayRowsProperty()
     {
+        return $this->todayRowsQuery()->paginate(15)->appends($this->queryAppends());
+    }
+
+    /** Query daftar mode harian lengkap dengan filter aktif (status, jadwal, cari) - dipakai tampilan & export. */
+    protected function todayRowsQuery(): Builder
+    {
         $today = $this->harianDay();
 
         return $this->filteredUserQuery()
@@ -735,9 +743,7 @@ class RekapPresensiPage extends Component
                 in_array($this->statusFilter, ['present', 'late', 'permit', 'leave', 'sick'], true),
                 fn ($q) => $q->where('attendance_records.status', $this->statusFilter)
             )
-            ->orderByName()
-            ->paginate(15)
-            ->appends($this->queryAppends());
+            ->orderByName();
     }
 
     // --- Mode kehadiran (jadwal-aware: siapa SEHARUSNYA masuk tanggal ini vs sudah/belum presensi) ---
@@ -868,9 +874,8 @@ class RekapPresensiPage extends Component
         ];
     }
 
-    /** Dipaginate manual (bukan ->paginate() Eloquent) karena sumbernya Collection hasil filter
-     * jadwal di PHP, bukan Query Builder - lihat scheduledUsersForDate(). */
-    public function getKehadiranRowsProperty(): \Illuminate\Pagination\LengthAwarePaginator
+    /** Baris tab Kehadiran setelah filter cari + kartu status - dipakai tampilan & export. */
+    protected function kehadiranFilteredRows(): \Illuminate\Support\Collection
     {
         $rows = $this->kehadiranRowsRaw($this->kehadiranDay());
 
@@ -883,6 +888,15 @@ class RekapPresensiPage extends Component
         if ($this->kehadiranFilter !== '') {
             $rows = $rows->filter(fn ($row) => $row->group === $this->kehadiranFilter)->values();
         }
+
+        return $rows;
+    }
+
+    /** Dipaginate manual (bukan ->paginate() Eloquent) karena sumbernya Collection hasil filter
+     * jadwal di PHP, bukan Query Builder - lihat scheduledUsersForDate(). */
+    public function getKehadiranRowsProperty(): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        $rows = $this->kehadiranFilteredRows();
 
         $perPage = 15;
         $page = $this->getPage();
@@ -921,6 +935,12 @@ class RekapPresensiPage extends Component
     }
 
     public function getMonthlyRowsProperty()
+    {
+        return $this->monthlyRowsQuery()->paginate(15)->appends($this->queryAppends());
+    }
+
+    /** Query agregat per karyawan mode periode - dipakai tampilan & export. */
+    protected function monthlyRowsQuery(): Builder
     {
         [$from, $to] = $this->monthRange;
         $totalDays = Carbon::parse($from)->diffInDays(Carbon::parse($to)) + 1;
@@ -976,9 +996,56 @@ class RekapPresensiPage extends Component
                     ->whereBetween('attendance_records.date', [$from, $to]);
             })
             ->groupBy('users.id')
-            ->orderByName()
-            ->paginate(15)
-            ->appends($this->queryAppends());
+            ->orderByName();
+    }
+
+    // --- Export Excel (mode aktif, ikut semua filter yang sedang dipilih, tanpa paginasi) ---
+
+    public function exportExcel()
+    {
+        $statusLabels = [
+            AttendanceStatus::PRESENT->value => 'Hadir',
+            AttendanceStatus::LATE->value => 'Terlambat',
+            AttendanceStatus::PERMIT->value => 'Izin',
+            AttendanceStatus::LEAVE->value => 'Cuti',
+            AttendanceStatus::SICK->value => 'Sakit',
+            AttendanceStatus::OVERTIME->value => 'Lembur',
+            AttendanceStatus::ABSENT->value => 'Tidak Hadir',
+        ];
+        $time = fn (?string $t) => $t ? substr($t, 0, 5) : '';
+
+        if ($this->mode === 'bulanan') {
+            [$from, $to] = $this->monthRange;
+            $label = "periode-{$from}-sd-{$to}";
+            $headings = ['NIP', 'Nama', 'Hadir', 'Tidak Hadir', 'Terlambat (kali)', 'Total Menit Terlambat', 'Izin (jam)', 'Cuti (hari)', 'Lembur Disetujui (jam)', 'Total Jam Kerja', 'Rata-rata Jam Kerja'];
+            $rows = $this->monthlyRowsQuery()->with('employee')->get()->map(fn ($r) => [
+                $r->nip, $r->name, $r->present_count, $r->absent_count, $r->late_count, $r->total_late_minutes,
+                $r->permission_hours, $r->leave_days, $r->overtime_hours,
+                round($r->total_working_minutes / 60, 1), $r->avg_working_hours,
+            ]);
+        } elseif ($this->mode === 'kehadiran') {
+            $label = 'kehadiran-' . $this->kehadiranDay();
+            $headings = ['NIP', 'Nama', 'Status', 'Keterangan Izin/Cuti', 'Jam Masuk', 'Jam Pulang'];
+            $rows = $this->kehadiranFilteredRows()->map(fn ($r) => [
+                $r->nip, $r->name,
+                $statusLabels[$r->status] ?? 'Belum Presensi',
+                $r->izin_label, $time($r->check_in_time), $time($r->check_out_time),
+            ]);
+        } else {
+            $label = 'harian-' . $this->harianDay();
+            $headings = ['NIP', 'Nama', 'Status', 'Jam Masuk', 'Jam Pulang', 'Terlambat (menit)', 'Jam Kerja'];
+            $rows = $this->todayRowsQuery()->with('employee')->get()->map(fn ($r) => [
+                $r->nip, $r->name,
+                $statusLabels[$r->status] ?? 'Belum Presensi',
+                $time($r->check_in_time), $time($r->check_out_time),
+                (int) $r->late_minutes, $r->working_minutes > 0 ? round($r->working_minutes / 60, 1) : '',
+            ]);
+        }
+
+        return Excel::download(
+            new RekapPresensiExport($headings, $rows->all()),
+            "rekap-presensi-{$label}.xlsx",
+        );
     }
 
     // --- Modal detail harian (klik baris di mode bulanan) ---

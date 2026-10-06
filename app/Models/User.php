@@ -301,6 +301,12 @@ class User extends Authenticatable implements FilamentUser
             ->where(fn ($q) => $q->where('nama_lengkap', 'like', "%{$term}%")->orWhere('nip', 'like', "%{$term}%")));
     }
 
+    /** Pemegang jabatan aktif di level Departemen (manajer/atasan), bukan Divisi - dipakai untuk penanda tangan "Mengetahui". */
+    public function scopeAtDepartmentLevel(Builder $query): Builder
+    {
+        return $query->whereHas('activeJobPosition.jobPosition.orgStructure', fn ($q) => $q->where('level', \App\Enum\OrgStructurLevel::LEVEL_DEPARTMENT->value));
+    }
+
     public function scopeOrderByName(Builder $query, string $direction = 'asc'): Builder
     {
         return $query->orderBy(
