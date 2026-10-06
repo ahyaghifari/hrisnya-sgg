@@ -72,6 +72,22 @@ class ApprovalTimelineService
             ];
         }
 
+        // Pembatalan oleh admin (panel admin) tidak membawa step_order - dia bukan aksi step
+        // approval manapun, jadi dipasang sebagai entri penutup supaya tetap kelihatan di portal.
+        $adminCancel = $request->approvalHistories
+            ->where('action', 'cancelled')
+            ->filter(fn ($history) => ! isset($history->metadata['step_order']))
+            ->last();
+
+        if ($adminCancel) {
+            $timeline[] = [
+                'label' => 'Dibatalkan',
+                'actor' => $adminCancel->actor_name,
+                'date' => $adminCancel->created_at,
+                'state' => 'cancelled',
+            ];
+        }
+
         return $timeline;
     }
 
