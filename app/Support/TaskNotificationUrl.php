@@ -15,6 +15,11 @@ class TaskNotificationUrl
             return route('sp.saya.show', $data['employee_sp_id']);
         }
 
+        // Pengumuman admin -> halaman detail pengumuman.
+        if (! empty($data['announcement_id'])) {
+            return route('pengumuman.show', $data['announcement_id']);
+        }
+
         // Notifikasi "Menunggu Tanda Tangan Anda" (TTE Fase 1) -> halaman tanda tangan generik
         // (routes/documents.php), BUKAN sp.saya.show (itu cuma buat pemilik dokumen sendiri).
         if (! empty($data['document_sign_id'])) {

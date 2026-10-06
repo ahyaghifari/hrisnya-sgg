@@ -14,7 +14,7 @@ class Announcement extends Model
 {
     use HasUlids;
 
-    protected $fillable = ['company_id', 'title', 'body', 'status', 'published_at', 'created_by', 'published_by'];
+    protected $fillable = ['company_id', 'title', 'summary', 'body', 'status', 'published_at', 'created_by', 'published_by'];
 
     protected $casts = ['published_at' => 'datetime'];
 
@@ -103,13 +103,15 @@ class Announcement extends Model
             $orgNodes = function (string $parentId, string $path) use (&$orgNodes, $orgsByParent, $positionsByOrg, $positionNodes) {
                 return $orgsByParent->get($parentId, collect())->map(function ($org) use (&$orgNodes, $positionsByOrg, $positionNodes, $path) {
                     $here = $path . ' › ' . $org->name;
-                    $children = [...$orgNodes($org->id, $here), ...$positionNodes($positionsByOrg->get($org->id, collect()), $here)];
+                    // Jabatan langsung di unit ini (mis. Kabag) di atas, baru sub-unitnya.
+                    $children = [...$positionNodes($positionsByOrg->get($org->id, collect()), $here), ...$orgNodes($org->id, $here)];
 
                     return ['name' => $org->name, 'users' => null, 'leaves' => self::leavesOf($children), 'children' => $children];
                 })->all();
             };
 
-            $children = [...$orgNodes('', $company->name), ...$positionNodes($positionsByOrg->get('', collect()), $company->name)];
+            // Jabatan setingkat perusahaan (mis. Direktur) di atas, baru departemen.
+            $children = [...$positionNodes($positionsByOrg->get('', collect()), $company->name), ...$orgNodes('', $company->name)];
 
             return ['name' => $company->name, 'users' => null, 'leaves' => self::leavesOf($children), 'children' => $children];
         })->all();
