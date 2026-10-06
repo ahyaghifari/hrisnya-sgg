@@ -44,6 +44,7 @@ class TaskForm
             self::userSelect('assigned_to', 'Pelaksana Utama'),
             self::userSelect('reviewer_id', 'Reviewer'),
 
+            Toggle::make('is_overdue')->label('Terlambat')->helperText('Diisi otomatis sistem; ubah manual hanya untuk koreksi.'),
             Toggle::make('needs_review')->label('Butuh Review'),
             Toggle::make('notify_creator_on_review')->label('Kabari pembuat saat masuk Review'),
             Toggle::make('notify_creator_on_complete')->label('Kabari pembuat saat selesai'),
