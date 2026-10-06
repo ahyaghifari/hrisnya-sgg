@@ -44,51 +44,74 @@ class Announcement extends Model
     }
 
     /**
-     * Pohon target buat form: Perusahaan > Departemen > Divisi > Sub Divisi > Jabatan. Tiap node
-     * membawa `leaves` (id jabatan di bawahnya) supaya centang node = centang semua jabatannya.
-     * Jabatan tanpa struktur org nempel langsung di perusahaan.
+     * Pohon target buat form, mengikuti struktur organisasi master PER PERUSAHAAN: Perusahaan >
+     * Departemen > Divisi > Sub Divisi > Jabatan. Di dalam satu unit, jabatan disusun menurut
+     * atasannya (parent_id) selama atasannya ada di unit yang sama; kalau atasannya di unit lain
+     * (atau tidak ada), jabatan itu jadi akar di unitnya. Tiap node membawa `leaves` (id jabatan
+     * di bawahnya) supaya centang node = centang semua jabatannya. Jabatan tanpa unit org nempel
+     * langsung di perusahaan. `users` = null untuk perusahaan/unit, jumlah karyawan untuk jabatan.
      *
      * @return array{tree: array, positions: array<string, array{name: string, path: string, users: int}>}
      */
     public static function targetTree(?string $onlyCompanyId = null): array
     {
         $companies = Companies::query()->when($onlyCompanyId, fn ($q) => $q->where('id', $onlyCompanyId))->orderBy('name')->get();
-        $companyIds = $companies->pluck('id');
 
-        $orgsByParent = OrgStructure::query()->whereIn('company_id', $companyIds)->orderBy('name')->get()->groupBy(fn ($o) => $o->parent_id ?? '');
-        $positionsByOrg = JobPositions::query()
-            ->whereIn('company_id', $companyIds)->where('status', 'approved')->orderBy('name')->get()
-            ->groupBy(fn ($p) => $p->org_structure_id ?? '');
+        $allOrgs = OrgStructure::query()->whereIn('company_id', $companies->pluck('id'))->orderBy('name')->get()->groupBy('company_id');
+        $allPositions = JobPositions::query()
+            ->whereIn('company_id', $companies->pluck('id'))->where('status', 'approved')->orderBy('name')->get()->groupBy('company_id');
 
         $userCounts = UserProfiles::query()
             ->whereHas('user', fn ($q) => $q->where('is_active', true))
-            ->whereIn('job_position_id', $positionsByOrg->flatten()->pluck('id'))
+            ->whereIn('job_position_id', $allPositions->flatten()->pluck('id'))
             ->selectRaw('job_position_id, count(*) as total')->groupBy('job_position_id')
             ->pluck('total', 'job_position_id');
 
         $positions = [];
 
-        $positionNodes = function (string $orgId, string $path) use ($positionsByOrg, $userCounts, &$positions) {
-            return $positionsByOrg->get($orgId, collect())->map(function ($p) use ($path, $userCounts, &$positions) {
-                $positions[$p->id] = ['name' => $p->name, 'path' => $path, 'users' => (int) ($userCounts[$p->id] ?? 0)];
+        // Jabatan satu unit ($list), disusun menurut atasan yang ada di unit yang sama.
+        $positionNodes = function ($list, string $path) use (&$positions, $userCounts) {
+            $ids = $list->pluck('id')->all();
+            $byParent = $list->groupBy('parent_id');
+            $seen = [];
 
-                return ['name' => $p->name, 'users' => $positions[$p->id]['users'], 'leaves' => [$p->id], 'children' => []];
-            })->all();
+            $build = function ($position) use (&$build, &$positions, &$seen, $byParent, $userCounts, $path) {
+                $seen[$position->id] = true;
+                $positions[$position->id] = ['name' => $position->name, 'path' => $path, 'users' => (int) ($userCounts[$position->id] ?? 0)];
+
+                $children = $byParent->get($position->id, collect())
+                    ->reject(fn ($child) => isset($seen[$child->id])) // jaga-jaga rantai atasan melingkar
+                    ->map($build)->values()->all();
+
+                return [
+                    'name' => $position->name,
+                    'users' => $positions[$position->id]['users'],
+                    'leaves' => [$position->id, ...self::leavesOf($children)],
+                    'children' => $children,
+                ];
+            };
+
+            $roots = $list->filter(fn ($p) => ! $p->parent_id || ! in_array($p->parent_id, $ids, true));
+
+            return $roots->map($build)->values()->all();
         };
 
-        $orgNodes = function (string $parentId, string $path) use (&$orgNodes, $orgsByParent, $positionNodes) {
-            return $orgsByParent->get($parentId, collect())->map(function ($org) use (&$orgNodes, $positionNodes, $path) {
-                $here = $path . ' › ' . $org->name;
-                $children = [...$orgNodes($org->id, $here), ...$positionNodes($org->id, $here)];
+        $tree = $companies->map(function ($company) use ($allOrgs, $allPositions, $positionNodes) {
+            $orgsByParent = $allOrgs->get($company->id, collect())->groupBy(fn ($o) => $o->parent_id ?? '');
+            $positionsByOrg = $allPositions->get($company->id, collect())->groupBy(fn ($p) => $p->org_structure_id ?? '');
 
-                return ['name' => $org->name, 'leaves' => self::leavesOf($children), 'children' => $children];
-            })->all();
-        };
+            $orgNodes = function (string $parentId, string $path) use (&$orgNodes, $orgsByParent, $positionsByOrg, $positionNodes) {
+                return $orgsByParent->get($parentId, collect())->map(function ($org) use (&$orgNodes, $positionsByOrg, $positionNodes, $path) {
+                    $here = $path . ' › ' . $org->name;
+                    $children = [...$orgNodes($org->id, $here), ...$positionNodes($positionsByOrg->get($org->id, collect()), $here)];
 
-        $tree = $companies->map(function ($company) use ($orgNodes, $positionNodes) {
-            $children = [...$orgNodes('', $company->name), ...$positionNodes('', $company->name)];
+                    return ['name' => $org->name, 'users' => null, 'leaves' => self::leavesOf($children), 'children' => $children];
+                })->all();
+            };
 
-            return ['name' => $company->name, 'leaves' => self::leavesOf($children), 'children' => $children];
+            $children = [...$orgNodes('', $company->name), ...$positionNodes($positionsByOrg->get('', collect()), $company->name)];
+
+            return ['name' => $company->name, 'users' => null, 'leaves' => self::leavesOf($children), 'children' => $children];
         })->all();
 
         return ['tree' => $tree, 'positions' => $positions];

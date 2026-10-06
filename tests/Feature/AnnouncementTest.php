@@ -37,8 +37,20 @@ class AnnouncementTest extends TestCase
         $other = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
         UserProfiles::forceCreate(['user_id' => $other->id, 'job_position_id' => $skipped->id]);
 
-        $tree = Announcement::targetTree();
-        $this->assertSame([$kept->id, $skipped->id], collect($tree['tree'][0]['leaves'])->sort()->values()->all() ?: []);
+        // Perusahaan lain dengan unit & jabatan sendiri: tidak boleh bocor ke pohon perusahaan ini,
+        // dan jabatan bawahan (atasan di unit yang sama) tersusun di bawah atasannya.
+        $companyB = Companies::forceCreate(['id' => '01J2F0C8KQ9M7D4S8RBX6E1ZVQ', 'code' => 'BBB', 'name' => 'Beta', 'location' => 'B', 'is_active' => true]);
+        $deptB = OrgStructure::forceCreate(['company_id' => $companyB->id, 'name' => 'Dept B', 'level' => 'DEPARTMENT']);
+        $posB = JobPositions::forceCreate(['company_id' => $companyB->id, 'org_structure_id' => $deptB->id, 'name' => 'Staf B', 'status' => 'approved']);
+        $skipped->update(['parent_id' => $kept->id]);
+
+        $tree = Announcement::targetTree()['tree'];
+        $this->assertSame(['Beta', 'Global'], array_column($tree, 'name'));
+        $this->assertSame([$posB->id], $tree[0]['leaves']);
+        $this->assertSame([$kept->id, $skipped->id], collect($tree[1]['leaves'])->sort()->values()->all());
+        $this->assertSame(['Dept A', 'Dept Kosong'], array_column($tree[1]['children'], 'name'));
+        $this->assertSame($kept->id, $tree[1]['children'][0]['children'][0]['leaves'][0]);
+        $this->assertSame('Kepala', $tree[1]['children'][0]['children'][0]['children'][0]['name']);
 
         Livewire::actingAs($admin)->test(CreateAnnouncement::class)
             ->fillForm(['title' => 'Libur', 'body' => 'Besok libur', 'job_position_ids' => [$kept->id]])
