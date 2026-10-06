@@ -22,6 +22,19 @@
     // Task::due_date sengaja tidak di-cast ke date di model (lihat komentar di Task.php) — parse
     // manual di sini, bukan panggil ->translatedFormat() langsung di atas string mentah.
     $fmtDate = fn ($d, $f = 'j M') => $d ? \Carbon\Carbon::parse($d)->translatedFormat($f) : null;
+    // Warna tenggat di kartu: lewat = hitam/teks putih, hari H = merah, H-2..H-1 = oranye. Tugas Selesai tanpa warna.
+    $dueStyle = function ($task) {
+        if (! $task->due_date || $task->status === TaskStatus::COMPLETE->value) return '';
+        $due = \Carbon\Carbon::parse($task->due_date);
+        $days = now()->startOfDay()->diffInDays($due->copy()->startOfDay(), false);
+        $base = 'padding:1px 6px;border-radius:4px;';
+        return match (true) {
+            $due->isPast() => $base . 'background:#000;color:#fff;',
+            $days <= 0 => $base . 'background:#dc2626;color:#fff;',
+            $days <= 2 => $base . 'background:#f97316;color:#fff;',
+            default => '',
+        };
+    };
     // Map getColor() (gray/warning/info/success/danger) ke class .badge-* yang ada di app.css.
     $badgeClass = fn (string $color) => match ($color) {
         'warning' => 'badge-pending',
@@ -57,6 +70,8 @@
     .task-card.sortable-fallback { opacity: 0.95 !important; box-shadow: 0 14px 30px rgba(15,23,42,0.35); transform-origin: center; z-index: 10005 !important; pointer-events: none; transition: none !important; will-change: transform; }
     .task-card:hover { box-shadow: 0 8px 20px rgba(15,23,42,0.12); transform: translateY(-1px); }
     html.dark .task-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
+    :root { --new-item-bg: rgba(22,163,74,.12); }
+    html.dark { --new-item-bg: rgba(74,222,128,.14); }
     .task-card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
     .task-card-title { font-size: 13px; font-weight: 600; color: var(--text-heading); line-height: 1.4; margin: 0; flex: 1; min-width: 0; }
     .task-card-avatar { flex-shrink: 0; margin-top: 1px; }
@@ -470,7 +485,7 @@
                                 @endif
                                 <span>Ke <strong>{{ $task->assignedTo?->name ?? '-' }}</strong></span>
                                 @if ($task->due_date)
-                                    <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>
+                                    <span style="{{ $dueStyle($task) }}"><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>
                                 @endif
                                 @if ($task->is_overdue) <span class="badge badge-rejected">Terlambat</span> @endif
                             </div>
@@ -589,10 +604,10 @@
                                             </span>
                                             @if ($task->needs_review) <span title="Wajib direview"><i class="fa-solid fa-clipboard-check"></i></span> @endif
                                             @if ($task->checklistItems->isNotEmpty())
-                                                <span><i class="fa-solid fa-square-check"></i> {{ $task->checklistItems->where('is_done', true)->count() }}/{{ $task->checklistItems->count() }}</span>
+                                                <span><i class="fa-solid fa-square-check"></i> {{ $task->checklistItems->where('is_done', true)->count() }}/{{ $task->checklistItems->count() }} @include("livewire.task.partials.unread-bubble", ["kind" => "checklist_done"])</span>
                                             @endif
                                             @if ($task->due_date)
-                                                <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M, H:i') }}</span>
+                                                <span style="{{ $dueStyle($task) }}"><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M, H:i') }}</span>
                                             @endif
                                             @if ($task->recurrence) <span title="{{ \App\Models\Task\Task::RECURRENCES[$task->recurrence] }}"><i class="fa-solid fa-rotate"></i></span> @endif
                                             @if ($task->is_overdue) <span class="badge badge-rejected">Terlambat</span> @endif
@@ -612,8 +627,8 @@
                                             @endif
                                         @endif
                                         <div class="task-card-footer">
-                                            <span><i class="fa-solid fa-paperclip"></i> {{ $task->attachments_count }}</span>
-                                            <span><i class="fa-regular fa-comment"></i> {{ $task->comments->count() }}</span>
+                                            <span><i class="fa-solid fa-paperclip"></i> {{ $task->attachments_count }} @include("livewire.task.partials.unread-bubble", ["kind" => "attachment_added"])</span>
+                                            <span><i class="fa-regular fa-comment"></i> {{ $task->comments->count() }} @include("livewire.task.partials.unread-bubble", ["kind" => "comment_added"])</span>
                                             @if ($task->rating)
                                                 <span><i class="fa-solid fa-star" style="color:#f5a524;"></i> {{ $task->rating }}</span>
                                             @endif
@@ -691,10 +706,10 @@
                                         <div class="task-card-meta">
                                             <span class="task-card-priority"><span class="dot"></span> {{ $task->priority?->getLabel() ?? $task->priority }}</span>
                                             @if ($task->checklistItems->isNotEmpty())
-                                                <span><i class="fa-solid fa-square-check"></i> {{ $task->checklistItems->where('is_done', true)->count() }}/{{ $task->checklistItems->count() }}</span>
+                                                <span><i class="fa-solid fa-square-check"></i> {{ $task->checklistItems->where('is_done', true)->count() }}/{{ $task->checklistItems->count() }} @include("livewire.task.partials.unread-bubble", ["kind" => "checklist_done"])</span>
                                             @endif
                                             @if ($task->due_date)
-                                                <span><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M, H:i') }}</span>
+                                                <span style="{{ $dueStyle($task) }}"><i class="fa-regular fa-calendar" style="font-size:10px;"></i> {{ $fmtDate($task->due_date, 'j M, H:i') }}</span>
                                             @endif
                                             @if ($task->is_overdue) <span class="badge badge-rejected">Terlambat</span> @endif
                                         </div>
@@ -734,8 +749,8 @@
 
                                         @unless ($task->is_self_assigned)
                                             <div class="task-card-footer">
-                                                <span><i class="fa-solid fa-paperclip"></i> {{ $task->attachments_count }}</span>
-                                                <span><i class="fa-regular fa-comment"></i> {{ $task->comments->count() }}</span>
+                                                <span><i class="fa-solid fa-paperclip"></i> {{ $task->attachments_count }} @include("livewire.task.partials.unread-bubble", ["kind" => "attachment_added"])</span>
+                                                <span><i class="fa-regular fa-comment"></i> {{ $task->comments->count() }} @include("livewire.task.partials.unread-bubble", ["kind" => "comment_added"])</span>
                                                 @if ($task->rating)
                                                     <span><i class="fa-solid fa-star" style="color:#f5a524;"></i> {{ $task->rating }}</span>
                                                 @endif
@@ -1103,9 +1118,9 @@
                         <span class="badge {{ $badgeClass(TaskStatus::tryFrom($task->status)?->getColor() ?? 'gray') }}">{{ TaskStatus::tryFrom($task->status)?->getLabel() ?? $task->status }}</span>
                         <span class="task-card-priority" style="--accent:{{ $priorityAccent($task->priority?->getColor() ?? 'gray') }};font-size:13px;"><span class="dot"></span> {{ $task->priority?->getLabel() ?? $task->priority }}</span>
                         @if ($canEdit)
-                            <input type="datetime-local" class="form-input" style="width:auto;padding:3px 8px;font-size:12px;" title="Tenggat" value="{{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('Y-m-d\TH:i') : '' }}" wire:change="setTaskDueDate('{{ $task->id }}', $event.target.value)">
+                            <input type="datetime-local" class="form-input" style="width:auto;padding:3px 8px;font-size:12px;{{ $dueStyle($task) }}" title="Tenggat" value="{{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('Y-m-d\TH:i') : '' }}" wire:change="setTaskDueDate('{{ $task->id }}', $event.target.value)">
                         @elseif ($task->due_date)
-                            <span style="color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;"><i class="fa-regular fa-calendar" style="font-size:11px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>
+                            <span style="color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;{{ $dueStyle($task) }}"><i class="fa-regular fa-calendar" style="font-size:11px;"></i> {{ $fmtDate($task->due_date, 'j M Y, H:i') }}</span>
                         @endif
                         @if ($canEdit && $task->project_id && $task->due_date)
                             <label title="Ulangi: {{ $task->recurrence ? \App\Models\Task\Task::RECURRENCES[$task->recurrence] : 'Tidak berulang' }}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:28px;height:28px;padding:0 8px;border:1px solid {{ $task->recurrence ? 'var(--primary,#2563eb)' : 'var(--border-color,#d1d5db)' }};border-radius:8px;cursor:pointer;font-size:12px;color:{{ $task->recurrence ? 'var(--primary,#2563eb)' : 'var(--text-muted)' }};">
@@ -1296,7 +1311,7 @@
                         <div data-checklist-list data-task-id="{{ $task->id }}" data-sortable-enabled="{{ $canToggleChecklist ? 1 : 0 }}">
                         @forelse ($task->checklistItems as $item)
                             @php $canCheckItem = $canToggleChecklist && (! $item->assigned_to || $item->assigned_to === auth()->id() || $isBoardOwner); @endphp
-                            <div wire:key="cl-{{ $item->id }}" data-item-id="{{ $item->id }}" class="task-checklist-row {{ $canToggleChecklist ? 'is-draggable' : '' }}" style="display:flex;align-items:center;gap:8px;margin-bottom:{{ $canToggleChecklist ? '6px' : '5px' }};{{ $canToggleChecklist ? 'cursor:grab;' : '' }}">
+                            <div wire:key="cl-{{ $item->id }}" data-item-id="{{ $item->id }}" class="task-checklist-row {{ $canToggleChecklist ? 'is-draggable' : '' }}" style="{{ $this->isNewItem($item->done_at, $item->done_by) ? "background:var(--new-item-bg);" : "" }}display:flex;align-items:center;gap:8px;margin-bottom:{{ $canToggleChecklist ? '6px' : '5px' }};{{ $canToggleChecklist ? 'cursor:grab;' : '' }}">
                                 @if ($editingChecklistItemId === $item->id)
                                     <input type="text" wire:model="editingChecklistItemTitle" wire:keydown.enter="updateChecklistItem" wire:keydown.escape="cancelEditChecklistItem" class="form-input" style="font-size:13px;padding:4px 8px;height:auto;flex:1;" autofocus>
                                     <button type="button" wire:click="updateChecklistItem" style="background:none;border:none;color:var(--brand-success);cursor:pointer;"><i class="fa-solid fa-check"></i></button>
@@ -1440,7 +1455,7 @@
                                     $isImage = ! $attachment->isLink() && preg_match('/\.(jpe?g|png|gif|webp)$/i', $attachment->file_path ?? '');
                                     $ext = $attachment->isLink() ? 'LINK' : strtoupper(pathinfo($attachment->file_path ?? '', PATHINFO_EXTENSION) ?: 'FILE');
                                 @endphp
-                                <div x-data="{ open: false }" style="display:flex;align-items:center;gap:12px;padding:8px;border-radius:10px;background:var(--surface-alt);">
+                                <div x-data="{ open: false }" style="display:flex;align-items:center;gap:12px;padding:8px;border-radius:10px;background:var(--surface-alt);{{ $this->isNewItem($attachment->created_at, $attachment->uploaded_by) ? "background:var(--new-item-bg);" : "" }}">
                                     @if ($isImage)
                                         <img src="{{ $attachment->file_url }}" @click="open = true" style="width:48px;height:48px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;" alt="{{ $attachment->file_name }}">
                                         {{-- Lightbox: layout (flex tengah) di CSS class, bukan inline style - x-show membuang display inline saat tampil, bikin gambar nggak di tengah. --}}
@@ -1570,7 +1585,7 @@
                         </div>
                         <div class="task-list-scroll" style="display:flex;flex-direction:column;gap:14px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;">
                             @forelse ($topComments as $comment)
-                                <div style="font-size:13.5px;">
+                                <div style="font-size:13.5px;border-radius:8px;padding:8px 10px;{{ $this->isNewItem($comment->created_at, $comment->user_id) ? "background:var(--new-item-bg);" : "" }}">
                                     <div style="display:flex;gap:9px;">
                                         <x-avatar :user="$comment->user" :size="26" />
                                         <div style="min-width:0;">
@@ -1584,7 +1599,7 @@
                                     </div>
                                     {{-- Balasan: 1 tingkat saja - nggak ada tombol Balas di sini. --}}
                                     @foreach ($repliesByParent->get($comment->id, collect()) as $reply)
-                                        <div style="display:flex;gap:8px;margin:10px 0 0 35px;padding-left:10px;border-left:2px solid var(--border-soft);">
+                                        <div style="display:flex;gap:8px;margin:10px 0 0 35px;padding-left:10px;border-left:2px solid var(--border-soft);border-radius:8px;padding:6px 10px;{{ $this->isNewItem($reply->created_at, $reply->user_id) ? "background:var(--new-item-bg);" : "" }}">
                                             <x-avatar :user="$reply->user" :size="22" />
                                             <div style="min-width:0;">
                                                 <span style="font-weight:700;">{{ $reply->user?->name }}</span>

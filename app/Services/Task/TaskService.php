@@ -1239,6 +1239,7 @@ class TaskService
             'parent_id' => $parent?->id,
             'comment' => $comment,
         ]);
+        $this->logActivity($task, $user, 'comment_added', 'Menambahkan komentar');
 
         $mentioned = $this->mentionedUsers($task, $comment, $user);
         $mentioned->each->notify(new TaskMentioned($task, $user->name, $comment));
