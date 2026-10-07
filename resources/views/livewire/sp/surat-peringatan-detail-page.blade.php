@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Detail Surat Peringatan" :back="route('profil-saya')" />
+<x-page-header title="Detail Surat Peringatan" :back="route('pembinaan.saya')" />
 
 @include('livewire.document.partials.sign-banner')
 

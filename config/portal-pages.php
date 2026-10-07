@@ -548,6 +548,12 @@ return [
         'guard' => null,
     ],
 
+    'pembinaan.saya' => [
+        'label' => 'Pembinaan Saya',
+        'permission' => \App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value,
+        'guard' => null,
+    ],
+
     'coaching' => [
         // Dua jalur akses beda scope (instruksi user 2026-07-26): permission Shield
         // ViewAny:Coaching (role HC khusus, company-wide) ATAU sekadar punya staff (scoped ke

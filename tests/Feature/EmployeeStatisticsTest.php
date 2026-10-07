@@ -757,7 +757,7 @@ class EmployeeStatisticsTest extends TestCase
         $user->givePermissionTo(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value);
     }
 
-    public function test_owner_sees_pembinaan_saya_tab_with_own_coaching(): void
+    public function test_owner_does_not_see_pembinaan_tab_on_own_profile(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $staff = User::factory()->create(['company_id' => $company->id]);
@@ -775,8 +775,8 @@ class EmployeeStatisticsTest extends TestCase
         $this->actingAs($staff);
 
         Livewire::test(EmployeeStatistics::class, ['record' => $staff])
-            ->assertSee('ico/pembinaan.png')
-            ->assertSee('Coaching Kedisiplinan');
+            ->assertDontSee('ico/pembinaan.png')
+            ->assertDontSee('Coaching Kedisiplinan');
     }
 
     public function test_manager_without_pembinaan_permission_sees_tab_for_subordinate(): void

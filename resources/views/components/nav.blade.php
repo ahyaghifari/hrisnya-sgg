@@ -50,6 +50,11 @@
                         <i class="fa-solid fa-file-lines text-xs"></i> Pengajuan Absensi
                     </a>
                 @endif
+                @if ($canAccessPembinaanSaya)
+                    <a href="{{ route('pembinaan.saya') }}" wire:navigate class="nav-item {{ request()->routeIs(['pembinaan.saya', 'sp.saya*']) ? 'active' : '' }}">
+                        <i class="fa-solid fa-comment-dots text-xs"></i> Pembinaan Saya
+                    </a>
+                @endif
                 {{-- "Status Saya" (Orientasi / Perpanjangan Kontrak / Karyawan Tetap) dipindah
                      ke Profil Saya → kartu Status Kepegawaian → tombol aksi sesuai status
                      berjalan (2026-09-08). --}}

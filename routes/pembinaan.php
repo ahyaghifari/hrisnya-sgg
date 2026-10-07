@@ -5,6 +5,7 @@ use App\Livewire\Coaching\CoachingPage;
 use App\Livewire\Coaching\CreateCoachingPage;
 use App\Livewire\Counseling\CounselingDetailPage;
 use App\Livewire\Counseling\CounselingManagePage;
+use App\Livewire\Pembinaan\PembinaanSayaPage;
 use App\Livewire\Pembinaan\PembinaanSettingsPage;
 use App\Livewire\Sp\BeritaAcaraDetailPage;
 use App\Livewire\Sp\BeritaAcaraSayaPage;
@@ -25,11 +26,13 @@ use Illuminate\Support\Facades\Route;
  * Route modul Pembinaan Karyawan (eks-Coaching & Counseling). Dipisah dari routes/web.php
  * (2026-09-04) - lihat komentar di routes/sikartap.php untuk konvensi split per-modul.
  */
-// Coaching/Counseling/SP "Saya" sekarang tab Pembinaan di Profil Saya (instruksi user 2026-10-05);
-// URL lama diarahkan ke sana supaya bookmark/notifikasi lama tidak 404.
-Route::redirect('/coaching', '/profil-saya');
-Route::redirect('/counseling', '/profil-saya');
-Route::redirect('/surat-peringatan', '/profil-saya');
+// Coaching/Counseling/SP milik sendiri: SATU halaman "Pembinaan Saya" (menu terpisah). Tab Pembinaan di
+// Profil cuma untuk melihat profil ORANG LAIN. URL lama diarahkan ke sini supaya bookmark tidak 404.
+Route::get('/pembinaan-saya', PembinaanSayaPage::class)
+    ->name('pembinaan.saya');
+Route::redirect('/coaching', '/pembinaan-saya');
+Route::redirect('/counseling', '/pembinaan-saya');
+Route::redirect('/surat-peringatan', '/pembinaan-saya');
 
 Route::get('/surat-peringatan/{record}', SuratPeringatanDetailPage::class)
     ->name('sp.saya.show');

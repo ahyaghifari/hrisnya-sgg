@@ -1126,13 +1126,10 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
 @endif
 
 @if ($this->canViewPembinaanTab)
-    {{-- Pembinaan — profil sendiri (punya PEMBINAAN_SAYA): SATU daftar Coaching + Counseling + SP berlabel
-    jenis (komponen membaca Auth::id(), bukan $record, dan counseling rahasia, jadi jangan dipakai di profil
-    orang lain). Selain itu (atasan / pemegang SISTEM_PEMBINAAN_KARYAWAN): cuma Coaching karyawan ini. --}}
+    {{-- Pembinaan — profil ORANG LAIN (atasan / pemegang SISTEM_PEMBINAAN_KARYAWAN): cuma Coaching karyawan ini.
+    Daftar pembinaan milik sendiri ada di halaman "Pembinaan Saya" (komponen itu membaca Auth::id() dan
+    counseling rahasia, jadi jangan dipakai di profil orang lain). --}}
     <div x-show="tab === 'pembinaan'">
-        @if ($this->isOwnProfile && auth()->user()->can(\App\Enum\CustomPermissionEnum::PEMBINAAN_SAYA->value))
-            <livewire:pembinaan.pembinaan-saya-list />
-        @else
         @php $coachings = $this->myCoachings; @endphp
 
         <div class="pwa-list">
@@ -1160,7 +1157,6 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
                 </div>
             @endforelse
         </div>
-        @endif
     </div>
 @endif
 
