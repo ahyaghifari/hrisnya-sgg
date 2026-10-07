@@ -14,9 +14,16 @@ class Announcement extends Model
 {
     use HasUlids;
 
-    protected $fillable = ['company_id', 'title', 'summary', 'body', 'status', 'published_at', 'created_by', 'published_by'];
+    protected $fillable = ['company_id', 'title', 'summary', 'tone', 'delivery', 'banner_until', 'body', 'status', 'published_at', 'created_by', 'published_by'];
 
-    protected $casts = ['published_at' => 'datetime'];
+    protected $casts = ['published_at' => 'datetime', 'banner_until' => 'date'];
+
+    public const DELIVERY = ['notification' => 'Notifikasi saja', 'banner' => 'Banner Beranda saja', 'both' => 'Notifikasi + Banner Beranda'];
+
+    public function sendsNotification(): bool
+    {
+        return $this->delivery !== 'banner';
+    }
 
     public function isPublished(): bool
     {
