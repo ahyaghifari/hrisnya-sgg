@@ -263,7 +263,7 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
         return $table
             ->query(
                 JobApplication::query()
-                    ->with(['answers' => fn ($q) => $q->whereIn('field_key', ['full_name', 'gender', 'education_level']), 'user'])
+                    ->with(['answers' => fn ($q) => $q->whereIn('field_key', ['full_name', 'birth_place', 'birth_date', 'gender', 'domicile', 'education_level']), 'user'])
                     ->when(
                         $this->jobOpeningId,
                         fn (Builder $q) => $q->where('job_opening_id', $this->jobOpeningId),
@@ -280,6 +280,22 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
                     ->state(fn ($record) => $record->answers->firstWhere('field_key', 'gender')?->value ?? '—'),
                 TextColumn::make('education_level')->label('Pendidikan')
                     ->state(fn ($record) => $record->answers->firstWhere('field_key', 'education_level')?->value ?? '—'),
+                TextColumn::make('birth')->label('Usia')
+                    ->icon('heroicon-m-information-circle')->iconPosition('after')->iconColor('gray')
+                    ->state(function ($record) {
+                        $date = $record->answers->firstWhere('field_key', 'birth_date')?->value;
+
+                        return $date ? \Illuminate\Support\Carbon::parse($date)->age . ' th' : '—';
+                    })
+                    ->tooltip(function ($record) {
+                        $place = $record->answers->firstWhere('field_key', 'birth_place')?->value;
+                        $date = $record->answers->firstWhere('field_key', 'birth_date')?->value;
+                        $d = $date ? \Illuminate\Support\Carbon::parse($date)->translatedFormat('d F Y') : null;
+
+                        return trim(($place ?: '') . ($d ? ', ' . $d : ''), ', ') ?: null;
+                    }),
+                TextColumn::make('domicile')->label('Domisili')
+                    ->state(fn ($record) => $record->answers->firstWhere('field_key', 'domicile')?->value ?? '—'),
                 TextColumn::make('status')->label('Status')->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'screening', 'interview' => 'info',
@@ -294,7 +310,7 @@ class ApplicantsPage extends Page implements HasActions, HasForms, HasTable
                         'offering' => 'Offering', 'mcu' => 'MCU', 'onboarding' => 'TTD & Onboarding',
                         'passed' => 'Diterima', 'rejected' => 'Tidak Dilanjutkan', default => $state,
                     }),
-                TextColumn::make('created_at')->label('Tanggal')->dateTime('d M Y, H:i')->sortable(),
+                TextColumn::make('created_at')->label('Mengajukan')->dateTime('d M Y, H:i')->sortable(),
                 TextColumn::make('riwayat_karyawan')->label('Riwayat')->badge()
                     ->state(function ($record) {
                         $matches = $record->formerEmployeeMatches();
