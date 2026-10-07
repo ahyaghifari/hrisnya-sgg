@@ -50,7 +50,6 @@ class AnnouncementResource extends BaseResource
     public static function form(Schema $schema): Schema
     {
         return $schema
-            ->disabled(fn (?Announcement $record) => $record?->isPublished())
             ->components([
                 Grid::make(['default' => 1, 'xl' => 2])->columnSpanFull()->schema([
                     Group::make([
@@ -73,6 +72,8 @@ class AnnouncementResource extends BaseResource
                         ->view('filament.forms.announcement-targets')
                         ->viewData(fn () => static::targetTree())
                         ->default([])
+                        // Penerima dikunci setelah terbit (notifikasi sudah terkirim ke mereka); isi pengumuman tetap bisa diubah.
+                        ->disabled(fn (?Announcement $record) => $record?->isPublished())
                         ->dehydrated(false),
                 ]),
             ]);
