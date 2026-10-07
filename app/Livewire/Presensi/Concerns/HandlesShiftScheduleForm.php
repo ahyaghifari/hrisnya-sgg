@@ -153,6 +153,17 @@ trait HandlesShiftScheduleForm
         ];
     }
 
+    /** Salin baris $index ke baris baru di paling akhir. `id` null (jadi baris baru saat save)
+     * dan `code` dikosongkan supaya user wajib isi inisial baru, bukan kembar. */
+    public function duplicateShiftType(int $index): void
+    {
+        if (! isset($this->shiftTypes[$index])) {
+            return;
+        }
+
+        $this->shiftTypes[] = ['id' => null, 'code' => ''] + $this->shiftTypes[$index];
+    }
+
     /** Minimal 1 baris shift harus tetap ada — tombol hapus di blade sengaja disembunyikan
      * kalau cuma tersisa 1, guard di sini jaga-jaga kalau tetap terpanggil. */
     public function removeShiftType(int $index): void

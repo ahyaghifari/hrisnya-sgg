@@ -57,6 +57,9 @@
                         <button type="button" wire:click="openAdvancedShift({{ $i }})" class="btn-ghost" style="padding:8px 12px;font-size:14px;" title="Pengaturan Lanjutan">
                             <i class="fa-solid fa-sliders"></i>
                         </button>
+                        <button type="button" wire:click="duplicateShiftType({{ $i }})" class="btn-ghost" style="padding:8px 12px;font-size:14px;" title="Duplikat (ditambah di paling akhir)">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
                         @if (count($shiftTypes) > 1)
                             <button type="button" wire:click="removeShiftType({{ $i }})" class="btn-ghost" style="padding:8px 12px;font-size:14px;color:#dc2626;" title="Hapus">
                                 <i class="fa-solid fa-trash"></i>
