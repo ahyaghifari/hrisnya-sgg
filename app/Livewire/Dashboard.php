@@ -260,6 +260,19 @@ class Dashboard extends Component
             ->all();
     }
 
+    /** Pengumuman terbit yang menargetkan user, belum lewat banner_until (maks 5), tampil sebagai banner di Beranda. */
+    public function getAnnouncementBannersProperty()
+    {
+        return \App\Models\Announcement::query()
+            ->where('status', 'published')
+            ->whereIn('delivery', ['banner', 'both'])
+            ->where(fn ($q) => $q->whereNull('banner_until')->orWhere('banner_until', '>=', today()))
+            ->whereIn('id', \Illuminate\Support\Facades\DB::table('announcement_job_position')
+                ->whereIn('job_position_id', Auth::user()->profile?->job_position_id ? [Auth::user()->profile->job_position_id] : [])
+                ->select('announcement_id'))
+            ->latest('published_at')->limit(5)->get(['id', 'title', 'summary', 'tone']);
+    }
+
     public function getRecentTasksProperty()
     {
         // Cuma tugas yang DITUGASKAN ke user ini (assignee) - bukan yang dia buat/tugaskan ke

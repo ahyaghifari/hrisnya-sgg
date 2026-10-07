@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Pengumuman" :back="route('notifikasi')" />
+<x-page-header title="Pengumuman" :back="route('dashboard')" />
 
 <div class="card-surface accent accent-navy">
     <h2 style="font-size:18px;font-weight:700;color:var(--text-heading);margin:0 0 6px;">📢 {{ $record->title }}</h2>

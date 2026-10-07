@@ -56,6 +56,13 @@ class AnnouncementResource extends BaseResource
                     Group::make([
                         TextInput::make('title')->label('Judul')->required()->maxLength(255),
                         Textarea::make('summary')->label('Deskripsi Singkat (tampil di notifikasi)')->required()->rows(2)->maxLength(200),
+                        \Filament\Forms\Components\Select::make('tone')->label('Warna Banner Beranda')->options(['info' => 'Info (biru)', 'success' => 'Sukses (hijau)', 'warning' => 'Peringatan (kuning)'])->default('info')->required()->native(false),
+                        \Filament\Forms\Components\Select::make('delivery')->label('Cara Tampil')->options(Announcement::DELIVERY)->default('both')->required()->native(false)->live()
+                            ->helperText('"Notifikasi saja" tidak muncul di Beranda.'),
+                        \Filament\Forms\Components\DatePicker::make('banner_until')->label('Banner Tampil Sampai')->native(false)
+                            ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('delivery') !== 'notification')
+                            ->required(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('delivery') !== 'notification')
+                            ->helperText('Banner hilang setelah tanggal ini.'),
                         RichEditor::make('body')->label('Isi Pengumuman')->required()->extraInputAttributes(['style' => 'min-height: 16rem;']),
                     ]),
                     // Pohon target: centang perusahaan/departemen/divisi = semua jabatan di bawahnya
@@ -80,6 +87,7 @@ class AnnouncementResource extends BaseResource
                 TextColumn::make('status')->label('Status')->badge()
                     ->formatStateUsing(fn (string $state) => $state === 'published' ? 'Terbit' : 'Draft')
                     ->color(fn (string $state) => $state === 'published' ? 'success' : 'gray'),
+                TextColumn::make('delivery')->label('Tampil via')->badge()->formatStateUsing(fn (string $state) => Announcement::DELIVERY[$state] ?? $state),
                 TextColumn::make('job_positions_count')->label('Jabatan')->counts('jobPositions'),
                 TextColumn::make('publisher.name')->label('Oleh')->placeholder('-'),
                 TextColumn::make('published_at')->label('Terbit')->dateTime('j M Y H:i')->placeholder('-'),
@@ -99,7 +107,7 @@ class AnnouncementResource extends BaseResource
             ->color('success')
             ->visible(fn (Announcement $record) => ! $record->isPublished())
             ->requiresConfirmation()
-            ->modalDescription(fn (Announcement $record) => 'Notifikasi akan dikirim ke ' . $record->recipients()->count() . ' karyawan aktif. Tidak bisa ditarik kembali.')
+            ->modalDescription(fn (Announcement $record) => ($record->sendsNotification() ? 'Notifikasi akan dikirim ke ' : 'Banner akan tampil untuk ') . $record->recipients()->count() . ' karyawan aktif. Tidak bisa ditarik kembali.')
             ->action(fn (Announcement $record) => static::publish($record));
     }
 
@@ -120,7 +128,9 @@ class AnnouncementResource extends BaseResource
         $announcement->update(['status' => 'published', 'published_at' => now(), 'published_by' => auth()->id()]);
         $announcement->load('publisher');
 
-        \Illuminate\Support\Facades\Notification::send($recipients, new AnnouncementPublished($announcement));
+        if ($announcement->sendsNotification()) {
+            \Illuminate\Support\Facades\Notification::send($recipients, new AnnouncementPublished($announcement));
+        }
 
         Notification::make()->title("Pengumuman terbit ke {$recipients->count()} karyawan")->success()->send();
     }
