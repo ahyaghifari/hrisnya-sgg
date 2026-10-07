@@ -30,13 +30,7 @@ class BeritaAcaraDetailPage extends Component
     public array $dasar_items = [['reason' => '', 'note' => '']];
     public ?string $kejadian = null;
 
-    /** Draft yang sudah terisi tampil mode lihat; form baru muncul lewat tombol Edit. */
-    public bool $editingDraft = false;
-
-    /** Sama untuk Parafrase & Analisis: sudah tersimpan = mode lihat dulu. */
-    public bool $editingAnalysis = false;
-
-    public string $klarifikasi_karyawan = '';
+    public ?string $subject_clarification = null;
 
     public ?string $analysis = null;
     public ?string $kesimpulan = null;
@@ -58,41 +52,11 @@ class BeritaAcaraDetailPage extends Component
 
         $this->record = $record;
         $this->fillFromRecord();
-        $this->editingDraft = ! filled($this->kejadian) || ! $this->record->dasarItems->isNotEmpty();
-        $this->editingAnalysis = ! $this->hasSavedAnalysis();
-    }
-
-    /** Analisis dianggap sudah disimpan kalau ketiga kolom wajibnya terisi. */
-    private function hasSavedAnalysis(): bool
-    {
-        return filled($this->record->analysis) && filled($this->record->kesimpulan) && filled($this->record->followup_plan);
-    }
-
-    public function editAnalysis(): void
-    {
-        $this->editingAnalysis = true;
-    }
-
-    public function cancelEditAnalysis(): void
-    {
-        $this->fillFromRecord();
-        $this->editingAnalysis = false;
-    }
-
-    public function editDraft(): void
-    {
-        $this->editingDraft = true;
-    }
-
-    public function cancelEditDraft(): void
-    {
-        $this->fillFromRecord();
-        $this->editingDraft = false;
     }
 
     private function fillFromRecord(): void
     {
-        foreach (['nomor', 'kejadian', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
+        foreach (['nomor', 'kejadian', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
             $this->{$field} = $this->record->{$field};
         }
 
@@ -142,41 +106,21 @@ class BeritaAcaraDetailPage extends Component
 
         $this->record->refresh()->unsetRelation('document');
         $this->fillFromRecord();
-        $this->editingDraft = false;
-        $this->editingAnalysis = ! $this->hasSavedAnalysis();
 
         Notification::make()->title($success)->success()->send();
     }
 
     public function saveDraft(): void
     {
-        $this->run(fn ($s) => $s->updateDraft($this->record, Auth::user(), [
-            'nomor' => $this->nomor, 'dasar_items' => $this->reasonPayload($this->dasar_items), 'kejadian' => $this->kejadian,
-        ]), 'Draft disimpan');
-    }
-
-    public function requestClarification(): void
-    {
-        $this->saveDraft();
-        $this->run(fn ($s) => $s->requestClarification($this->record, Auth::user()), 'Lanjut ke klarifikasi');
-    }
-
-    public function fillClarification(): void
-    {
-        $this->run(fn ($s) => $s->fillClarificationByHc($this->record, Auth::user(), $this->klarifikasi_karyawan), 'Klarifikasi karyawan disimpan');
-    }
-
-    public function saveAnalysis(): void
-    {
-        $this->run(fn ($s) => $s->saveAnalysis($this->record, Auth::user(), $this->analysisFields()), 'Tersimpan');
+        $this->run(fn ($s) => $s->updateDraft($this->record, Auth::user(), $this->draftFields()), 'Draft disimpan');
     }
 
     /** Langkah FIX: isi dikunci. Tanda tangan baru muncul setelahnya, sebagai tombol terpisah. */
     public function sendForSigning(): void
     {
         $this->run(function ($s) {
-            $s->saveAnalysis($this->record, Auth::user(), $this->analysisFields());
-            $s->sendForSigning($this->record, Auth::user());
+            $s->updateDraft($this->record, Auth::user(), $this->draftFields());
+            $s->sendForSigning($this->record->refresh(), Auth::user());
         }, 'Berita Acara di-FIX, isi terkunci. Silakan tanda tangani.');
     }
 
@@ -201,10 +145,14 @@ class BeritaAcaraDetailPage extends Component
         $this->run(fn ($s) => $s->decide($this->record, Auth::user(), SpReportDecision::from($decision)), 'Keputusan disimpan');
     }
 
-    /** @return array<string, ?string> */
-    private function analysisFields(): array
+    /** @return array<string, mixed> */
+    private function draftFields(): array
     {
         return [
+            'nomor' => $this->nomor,
+            'dasar_items' => $this->reasonPayload($this->dasar_items),
+            'kejadian' => $this->kejadian,
+            'subject_clarification' => $this->subject_clarification,
             'analysis' => $this->analysis,
             'kesimpulan' => $this->kesimpulan,
             'followup_plan' => $this->followup_plan,

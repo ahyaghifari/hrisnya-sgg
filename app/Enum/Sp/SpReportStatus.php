@@ -11,8 +11,6 @@ use Filament\Support\Contracts\HasLabel;
 enum SpReportStatus: string implements HasLabel
 {
     case DRAFT = 'draft';
-    case MENUNGGU_KLARIFIKASI = 'menunggu_klarifikasi';
-    case KLARIFIKASI_DIAJUKAN = 'klarifikasi_diajukan';
     case MENUNGGU_TTD = 'menunggu_ttd';
     case SELESAI = 'selesai';
 
@@ -20,8 +18,6 @@ enum SpReportStatus: string implements HasLabel
     {
         return match ($this) {
             self::DRAFT => 'Draft',
-            self::MENUNGGU_KLARIFIKASI => 'Menyusun Klarifikasi',
-            self::KLARIFIKASI_DIAJUKAN => 'Klarifikasi Diajukan',
             self::MENUNGGU_TTD => 'Menunggu Tanda Tangan',
             self::SELESAI => 'Selesai',
         };
@@ -31,7 +27,6 @@ enum SpReportStatus: string implements HasLabel
     {
         return match ($this) {
             self::DRAFT => 'gray',
-            self::MENUNGGU_KLARIFIKASI, self::KLARIFIKASI_DIAJUKAN => 'warning',
             self::MENUNGGU_TTD => 'info',
             self::SELESAI => 'success',
         };

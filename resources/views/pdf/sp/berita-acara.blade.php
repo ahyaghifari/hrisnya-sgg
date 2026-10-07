@@ -310,6 +310,35 @@
         <center>Banjarbaru, {{ $date->translatedFormat('d F Y') }}</center>
         <center>Ditandangani Oleh,</center>
 
+        @if ($report && ! $report->isLegacy())
+            {{-- BA baru: 2 kolom - atasan (tertulis sebagai pembuat) | HC, mengetahui | karyawan; urutan = urutan tanda tangan.
+            Baris terakhir yang berisi satu kotak dipusatkan. --}}
+            @php
+                $signers = ['supervisor' => $report->supervisor, 'created_by' => $coach, 'knows_by' => $knowsBy, 'employee' => $user];
+                $rows = collect($report->expectedSignerRoles())->map(fn ($label, $role) => [$role, $label, $signers[$role] ?? null])->values()->chunk(2);
+            @endphp
+            <table style="width:100%;margin-top:0.5cm;margin-bottom:32px;border-collapse:collapse;">
+                @foreach ($rows as $row)
+                    <tr>
+                        @foreach ($row as [$role, $label, $person])
+                            <td style="width:50%;text-align:center;vertical-align:top;padding-bottom:16px;" @if ($row->count() === 1) colspan="2" @endif>
+                                {{ $label }}<br>
+                                @if ($verification[$role] ?? null)
+                                    <div class="verify-block">
+                                        <img src="{{ $verification[$role]['qr'] }}" alt="QR Verifikasi" class="verify-qr">
+                                        <div class="verify-code">{{ $verification[$role]['code'] }}</div>
+                                    </div>
+                                @else
+                                    <span class="ttd-space">&nbsp;</span>
+                                @endif
+                                <span class="sign-name">{{ $person?->name ?? '-' }}</span><br>
+                                {{ $jabatan($person) }}
+                            </td>
+                        @endforeach
+                    </tr>
+                @endforeach
+            </table>
+        @else
         <div class="sign-block">
             <div class="sign-col">
                 Pihak Perusahaan <br>
@@ -368,6 +397,7 @@
                 </div>
             @endif
         </div>
+        @endif
     </div>
 
 </div>

@@ -13,8 +13,9 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Form Buat Berita Acara (alur baru, instruksi user 2026-10-01): HC cuma mengisi dasar
- * klarifikasi & kejadian dulu (wajib). Klarifikasi karyawan, analisis, dst menyusul lewat detail.
+ * Form Buat Berita Acara (alur baru, instruksi user 2026-10-01): semua isian HC bisa diisi langsung
+ * (2026-10-07). Dasar & kejadian wajib untuk simpan draft; sisanya boleh menyusul lewat detail
+ * tapi wajib lengkap saat FIX.
  */
 #[Layout('components.layout', ['title' => 'Buat Berita Acara'])]
 class CreateBeritaAcaraPage extends Component
@@ -27,6 +28,10 @@ class CreateBeritaAcaraPage extends Component
     public ?string $nomor = null;
     public array $dasar_items = [];
     public ?string $kejadian = null;
+    public ?string $subject_clarification = null;
+    public ?string $analysis = null;
+    public ?string $kesimpulan = null;
+    public ?string $followup_plan = null;
 
     public function mount(): void
     {
@@ -77,6 +82,10 @@ class CreateBeritaAcaraPage extends Component
             'dasar_items.*.reason' => ['required', 'exists:sp_reasons,id'],
             'dasar_items.*.note' => ['nullable', 'string'],
             'kejadian' => ['required', 'string'],
+            'subject_clarification' => ['nullable', 'string'],
+            'analysis' => ['nullable', 'string'],
+            'kesimpulan' => ['nullable', 'string'],
+            'followup_plan' => ['nullable', 'string'],
         ];
     }
 
@@ -115,7 +124,7 @@ class CreateBeritaAcaraPage extends Component
 
         $report = app(SpReportService::class)->create(Auth::user(), $data);
 
-        Notification::make()->title('Berita Acara dibuat')->body('Lanjutkan dengan meminta klarifikasi karyawan.')->success()->send();
+        Notification::make()->title('Berita Acara dibuat')->body('Tersimpan sebagai draft. Lengkapi isinya lalu FIX.')->success()->send();
 
         $this->redirect(route('ba.show', $report), navigate: true);
     }

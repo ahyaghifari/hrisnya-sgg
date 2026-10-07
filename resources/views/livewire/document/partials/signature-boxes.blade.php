@@ -1,10 +1,15 @@
 {{-- Kotak tanda tangan di bawah isi dokumen: yang sudah menandatangani langsung tampil QR verifikasi + nama + jabatan + waktu.
      Butuh $signable (SpReport), $boxes = [role => label] sesuai urutan tampil, $signatures (Collection keyBy signer_role). --}}
-@php $qr = app(\App\Services\Sp\SpPdfService::class)->verificationBySignerRole($signable); @endphp
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
+@php
+    $qr = app(\App\Services\Sp\SpPdfService::class)->verificationBySignerRole($signable);
+    // $cols (opsional) = jumlah kolom tetap; kotak terakhir sendirian di baris terakhir dipusatkan.
+    $cols = $cols ?? null;
+    $lastAlone = $cols && count($boxes) % $cols === 1;
+@endphp
+<div style="display:grid;grid-template-columns:{{ $cols ? "repeat($cols,minmax(0,1fr))" : 'repeat(auto-fit,minmax(190px,1fr))' }};gap:12px;">
     @foreach ($boxes as $role => $label)
         @php $sig = $signatures->get($role); $block = $qr[$role] ?? null; @endphp
-        <div style="border:1.5px {{ $sig ? 'solid #16a34a' : 'dashed var(--border)' }};border-radius:12px;padding:14px;text-align:center;background:{{ $sig ? 'var(--surface)' : 'var(--surface-alt)' }};">
+        <div style="{{ $lastAlone && $loop->last ? 'grid-column:1 / -1;justify-self:center;width:calc(50% - 6px);' : '' }}border:1.5px {{ $sig ? 'solid #16a34a' : 'dashed var(--border)' }};border-radius:12px;padding:14px;text-align:center;background:{{ $sig ? 'var(--surface)' : 'var(--surface-alt)' }};">
             <p style="font-size:10.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-muted);margin:0 0 10px;">{{ $label }}</p>
             @if ($sig && $block)
                 <img src="{{ $block['qr'] }}" alt="QR Verifikasi {{ $label }}" style="width:96px;height:96px;margin:0 auto;display:block;">

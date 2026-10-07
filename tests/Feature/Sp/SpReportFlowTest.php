@@ -56,10 +56,8 @@ class SpReportFlowTest extends TestCase
     private function untilWaitingSignature(): SpReport
     {
         $report = $this->draft();
-        $this->service->requestClarification($report, $this->hc);
-        $this->service->fillClarificationByHc($report, $this->hc, 'macet di jalan');
-        $this->service->saveAnalysis($report, $this->hc, [
-            'klarifikasi_parafrase' => 'Karyawan terlambat karena kemacetan.',
+        $this->service->updateDraft($report, $this->hc, [
+            'subject_clarification' => 'macet di jalan',
             'analysis' => 'Berulang', 'kesimpulan' => 'Melanggar', 'followup_plan' => 'SP1',
         ]);
 
@@ -75,28 +73,36 @@ class SpReportFlowTest extends TestCase
     public function test_there_is_no_paraphrase_step(): void
     {
         $report = $this->draft();
-        $this->service->requestClarification($report, $this->hc);
-        $this->service->fillClarificationByHc($report, $this->hc, '<div>macet di jalan</div>');
+        $this->service->updateDraft($report, $this->hc, ['subject_clarification' => '<div>macet di jalan</div>', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
 
         $this->assertNull($report->fresh()->klarifikasi_parafrase);
 
-        $this->service->saveAnalysis($report->fresh(), $this->hc, ['analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
         $this->service->sendForSigning($report->fresh(), $this->hc);
 
         $this->assertSame(SpReportStatus::MENUNGGU_TTD, $report->fresh()->status);
         $this->assertNull($report->fresh()->klarifikasi_parafrase);
     }
 
-    public function test_clarification_is_filled_by_creator_without_employee_step(): void
+    public function test_all_hc_content_is_filled_in_draft_and_fix_requires_it_complete(): void
     {
         $report = $this->draft();
-        $this->service->requestClarification($report, $this->hc);
-
-        $this->service->fillClarificationByHc($report, $this->hc, 'macet di jalan');
+        $this->service->updateDraft($report, $this->hc, ['subject_clarification' => 'macet di jalan']);
 
         $report->refresh();
-        $this->assertSame(SpReportStatus::KLARIFIKASI_DIAJUKAN, $report->status);
+        $this->assertSame(SpReportStatus::DRAFT, $report->status);
         $this->assertSame('macet di jalan', $report->subject_clarification);
+
+        try {
+            $this->service->sendForSigning($report, $this->hc);
+            $this->fail('FIX harus ditolak saat analisis belum diisi');
+        } catch (ValidationException) {
+        }
+
+        $this->service->updateDraft($report, $this->hc, ['analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
+        $this->service->sendForSigning($report->fresh(), $this->hc);
+
+        $report->refresh();
+        $this->assertSame(SpReportStatus::MENUNGGU_TTD, $report->status);
         $this->assertTrue($report->klarifikasi_diisi_hc);
     }
 
@@ -139,19 +145,22 @@ class SpReportFlowTest extends TestCase
         $this->sign($report, $this->employee);
     }
 
-    public function test_supervisor_signs_after_knower_and_before_employee(): void
+    public function test_supervisor_is_written_as_creator_and_signs_first(): void
     {
         $supervisor = User::factory()->create(['company_id' => $this->company->id]);
         $report = $this->untilWaitingSignature();
         $report->update(['supervisor_id' => $supervisor->id]);
 
-        $this->assertSame(['created_by', 'knows_by', 'supervisor', 'employee'], array_keys($report->fresh()->expectedSignerRoles()));
+        $this->assertSame(['supervisor', 'created_by', 'knows_by', 'employee'], array_keys($report->fresh()->expectedSignerRoles()));
+        $this->assertSame('Dibuat oleh (Atasan Langsung)', $report->fresh()->expectedSignerRoles()['supervisor']);
 
-        $this->sign($report, $this->hc);
-        $this->assertNull($report->fresh()->assignedSigners()['supervisor']);
-        $this->sign($report, $this->knower);
-        $this->assertNull($report->fresh()->assignedSigners()['employee']);
+        $this->assertNull($report->fresh()->assignedSigners()['created_by']);
+        $this->assertSame($supervisor->id, $report->fresh()->assignedSigners()['supervisor']->id);
         $this->sign($report, $supervisor);
+        $this->assertNull($report->fresh()->assignedSigners()['knows_by']);
+        $this->sign($report, $this->hc);
+        $this->assertNull($report->fresh()->assignedSigners()['employee']);
+        $this->sign($report, $this->knower);
         $this->assertSame($this->employee->id, $report->fresh()->assignedSigners()['employee']->id);
         $this->sign($report, $this->employee);
 
@@ -165,7 +174,7 @@ class SpReportFlowTest extends TestCase
         $this->service->requestReclarification($report, $this->employee, 'Parafrase tidak sesuai maksud saya');
 
         $report = $report->fresh();
-        $this->assertSame(SpReportStatus::MENUNGGU_KLARIFIKASI, $report->status);
+        $this->assertSame(SpReportStatus::DRAFT, $report->status);
         $this->assertSame('macet di jalan', $report->riwayat_klarifikasi[0]['klarifikasi']);
     }
 
@@ -196,12 +205,11 @@ class SpReportFlowTest extends TestCase
         $this->assertSame("A\nB", $report->dasar_klarifikasi);
     }
 
-    public function test_only_creator_or_hc_can_fill_clarification(): void
+    public function test_only_creator_or_hc_can_edit_draft(): void
     {
         $report = $this->draft();
-        $this->service->requestClarification($report, $this->hc);
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        $this->service->fillClarificationByHc($report, $this->employee, 'diisi sendiri');
+        $this->service->updateDraft($report, $this->employee, ['subject_clarification' => 'diisi sendiri']);
     }
 }

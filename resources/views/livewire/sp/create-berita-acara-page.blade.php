@@ -1,5 +1,5 @@
 <div>
-<x-page-header title="Buat Berita Acara" subtitle="Awal proses klarifikasi karyawan" :back="route('sp')" />
+<x-page-header title="Buat Berita Acara" subtitle="Isi lengkap sekaligus, disimpan sebagai draft" :back="route('sp')" />
 
 <form wire:submit="save">
     <div class="form-card">
@@ -53,7 +53,7 @@
     <div class="form-card">
         <div class="section-head">
             <div class="section-icon"><i class="fa-solid fa-file-lines" style="color:var(--brand);font-size:12px;"></i></div>
-            <span class="section-title">Dasar &amp; Kejadian</span>
+            <span class="section-title">Dasar &amp; Isi</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
@@ -61,14 +61,16 @@
                 @include('livewire.sp.partials.reason-items-editor', ['field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
             </div>
 
-            <div>
-                <label class="form-label">Kejadian <span style="color:var(--danger-text);">*</span></label>
-                <div wire:ignore>
-                    <input type="hidden" id="trix-ba-kejadian" wire:model="kejadian" value="{{ $kejadian }}">
-                    <trix-editor input="trix-ba-kejadian" style="min-height:100px;"></trix-editor>
+            @foreach ([['kejadian', 'Kejadian', true], ['subject_clarification', 'Klarifikasi Karyawan', false], ['analysis', 'Analisis', false], ['kesimpulan', 'Kesimpulan', false], ['followup_plan', 'Rencana Tindak Lanjut', false]] as [$field, $label, $required])
+                <div>
+                    <label class="form-label">{{ $label }} @if ($required)<span style="color:var(--danger-text);">*</span>@endif</label>
+                    <div wire:ignore>
+                        <input type="hidden" id="trix-ba-{{ $field }}" wire:model="{{ $field }}" value="{{ $$field }}">
+                        <trix-editor input="trix-ba-{{ $field }}" style="min-height:100px;"></trix-editor>
+                    </div>
+                    @error($field) <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
-                @error('kejadian') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-            </div>
+            @endforeach
         </div>
     </div>
 

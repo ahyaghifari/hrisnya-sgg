@@ -79,12 +79,12 @@ class SpReportPagesTest extends TestCase
         ]);
 
         Livewire::actingAs($this->hc)->test(BeritaAcaraDetailPage::class, ['record' => $report])
-            ->assertSee('Lanjut ke Klarifikasi')
-            ->call('requestClarification')
-            ->assertSee('Menyusun Klarifikasi')
-            ->assertSee($this->employee->name);
+            ->assertSee('FIX Berita Acara')
+            ->assertSee($this->employee->name)
+            ->set('subject_clarification', 'macet di jalan')
+            ->call('saveDraft');
 
-        $service->fillClarificationByHc($report->fresh(), $this->hc, 'macet di jalan');
+        $this->assertSame('macet di jalan', $report->fresh()->subject_clarification);
 
         Livewire::actingAs($this->hc)->test(BeritaAcaraDetailPage::class, ['record' => $report->fresh()])
             ->assertSee('macet di jalan')
@@ -94,7 +94,7 @@ class SpReportPagesTest extends TestCase
             ->call('sendForSigning')
             ->assertSee('Rencana Tindak Lanjut'); // rencana tindak lanjut kosong -> ditolak, tetap di status yang sama
 
-        $this->assertSame(SpReportStatus::KLARIFIKASI_DIAJUKAN, $report->fresh()->status);
+        $this->assertSame(SpReportStatus::DRAFT, $report->fresh()->status);
 
         Livewire::actingAs($this->hc)->test(BeritaAcaraDetailPage::class, ['record' => $report->fresh()])
             ->set('analysis', 'Berulang')
@@ -112,14 +112,12 @@ class SpReportPagesTest extends TestCase
             'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'x', 'dasar_items' => ['y'],
         ]);
-        $service->requestClarification($report, $this->hc);
-        $service->fillClarificationByHc($report->fresh(), $this->hc, 'z');
-        $service->saveAnalysis($report->fresh(), $this->hc, ['klarifikasi_parafrase' => 'p', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
+        $service->updateDraft($report, $this->hc, ['subject_clarification' => 'z', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
         $service->sendForSigning($report->fresh(), $this->hc);
 
         $page = fn () => Livewire::actingAs($this->hc)->test(BeritaAcaraDetailPage::class, ['record' => $report->fresh()]);
 
-        $page()->assertSee('TTD Pembuat')->assertSee('TTD YBS')->assertSee('Belum menandatangani')->assertDontSee('data:image/svg+xml', false);
+        $page()->assertSee('Dibuat oleh')->assertSee('Karyawan yang Bersangkutan')->assertSee('Belum menandatangani')->assertDontSee('data:image/svg+xml', false);
 
         app(\App\Services\Document\DocumentSigningService::class)->sign($report->fresh()->document, $this->hc);
 
@@ -133,9 +131,7 @@ class SpReportPagesTest extends TestCase
             'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'Kejadian-X', 'dasar_items' => ['Dasar-Y'],
         ]);
-        $service->requestClarification($report, $this->hc);
-        $service->fillClarificationByHc($report->fresh(), $this->hc, 'Klarifikasi-Z');
-        $service->saveAnalysis($report->fresh(), $this->hc, ['klarifikasi_parafrase' => 'p', 'analysis' => 'Analisis-A', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
+        $service->updateDraft($report, $this->hc, ['subject_clarification' => 'Klarifikasi-Z', 'analysis' => 'Analisis-A', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
         $service->sendForSigning($report->fresh(), $this->hc);
 
         $this->actingAs($this->hc)->get(route('ba.preview', $report))->assertForbidden();
@@ -151,7 +147,7 @@ class SpReportPagesTest extends TestCase
 
         // Karyawan yang bersangkutan juga melihat BA lengkap + tanda tangan (QR) + PDF.
         Livewire::actingAs($this->employee)->test(\App\Livewire\Sp\BeritaAcaraSayaPage::class, ['record' => $report->fresh()])
-            ->assertSee('Lihat PDF')->assertSee('Kejadian-X')->assertSee('Analisis-A')->assertSee('TTD YBS')
+            ->assertSee('Lihat PDF')->assertSee('Kejadian-X')->assertSee('Analisis-A')->assertSee('Karyawan yang Bersangkutan')
             ->assertSee('data:image/svg+xml', false);
 
         $this->actingAs($this->hc)->get(route('ba.preview', $report))->assertOk();

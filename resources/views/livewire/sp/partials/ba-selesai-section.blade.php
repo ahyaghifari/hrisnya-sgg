@@ -39,7 +39,8 @@
 
     @include('livewire.document.partials.signature-boxes', [
         'signable' => $record,
-        'boxes' => ['created_by' => 'TTD Pembuat', 'knows_by' => 'TTD Mengetahui'] + ($record->supervisor_id ? ['supervisor' => 'TTD Atasan Langsung'] : []) + ['employee' => 'TTD YBS'],
+        'boxes' => $record->expectedSignerRoles(),
+            'cols' => 2,
         'signatures' => $record->document?->signatures->keyBy('signer_role') ?? collect(),
     ])
 </div>

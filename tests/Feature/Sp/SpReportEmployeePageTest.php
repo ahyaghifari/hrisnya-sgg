@@ -54,38 +54,32 @@ class SpReportEmployeePageTest extends TestCase
         ]);
     }
 
-    public function test_draft_is_hidden_and_other_employees_are_blocked(): void
+    /** Draft dengan seluruh isian HC lengkap (siap FIX). */
+    private function completeDraft(array $override = []): SpReport
     {
         $report = $this->draft();
+        $this->service->updateDraft($report, $this->hc, $override + [
+            'subject_clarification' => 'macet', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f',
+        ]);
+
+        return $report->fresh();
+    }
+
+    public function test_draft_is_hidden_and_other_employees_are_blocked(): void
+    {
+        $report = $this->completeDraft();
 
         Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report])->assertNotFound();
 
-        $this->service->requestClarification($report, $this->hc);
+        $this->service->sendForSigning($report->fresh(), $this->hc);
 
         Livewire::actingAs($this->knower)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])->assertForbidden();
         Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])->assertOk();
     }
 
-    public function test_employee_is_not_asked_for_clarification(): void
-    {
-        $report = $this->draft();
-
-        Notification::fake();
-        $this->service->requestClarification($report, $this->hc);
-
-        Notification::assertNothingSent();
-        Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])
-            ->assertSee('sedang menyusun klarifikasi');
-    }
-
     public function test_employee_sees_hc_content_only_after_sent_for_signing_and_can_reclarify(): void
     {
-        $report = $this->draft();
-        $this->service->requestClarification($report, $this->hc);
-        $this->service->fillClarificationByHc($report->fresh(), $this->hc, 'macet');
-        $this->service->saveAnalysis($report->fresh(), $this->hc, [
-            'analysis' => 'ANALISIS-RAHASIA', 'kesimpulan' => 'k', 'followup_plan' => 'f',
-        ]);
+        $report = $this->completeDraft(['analysis' => 'ANALISIS-RAHASIA']);
 
         Livewire::actingAs($this->employee)->test(BeritaAcaraSayaPage::class, ['record' => $report->fresh()])
             ->assertDontSee('ANALISIS-RAHASIA');
@@ -98,8 +92,7 @@ class SpReportEmployeePageTest extends TestCase
             ->set('alasan_ajukan_ulang', 'Bukan itu maksud saya')
             ->call('requestReclarification');
 
-        $this->assertSame(SpReportStatus::MENUNGGU_KLARIFIKASI, $report->fresh()->status);
-        $page->assertSee('Klarifikasi Anda');
+        $this->assertSame(SpReportStatus::DRAFT, $report->fresh()->status);
     }
 
     public function test_draft_sp_is_hidden_from_the_employee_until_issued(): void
@@ -113,12 +106,7 @@ class SpReportEmployeePageTest extends TestCase
 
     public function test_after_creator_signs_employee_and_knower_are_notified_and_list_shows_report(): void
     {
-        $report = $this->draft();
-        $this->service->requestClarification($report, $this->hc);
-        $this->service->fillClarificationByHc($report->fresh(), $this->hc, 'macet');
-        $this->service->saveAnalysis($report->fresh(), $this->hc, [
-            'klarifikasi_parafrase' => 'p', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f',
-        ]);
+        $report = $this->completeDraft();
         $this->service->sendForSigning($report->fresh(), $this->hc);
 
         Notification::fake();
