@@ -1044,7 +1044,7 @@ class RekapPresensiPage extends Component
 
         // Sisipkan Jabatan + Unit/Divisi (divisi, fallback departemen) setelah Nama; elemen pertama tiap baris = user id.
         array_splice($headings, 2, 0, ['Jabatan', 'Unit/Divisi']);
-        $users = User::with('profile.jobPosition', 'profile.division', 'profile.department')
+        $users = User::with('profile.jobPosition.orgStructure.parent.parent')
             ->whereIn('id', $rows->pluck(0))->get()->keyBy('id');
         $rows = $rows->map(function ($r) use ($users) {
             $p = $users[array_shift($r)]?->profile;
