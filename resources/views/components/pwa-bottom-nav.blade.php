@@ -81,6 +81,13 @@
     <div class="pwa-menu-sheet-handle"></div>
 
     <div class="pwa-menu-grid">
+        @if ($canAccessPembinaanSaya)
+            <a href="{{ route('pembinaan.saya') }}" wire:navigate class="pwa-menu-grid-item">
+                <span class="pwa-menu-grid-icon gold"><i class="fa-solid fa-comment-dots"></i></span>
+                <span class="pwa-menu-grid-label">Pembinaan Saya</span>
+            </a>
+        @endif
+
         @if ($canSeeKaryawanMenu)
             <x-pwa-nav.mystaff-item />
         @endif

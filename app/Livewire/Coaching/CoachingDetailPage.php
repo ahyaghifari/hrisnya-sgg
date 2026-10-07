@@ -91,7 +91,7 @@ class CoachingDetailPage extends Component
     /** Tombol "Kembali" beda tujuan tergantung yang buka. */
     public function getBackRouteProperty(): string
     {
-        return $this->isSubject ? route('profil-saya') : route('coaching');
+        return $this->isSubject ? route('pembinaan.saya') : route('coaching');
     }
 
     /** §1.1 - cuma coach_by yang boleh isi, sekadar catatan, BUKAN gerbang aksi SP. */

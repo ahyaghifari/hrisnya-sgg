@@ -358,11 +358,12 @@ class EmployeeStatistics extends Component
      * Isinya CUMA Coaching — Counseling sengaja tidak ditampilkan di sini (instruksi user). */
     public function getCanViewPembinaanTabProperty(): bool
     {
-        return $this->canViewMeritWidget
+        // Profil sendiri: daftar pembinaan ada di halaman "Pembinaan Saya", bukan tab ini.
+        return ! $this->isOwnProfile && ($this->canViewMeritWidget
             || app(OrgHierarchyService::class)
                 ->subordinates(Auth::user())
                 ->whereKey($this->record->id)
-                ->exists();
+                ->exists());
     }
 
     /** Gerbang lama tab Pembinaan (pemilik akun / SISTEM_PEMBINAAN_KARYAWAN) — sekarang khusus
