@@ -23,7 +23,9 @@ class EditAnnouncement extends EditRecord
 
     protected function afterSave(): void
     {
-        AnnouncementResource::syncTargets($this->record, $this->data['job_position_ids'] ?? []);
+        if (! $this->record->isPublished()) {
+            AnnouncementResource::syncTargets($this->record, $this->data['job_position_ids'] ?? []);
+        }
     }
 
     protected function getHeaderActions(): array
@@ -48,6 +50,6 @@ class EditAnnouncement extends EditRecord
 
     protected function getFormActions(): array
     {
-        return $this->record->isPublished() ? [] : [$this->getSaveFormAction()->label('Simpan Draft'), $this->getCancelFormAction()];
+        return [$this->getSaveFormAction()->label($this->record->isPublished() ? 'Simpan Perubahan' : 'Simpan Draft'), $this->getCancelFormAction()];
     }
 }
