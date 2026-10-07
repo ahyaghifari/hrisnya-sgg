@@ -273,6 +273,11 @@ enum CustomPermissionEnum: string
      * buat role IT/helpdesk yang cuma perlu kelola akun SSO tanpa akses /admin penuh. */
     case KELOLA_KEYCLOAK = 'kelola_keycloak';
 
+    /** Gerbang MASUK ke panel Filament Dokter (`/dokter`) - master data dokter di DB `doctor`
+     * (terpisah dari DB HRIS). Pola sama KELOLA_KEYCLOAK: User::canAccessPanel() cek role
+     * "Admin"/"Super Admin" dulu, permission ini jalur kedua buat petugas yang cuma kelola dokter. */
+    case KELOLA_DOKTER = 'kelola_dokter';
+
     /** Tombol "Export Excel" di halaman Karyawan (`/kepegawaian/karyawan`) - export data
      * akun+pribadi+pekerjaan sesuai filter aktif. Dipisah dari akses ViewAny:User biasa (yang
      * sudah dicek KaryawanPage::mount()) karena datanya sensitif (NIK/KK/BPJS/rekening bank) -
@@ -383,6 +388,7 @@ enum CustomPermissionEnum: string
             self::KELOLA_HAK_AKSES => 'Kelola Hak Akses (Portal)',
             self::AKSES_PANEL_ADMIN => 'Akses Panel Admin (Filament)',
             self::KELOLA_KEYCLOAK => 'Kelola Keycloak (Panel /keycloak)',
+            self::KELOLA_DOKTER => 'Kelola Dokter (Panel /dokter)',
             self::EXPORT_DATA_KARYAWAN => 'Export Data Karyawan (Excel)',
             self::INPUT_MCU_ASESMEN_PERAWAT => 'Input MCU - Asesmen Perawat',
             self::INPUT_MCU_LABORATORIUM => 'Input MCU - Hasil Laboratorium',

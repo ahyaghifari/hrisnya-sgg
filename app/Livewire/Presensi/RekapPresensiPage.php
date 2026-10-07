@@ -1019,7 +1019,7 @@ class RekapPresensiPage extends Component
             $label = "periode-{$from}-sd-{$to}";
             $headings = ['NIP', 'Nama', 'Hadir', 'Tidak Hadir', 'Terlambat (kali)', 'Total Menit Terlambat', 'Izin (jam)', 'Cuti (hari)', 'Lembur Disetujui (jam)', 'Total Jam Kerja', 'Rata-rata Jam Kerja'];
             $rows = $this->monthlyRowsQuery()->with('employee')->get()->map(fn ($r) => [
-                $r->nip, $r->name, $r->present_count, $r->absent_count, $r->late_count, $r->total_late_minutes,
+                $r->id, $r->nip, $r->name, $r->present_count, $r->absent_count, $r->late_count, $r->total_late_minutes,
                 $r->permission_hours, $r->leave_days, $r->overtime_hours,
                 round($r->total_working_minutes / 60, 1), $r->avg_working_hours,
             ]);
@@ -1027,7 +1027,7 @@ class RekapPresensiPage extends Component
             $label = 'kehadiran-' . $this->kehadiranDay();
             $headings = ['NIP', 'Nama', 'Status', 'Keterangan Izin/Cuti', 'Jam Masuk', 'Jam Pulang'];
             $rows = $this->kehadiranFilteredRows()->map(fn ($r) => [
-                $r->nip, $r->name,
+                $r->id, $r->nip, $r->name,
                 $statusLabels[$r->status] ?? 'Belum Presensi',
                 $r->izin_label, $time($r->check_in_time), $time($r->check_out_time),
             ]);
@@ -1035,12 +1035,23 @@ class RekapPresensiPage extends Component
             $label = 'harian-' . $this->harianDay();
             $headings = ['NIP', 'Nama', 'Status', 'Jam Masuk', 'Jam Pulang', 'Terlambat (menit)', 'Jam Kerja'];
             $rows = $this->todayRowsQuery()->with('employee')->get()->map(fn ($r) => [
-                $r->nip, $r->name,
+                $r->id, $r->nip, $r->name,
                 $statusLabels[$r->status] ?? 'Belum Presensi',
                 $time($r->check_in_time), $time($r->check_out_time),
                 (int) $r->late_minutes, $r->working_minutes > 0 ? round($r->working_minutes / 60, 1) : '',
             ]);
         }
+
+        // Sisipkan Jabatan + Unit/Divisi (divisi, fallback departemen) setelah Nama; elemen pertama tiap baris = user id.
+        array_splice($headings, 2, 0, ['Jabatan', 'Unit/Divisi']);
+        $users = User::with('profile.jobPosition', 'profile.division', 'profile.department')
+            ->whereIn('id', $rows->pluck(0))->get()->keyBy('id');
+        $rows = $rows->map(function ($r) use ($users) {
+            $p = $users[array_shift($r)]?->profile;
+            array_splice($r, 2, 0, [$p?->jobPosition?->name, $p?->division?->name ?? $p?->department?->name]);
+
+            return $r;
+        });
 
         return Excel::download(
             new RekapPresensiExport($headings, $rows->all()),
