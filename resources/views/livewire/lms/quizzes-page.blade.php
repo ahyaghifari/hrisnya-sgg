@@ -93,6 +93,9 @@
                                             <a href="{{ route('pelatihan.kuis.edit', $quiz) }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
                                                 <i class="fa-solid fa-pen"></i> Edit
                                             </a>
+                                            <a href="{{ route('pelatihan.kuis.soal', $quiz) }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
+                                                <i class="fa-solid fa-list-check"></i> Kelola Soal
+                                            </a>
                                         @endif
                                         @if ($this->canDelete && $quiz->meeting_usages_count === 0)
                                             <button type="button" wire:click="removeQuiz('{{ $quiz->id }}')" wire:confirm="Hapus kuis ini? Tindakan tidak bisa dibatalkan." class="btn-ghost" style="padding:5px 12px;font-size:11.5px;color:#dc2626;">
@@ -151,8 +154,8 @@
                 <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
                     <button type="button" wire:click="closeViewModal" class="btn-ghost">Tutup</button>
                     @if ($this->canUpdate)
-                        <a href="{{ route('pelatihan.kuis.edit', $v) }}" wire:navigate class="btn-primary">
-                            <i class="fa-solid fa-pen"></i> Ubah
+                        <a href="{{ route('pelatihan.kuis.soal', $v) }}" wire:navigate class="btn-primary">
+                            <i class="fa-solid fa-list-check"></i> Kelola Soal
                         </a>
                     @endif
                 </div>

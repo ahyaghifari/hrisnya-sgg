@@ -13,6 +13,7 @@ use App\Livewire\LMS\LmsCoursesPage;
 use App\Livewire\LMS\LmsFeedbackQuestionsPage;
 use App\Livewire\LMS\LmsSettingsPage;
 use App\Livewire\LMS\MasterHonorariumPage;
+use App\Livewire\LMS\ManageQuizQuestions;
 use App\Livewire\LMS\QuizzesPage;
 use App\Livewire\LMS\TrainerDetailPage;
 use App\Livewire\LMS\TrainersPage;
@@ -105,6 +106,9 @@ Route::get('/lms/kuis/tambah', CreateQuiz::class)
 
 Route::get('/lms/kuis/{quiz}/ubah', CreateQuiz::class)
     ->name('pelatihan.kuis.edit');
+
+Route::get('/lms/kuis/{quiz}/soal', ManageQuizQuestions::class)
+    ->name('pelatihan.kuis.soal');
 
 Route::get('/lms/pemateri', TrainersPage::class)
     ->name('pelatihan.pemateri');

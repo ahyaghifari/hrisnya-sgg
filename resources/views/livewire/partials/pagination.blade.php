@@ -21,7 +21,15 @@
         // "direktori" URL saat ini (base "/kepegawaian/"), bukan root, hasilnya jadi
         // /kepegawaian/kepegawaian/karyawan. url()->to() dengan leading slash dipaksa memaksa
         // jadi absolute path yang benar.
-        $pagerUrl = fn (int $page) => url()->to('/' . ltrim($paginator->url($page), '/'));
+        //
+        // Path bisa juga datang sebagai URL absolut (resolver default Paginator = url()->current()),
+        // jadi ambil path+query lewat parse_url dulu; kalau tidak host ikut terulang
+        // (http://host/http://host/...).
+        $pagerUrl = function (int $page) use ($paginator) {
+            $parts = parse_url($paginator->url($page));
+
+            return url()->to('/' . ltrim($parts['path'] ?? '', '/') . (isset($parts['query']) ? '?' . $parts['query'] : ''));
+        };
     @endphp
     <nav class="app-pager" wire:loading.class="app-pager-busy">
         @if ($paginator->onFirstPage())
