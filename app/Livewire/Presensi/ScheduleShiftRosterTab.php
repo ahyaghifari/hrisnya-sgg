@@ -933,7 +933,7 @@ class ScheduleShiftRosterTab extends Component
 
                 // Sel yang jadwalnya terkait pengajuan tukar shift tidak boleh diubah dari sini -
                 // gerbang di blade bisa dilewati lewat request yang di-craft, jadi dicek ulang.
-                if (isset($swapCells[$userId . '|' . $date])) {
+                if (isset($swapCells[$userId . '|' . $date]) && ! $this->canOverrideLeaveLock) {
                     $blockedBySwap++;
                     continue;
                 }
