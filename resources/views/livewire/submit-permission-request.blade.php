@@ -110,13 +110,13 @@
                             <div class="time-grid">
                                 <div>
                                     <input type="time" class="form-input" wire:model="start_time">
-                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Mulai</p>
+                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Mulai{{ $permission_type === 'pulang_cepat' ? ' (jam Anda keluar dari kantor / RS)' : '' }}</p>
                                     @error('start_time') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                                 </div>
                                 <div class="time-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                                 <div>
                                     <input type="time" class="form-input" wire:model="end_time">
-                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Berakhir</p>
+                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Berakhir{{ $permission_type === 'pulang_cepat' ? ' (jam Anda pulang seharusnya)' : '' }}</p>
                                     @error('end_time') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                                 </div>
                             </div>
