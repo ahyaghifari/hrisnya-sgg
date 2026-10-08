@@ -393,7 +393,8 @@
                                 // total, tidak bisa diedit dari halaman jadwal (biar tidak bentrok sama
                                 // eksekusi swap). Lihat ScheduleShiftRosterTab::getSwapCellsProperty().
                                 // Sel serah-shift (ghost, lihat getSwapGhostsProperty) ikut dikunci + berikon.
-                                $swapLocked = $ghostId || (isset($this->swapCells[$employee->id.'|'.$date->toDateString()]) && ! $this->canOverrideLeaveLock);
+                                $isSwapCell = $ghostId || isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
+                                $swapLocked = $isSwapCell && ($ghostId || ! $this->canOverrideLeaveLock);
                                 // Sel Cuti/Izin disetujui otomatis - selalu ditandai (badge + kode
                                 // C/Izin), tapi cuma DIKUNCI dari edit buat yang bukan pemegang
                                 // Update:Schedule (Edit Jadwal) - instruksi user 2026-09-24. Lihat
@@ -420,8 +421,8 @@
                                 <template x-if="fillMode && sel && ! selecting && sel.r === {{ $rfR }} && sel.hi === {{ $rfC }}">
                                     <div class="rf-handle" @mousedown.stop.prevent="handleDown()"></div>
                                 </template>
-                                @if ($swapLocked)
-                                    <button type="button" wire:click="$dispatch('open-schedule-swap-history', { userId: '{{ $employee->id }}', date: '{{ $date->toDateString() }}' })" title="Jadwal ini terkait pengajuan tukar shift — tidak bisa diubah dari sini. Klik untuk lihat riwayat."
+                                @if ($isSwapCell)
+                                    <button type="button" wire:click="$dispatch('open-schedule-swap-history', { userId: '{{ $employee->id }}', date: '{{ $date->toDateString() }}' })" title="Jadwal ini terkait pengajuan tukar shift{{ $swapLocked ? ' — tidak bisa diubah dari sini' : ' — kamu bisa mengubahnya (Edit Jadwal)' }}. Klik untuk lihat riwayat."
                                         style="position:absolute;top:0;right:0;z-index:3;background:none;border:none;padding:1px 3px;cursor:pointer;color:#b45309;font-size:12px;line-height:1;">
                                         <i class="fa-solid fa-right-left"></i>
                                     </button>
