@@ -14,7 +14,7 @@
 @endphp
 <div class="dropdown">
     <a href="#" class="nav-item nav-item-teal {{ request()->routeIs(['pelatihan.honorarium', 'pelatihan.kategori', 'pelatihan.kelola', 'pelatihan.pemateri', 'pelatihan.eksternal*', 'pelatihan.klaim.kelola', 'pelatihan.bank-soal', 'pelatihan.kuis', 'pelatihan.evaluasi', 'pelatihan.baseline', 'pelatihan.laporan', 'pelatihan.pengaturan', 'keuangan.gaji-pemateri']) ? 'active' : '' }}">
-        <i class="fa-solid fa-graduation-cap text-xs"></i> Learning Management System <i class="fa-solid fa-chevron-down text-[10px]"></i>
+        <i class="fa-solid fa-graduation-cap text-xs"></i> LMS <i class="fa-solid fa-chevron-down text-[10px]"></i>
     </a>
     <div class="dropdown-menu dropdown-menu-columns">
         @if ($canViewPelatihan || $canViewKategori || $canViewPemateri || $canViewPengaturanLms || $canKelolaKlaim)
