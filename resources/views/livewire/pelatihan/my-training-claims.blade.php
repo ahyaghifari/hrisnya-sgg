@@ -19,7 +19,25 @@
     $label = ['pending' => 'Menunggu Persetujuan', 'approved' => 'Disetujui', 'rejected' => 'Ditolak'];
 @endphp
 
-<div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;margin-top:10px;">
+<div class="md:hidden" style="margin-top:10px;">
+    <div class="pwa-list">
+        @forelse ($claims as $claim)
+            <a href="{{ route('pelatihan.klaim.show', $claim) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                <div class="pwa-tile-icon neutral"><i class="fa-solid fa-certificate"></i></div>
+                <div style="flex:1;min-width:0;">
+                    <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $claim->title }}</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $claim->created_at?->translatedFormat('j F Y') }} &middot; JP {{ $claim->jp ?? '-' }}</p>
+                    <span class="badge {{ $badge[$claim->status] ?? '' }}" style="margin-top:4px;">{{ $label[$claim->status] ?? $claim->status }}</span>
+                </div>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+        @empty
+            <div style="padding:32px 16px;text-align:center;font-size:13px;color:var(--text-muted);">Belum ada klaim.</div>
+        @endforelse
+    </div>
+</div>
+
+<div class="hidden md:block" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;margin-top:10px;">
     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead>
             <tr style="border-bottom:1.5px solid var(--border);">

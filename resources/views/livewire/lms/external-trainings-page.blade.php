@@ -14,7 +14,24 @@
             <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Judul pelatihan...">
         </div>
 
-        <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;">
+        <div class="md:hidden pwa-list">
+            @forelse ($this->requests as $record)
+                <a href="{{ route('pelatihan.eksternal.show', $record) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                    <div class="pwa-tile-icon neutral"><i class="fa-solid fa-graduation-cap"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $record->user->name }}</p>
+                        <p style="font-size:12px;color:var(--text-heading);margin-top:2px;">{{ $record->title }}</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $record->created_at?->translatedFormat('j F Y') }}@if ($record->ikatan_dinas_tahun) &middot; Ikatan dinas {{ rtrim(rtrim(number_format($record->ikatan_dinas_tahun, 2, ',', '.'), '0'), ',') }} Tahun @endif</p>
+                        <span class="badge {{ $this->statusBadgeClass($record->status) }}" style="margin-top:4px;">{{ $this->statusLabel($record->status) }}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            @empty
+                <div style="padding:32px 16px;text-align:center;font-size:13px;color:var(--text-muted);">Belum ada pengajuan pelatihan eksternal.</div>
+            @endforelse
+        </div>
+
+        <div class="hidden md:block" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
                 <thead>
                     <tr style="border-bottom:1.5px solid var(--border);">
