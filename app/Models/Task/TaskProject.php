@@ -52,6 +52,11 @@ class TaskProject extends Model
         return $this->hasMany(Task::class, 'project_id');
     }
 
+    public function comments(): HasMany
+    {
+        return $this->hasMany(TaskProjectComment::class, 'project_id')->with('user.profile')->oldest();
+    }
+
     public function lists(): HasMany
     {
         return $this->hasMany(TaskList::class, 'project_id')->orderBy('position');

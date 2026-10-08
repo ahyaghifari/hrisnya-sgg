@@ -99,4 +99,47 @@ class TaskCommentReplyMentionTest extends TestCase
         $this->assertStringNotContainsString('<script>', $html);
         $this->assertStringContainsString('@Budi</span>', $html);
     }
+
+    public function test_board_discussion_reply_one_level_and_mention(): void
+    {
+        [$service, $task, $owner, $budi, $budiS] = $this->board();
+        $project = $task->project;
+        Notification::fake();
+
+        $service->addProjectComment($project, $owner, 'halo @Budi Santoso');
+        $root = $project->comments()->first();
+        Notification::assertSentTo($budiS, TaskMentioned::class);
+        Notification::assertNotSentTo($budi, TaskMentioned::class);
+
+        $service->addProjectComment($project, $budiS, 'siap', $root->id);
+        $reply = $project->comments()->whereNotNull('parent_id')->first();
+
+        try {
+            $service->addProjectComment($project, $owner, 'balas balasan', $reply->id);
+            $this->fail('balasan dari balasan harusnya ditolak');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+        }
+    }
+
+    public function test_board_discussion_unread_counts_only_tags_and_replies_until_seen(): void
+    {
+        [$service, $task, $owner, $budi, $budiS] = $this->board();
+        $project = $task->project;
+        Notification::fake();
+
+        $service->addProjectComment($project, $owner, 'halo @Budi Santoso');
+        $service->addProjectComment($project, $owner, 'pesan umum tanpa tag');
+        $this->assertSame(1, $service->unreadDiscussionMentions($project, $budiS));
+        $this->assertSame(0, $service->unreadDiscussionMentions($project, $budi));
+
+        $service->markDiscussionSeen($project, $budiS);
+        $this->assertSame(0, $service->unreadDiscussionMentions($project, $budiS));
+
+        $this->travel(5)->seconds();
+        $service->addProjectComment($project, $budiS, 'pesanku');
+        $mine = $project->comments()->where('user_id', $budiS->id)->first();
+        $service->addProjectComment($project, $owner, 'balasan', $mine->id);
+        $this->assertSame(1, $service->unreadDiscussionMentions($project, $budiS));
+    }
 }

@@ -16,7 +16,7 @@ class TaskMentioned extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(protected Task $task, protected string $commenterName, protected string $comment) {}
+    public function __construct(protected ?Task $task, protected string $commenterName, protected string $comment, protected ?string $projectId = null) {}
 
     public function via(object $notifiable): array
     {
@@ -43,8 +43,8 @@ class TaskMentioned extends Notification implements ShouldQueue
             'title' => $this->title(),
             'body' => $this->body(),
             'request_type' => 'task',
-            'task_id' => $this->task->id,
-            'project_id' => $this->task->project_id,
+            'task_id' => $this->task?->id,
+            'project_id' => $this->task?->project_id ?? $this->projectId,
             'created_at' => now()->toISOString(),
         ];
     }
@@ -55,7 +55,7 @@ class TaskMentioned extends Notification implements ShouldQueue
             ->title($this->title())
             ->icon('/pwa/icons/icon-192-v3.png')
             ->body($this->body())
-            ->data(['request_type' => 'task', 'task_id' => $this->task->id, 'project_id' => $this->task->project_id])
+            ->data(['request_type' => 'task', 'task_id' => $this->task?->id, 'project_id' => $this->task?->project_id ?? $this->projectId])
             ->action('Lihat', 'view');
     }
 }

@@ -42,7 +42,7 @@ class TaskListPage extends Component
 
     // Filter tab di dalam Board: semua tugas Board (default) atau cuma yang ditugaskan ke user ini.
     #[Url]
-    public string $boardFilter = 'semua'; // semua | saya
+    public string $boardFilter = 'semua'; // semua | saya | diskusi
 
     #[Url]
     public ?string $activeProjectId = null;
@@ -78,6 +78,9 @@ class TaskListPage extends Component
     public bool $trackNew = false;
     public string $newComment = '';
     public ?string $replyToId = null; // komentar awal yang sedang dibalas (1 tingkat)
+    public ?string $discussionSeenBefore = null; // terakhir dibuka sebelum sesi modal ini, buat sorot pesan baru
+    public string $newDiscussion = '';
+    public ?string $discussionReplyToId = null; // komentar Diskusi Board yang sedang dibalas
     public string $newChecklistTitle = '';
     public ?string $editingChecklistItemId = null;
     public string $editingChecklistItemTitle = '';
@@ -130,6 +133,11 @@ class TaskListPage extends Component
 
         if ($this->activeProjectId && ! app(TaskService::class)->canAccessProject(TaskProject::findOrFail($this->activeProjectId), Auth::user())) {
             $this->activeProjectId = null;
+        }
+
+        // boardFilter bisa datang dari URL (?boardFilter=diskusi).
+        if ($this->boardFilter === 'diskusi') {
+            $this->activeProject ? $this->enterDiscussion() : $this->boardFilter = 'semua';
         }
     }
 
@@ -234,7 +242,19 @@ class TaskListPage extends Component
 
     public function setBoardFilter(string $filter): void
     {
-        $this->boardFilter = $filter === 'saya' ? 'saya' : 'semua';
+        $wasDiscussion = $this->boardFilter === 'diskusi';
+        $this->boardFilter = in_array($filter, ['saya', 'diskusi'], true) ? $filter : 'semua';
+
+        if ($this->activeProject && $this->boardFilter === 'diskusi' && ! $wasDiscussion) {
+            $this->enterDiscussion();
+        } elseif ($wasDiscussion && $this->activeProject) {
+            // Pesan yang masuk selama tab terbuka ikut dianggap sudah dibaca.
+            app(TaskService::class)->markDiscussionSeen($this->activeProject, Auth::user());
+            $this->discussionReplyToId = null;
+        }
+
+        // Hitung mundur refresh mulai ulang dari 10 detik setelah pindah tab.
+        $this->dispatch('board-filter-changed');
     }
 
     public function getTasksProperty()
@@ -748,6 +768,49 @@ class TaskListPage extends Component
             unset($this->tasks, $this->selectedTask);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengirim komentar')->danger()->send();
+        }
+    }
+
+    /** Masuk tab Diskusi: ingat kapan terakhir dibuka (buat sorot pesan baru) lalu tandai sudah dibaca. */
+    private function enterDiscussion(): void
+    {
+        $service = app(TaskService::class);
+        $this->discussionSeenBefore = $service->discussionSeenAt($this->activeProject, Auth::user());
+        $service->markDiscussionSeen($this->activeProject, Auth::user());
+    }
+
+
+    /** Bubble tombol Diskusi: pesan baru yang menandai/membalas user. */
+    public function getDiscussionUnreadProperty(): int
+    {
+        return $this->activeProject && $this->boardFilter !== 'diskusi'
+            ? app(TaskService::class)->unreadDiscussionMentions($this->activeProject, Auth::user())
+            : 0;
+    }
+
+    public function startDiscussionReply(string $commentId): void
+    {
+        $this->discussionReplyToId = $commentId;
+    }
+
+    public function cancelDiscussionReply(): void
+    {
+        $this->discussionReplyToId = null;
+    }
+
+    public function addDiscussion(): void
+    {
+        if (! $this->activeProject || trim($this->newDiscussion) === '') {
+            return;
+        }
+
+        try {
+            app(TaskService::class)->addProjectComment($this->activeProject, Auth::user(), $this->newDiscussion, $this->discussionReplyToId);
+            $this->newDiscussion = '';
+            $this->discussionReplyToId = null;
+            $this->dispatch('discussion-sent');
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengirim diskusi')->danger()->send();
         }
     }
 
