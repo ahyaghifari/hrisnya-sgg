@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
+use Tests\Support\SpFixtures;
 use Tests\TestCase;
 
 /** SP dibuat dari BA selesai (instruksi user 2026-10-01): syarat BA, urutan TTD 3 pihak, hash BA stabil. */
@@ -61,7 +62,7 @@ class SpFromReportTest extends TestCase
     private function finishedReport(?SpReportDecision $decision = SpReportDecision::LANJUT_SP): SpReport
     {
         $report = $this->service->create($this->hc, [
-            'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'Terlambat', 'dasar_items' => ['Rekap'],
         ]);
         $this->service->updateDraft($report, $this->hc, ['subject_clarification' => 'macet', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
@@ -157,6 +158,24 @@ class SpFromReportTest extends TestCase
         $this->assertSame($this->employee->id, $sp->user_id);
         $this->assertSame($sp->id, $eligible->fresh()->sp_id);
         $this->assertSame('Keterlambatan', $sp->items->first()->text);
+    }
+
+    public function test_pelanggaran_options_follow_selected_sp_level_and_wrong_rows_are_cleared(): void
+    {
+        $sp1 = \App\Models\Sp\SpReason::create(['company_id' => $this->hc->company_id, 'name' => 'Terlambat', 'sp_level' => 'sp1']);
+        $sp3 = \App\Models\Sp\SpReason::create(['company_id' => $this->hc->company_id, 'name' => 'Mangkir', 'sp_level' => 'sp3']);
+
+        $page = Livewire::actingAs($this->hc)->test(CreateSpFromReportPage::class, ['reportId' => $this->finishedReport()->id])
+            ->set('sp_level', 'sp1');
+
+        $options = $page->instance()->reasonOptions;
+        $this->assertTrue($options->has($sp1->id));
+        $this->assertFalse($options->has($sp3->id));
+        // master lama tanpa level tetap muncul di semua level
+        $this->assertTrue($options->has($this->reason->id));
+
+        $page->set('items.0.reason', $sp1->id)->set('sp_level', 'sp3')->assertSet('items.0.reason', '');
+        $this->assertTrue($page->instance()->reasonOptions->has($sp3->id));
     }
 
     public function test_repeat_of_active_sp_violation_is_offered_suggests_next_level_and_is_stored(): void

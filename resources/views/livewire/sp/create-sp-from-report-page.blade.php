@@ -22,17 +22,6 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
-                <label class="form-label">Sumber dari Coaching (opsional)</label>
-                <select wire:model="coaching_id" class="form-input">
-                    <option value="">Manual (tanpa Coaching)</option>
-                    @foreach ($this->coachingOptions as $id => $label)
-                        <option value="{{ $id }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-                @error('coaching_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
                 <label class="form-label">Nomor Surat <span style="color:var(--danger-text);">*</span></label>
                 <input type="text" wire:model="nomor" class="form-input" placeholder="mis. 001/SP/HC-GA/IX/2026">
                 @error('nomor') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror

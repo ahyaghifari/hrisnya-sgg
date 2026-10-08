@@ -6,15 +6,20 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Master pelanggaran (instruksi user 2026-10-06) - dipilih sebagai Dasar Klarifikasi Berita Acara
- * dan poin Surat Peringatan. company_id NULL = bawaan untuk semua perusahaan.
+ * Master pilihan (instruksi user 2026-10-06): `pelanggaran` = poin Surat Peringatan, `dasar` = Dasar
+ * Klarifikasi Berita Acara (dua master terpisah). company_id NULL = bawaan untuk semua perusahaan.
  */
 class SpReason extends Model
 {
     use HasUlids;
 
+    public const KIND_PELANGGARAN = 'pelanggaran';
+    public const KIND_DASAR = 'dasar';
+
     protected $fillable = [
         'company_id',
+        'kind',
+        'sp_level',
         'code',
         'name',
         'is_active',
@@ -22,12 +27,14 @@ class SpReason extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'sp_level' => \App\Enum\Sp\SpLevel::class,
     ];
 
     /** Aktif dan berlaku untuk perusahaan ini (milik sendiri + bawaan). */
-    public function scopeAvailableFor($query, ?string $companyId)
+    public function scopeAvailableFor($query, ?string $companyId, string $kind = self::KIND_PELANGGARAN, ?string $spLevel = null)
     {
-        return $query->where('is_active', true)
+        return $query->where('kind', $kind)->where('is_active', true)
+            ->when($spLevel, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('sp_level')->orWhere('sp_level', $spLevel)))
             ->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId));
     }
 

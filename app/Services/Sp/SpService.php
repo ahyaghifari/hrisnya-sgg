@@ -132,6 +132,51 @@ class SpService
     // jenis dokumen (instruksi user 2026-09-28: "kenapa dibangun erat dengan SP, kan bisa modal,
     // nanti ada juga Surat Tugas dan yang lainnya").
 
+    /**
+     * Revisi SP yang sudah terbit walau sebagian sudah menandatangani (hanya sebelum semua TTD selesai):
+     * tanda tangan dibatalkan (jejak di event dokumen) dan dokumen dibuka untuk diedit. Penerbitan efek
+     * (merit point, notifikasi karyawan) TIDAK diulang; pembuat menandatangani ulang lewat reissue().
+     * BA lama yang ikut paket SP ikut dibuka.
+     */
+    public function revise(EmployeeSp $employeeSp, User $actor, string $reason): void
+    {
+        abort_unless(
+            $actor->can(\App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value) && $actor->company_id === $employeeSp->company_id,
+            403,
+            'Anda tidak berwenang merevisi Surat Peringatan ini.'
+        );
+        abort_if($employeeSp->isCancelled() || ! $employeeSp->isIssued(), 409, 'Hanya SP yang sudah terbit dan belum dibatalkan yang bisa direvisi.');
+
+        if (! filled($reason)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['alasan' => 'Alasan revisi wajib diisi.']);
+        }
+
+        DB::transaction(function () use ($employeeSp, $actor, $reason) {
+            $employeeSp->document->revise($actor, $reason);
+
+            if ($employeeSp->report?->isLegacy()) {
+                $employeeSp->report->document?->revise($actor, $reason);
+            }
+
+            $employeeSp->update(['revised_at' => now()]);
+        });
+
+        collect([$employeeSp->knowsBy, $employeeSp->user])->filter()->reject(fn ($user) => $user->id === $actor->id)
+            ->each(fn ($user) => $user->notify(new \App\Notifications\SpReportUpdated(
+                'Surat Peringatan Direvisi',
+                "Surat Peringatan {$employeeSp->user?->name} direvisi HC: {$reason}. Tanda tangan sebelumnya dibatalkan; Anda dikabari saat giliran menandatangani.",
+                $user->id === $employeeSp->user_id ? route('sp.saya.show', $employeeSp) : route('sp.show', $employeeSp),
+                always: true,
+            )));
+    }
+
+    /** Terbitkan ulang SP yang sudah direvisi: kunci dokumen lagi, pembuat tanda tangan, Mengetahui dikabari. */
+    public function reissue(EmployeeSp $employeeSp): void
+    {
+        $this->refreshBalance($employeeSp->user_id); // tanggal berlaku bisa berubah saat revisi
+        $this->signCreatedByAndNotifyKnowsBy($employeeSp);
+    }
+
     /** Batal SP (instruksi user 2026-09-25) - soft-cancel, bukan hard delete: record tetap ada
      * buat riwayat/audit, cuma ditandai cancelled_at + alasan + siapa yang membatalkan.
      * scopeActive() otomatis exclude SP yang sudah dibatalkan, jadi cache active_sp_level perlu

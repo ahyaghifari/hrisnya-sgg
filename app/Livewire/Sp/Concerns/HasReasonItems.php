@@ -16,7 +16,19 @@ trait HasReasonItems
     /** @return \Illuminate\Support\Collection<string, string> id => nama */
     public function getReasonOptionsProperty()
     {
-        return SpReason::availableFor($this->reasonCompanyId())->orderBy('name')->pluck('name', 'id');
+        return SpReason::availableFor($this->reasonCompanyId(), SpReason::KIND_PELANGGARAN, $this->reasonLevel())->orderBy('name')->pluck('name', 'id');
+    }
+
+    /** Level SP yang sedang diisi (menyaring pelanggaran); null = tidak disaring. */
+    protected function reasonLevel(): ?string
+    {
+        return null;
+    }
+
+    /** Pilihan Dasar Klarifikasi BA (master terpisah dari pelanggaran SP). */
+    public function getDasarReasonOptionsProperty()
+    {
+        return SpReason::availableFor($this->reasonCompanyId(), SpReason::KIND_DASAR)->orderBy('name')->pluck('name', 'id');
     }
 
     /** @return array{reason: string, note: string} */

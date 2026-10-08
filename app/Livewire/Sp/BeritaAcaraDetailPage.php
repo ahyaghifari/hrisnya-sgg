@@ -27,6 +27,7 @@ class BeritaAcaraDetailPage extends Component
     public SpReport $record;
 
     public ?string $nomor = null;
+    public ?string $coaching_id = null;
     public array $dasar_items = [['reason' => '', 'note' => '']];
     public ?string $kejadian = null;
 
@@ -42,10 +43,11 @@ class BeritaAcaraDetailPage extends Component
 
         $user = Auth::user();
 
-        // HC (izin pembinaan + company sama), pembuat, atau "Mengetahui" yang ditunjuk (lihat saja).
+        // HC (izin pembinaan + company sama), pembuat, atau "Mengetahui" / atasan langsung yang ditunjuk (lihat & tanda tangan).
         abort_unless(
             $user->id === $record->created_by
                 || $user->id === $record->knows_by
+                || $user->id === $record->supervisor_id
                 || ($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value) && $user->can('View:EmployeeSp') && $user->company_id === $record->company_id),
             403
         );
@@ -54,9 +56,21 @@ class BeritaAcaraDetailPage extends Component
         $this->fillFromRecord();
     }
 
+    public function getCoachingOptionsProperty()
+    {
+        return \App\Models\Coaching\Coaching::where('user_id', $this->record->user_id)->latest()->get()
+            ->mapWithKeys(fn ($c) => [$c->id => "{$c->title} ({$c->created_at->translatedFormat('d M Y')})"]);
+    }
+
+    /** Atasan langsung karyawan (sebelum FIX dihitung langsung, sesudahnya yang tercatat). */
+    public function getSupervisorProperty(): ?\App\Models\User
+    {
+        return app(SpReportService::class)->supervisorFor($this->record);
+    }
+
     private function fillFromRecord(): void
     {
-        foreach (['nomor', 'kejadian', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
+        foreach (['nomor', 'coaching_id', 'kejadian', 'subject_clarification', 'analysis', 'kesimpulan', 'followup_plan'] as $field) {
             $this->{$field} = $this->record->{$field};
         }
 
@@ -140,6 +154,15 @@ class BeritaAcaraDetailPage extends Component
         return $document?->pendingRoleFor(Auth::user()) !== null;
     }
 
+    public string $revision_reason = '';
+
+    /** Revisi BA yang sudah FIX (TTD yang masuk dibatalkan, kembali ke draft). */
+    public function revise(): void
+    {
+        $this->run(fn ($s) => $s->revise($this->record, Auth::user(), trim($this->revision_reason)), 'Berita Acara dibuka untuk revisi, tanda tangan sebelumnya dibatalkan');
+        $this->revision_reason = '';
+    }
+
     public function decide(string $decision): void
     {
         $this->run(fn ($s) => $s->decide($this->record, Auth::user(), SpReportDecision::from($decision)), 'Keputusan disimpan');
@@ -150,6 +173,7 @@ class BeritaAcaraDetailPage extends Component
     {
         return [
             'nomor' => $this->nomor,
+            'coaching_id' => $this->coaching_id,
             'dasar_items' => $this->reasonPayload($this->dasar_items),
             'kejadian' => $this->kejadian,
             'subject_clarification' => $this->subject_clarification,

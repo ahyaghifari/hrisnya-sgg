@@ -37,6 +37,10 @@ Route::redirect('/surat-peringatan', '/pembinaan-saya');
 Route::get('/surat-peringatan/{record}', SuratPeringatanDetailPage::class)
     ->name('sp.saya.show');
 
+// Undangan (baca saja) untuk yang diundang & pembuatnya - tujuan klik notifikasi undangan.
+Route::get('/undangan/{record}', \App\Livewire\InvitationViewPage::class)
+    ->name('undangan.show');
+
 // Berita Acara milik karyawan sendiri (alur baru, instruksi user 2026-10-01).
 Route::get('/berita-acara/{record}', BeritaAcaraSayaPage::class)
     ->name('sp.saya.ba');
@@ -116,6 +120,13 @@ Route::prefix('pembinaan')->group(function () {
         return app(SpPdfService::class)->previewBeritaAcara($record);
     })->name('sp.beritaacara_preview');
 
+    // Undangan klarifikasi: tahap 1, wajib sebelum Berita Acara.
+    Route::get('/sp-undangan/tambah', \App\Livewire\Sp\SpInvitationPage::class)
+        ->name('sp.undangan.create');
+
+    Route::get('/sp-undangan/{record}', \App\Livewire\Sp\SpInvitationPage::class)
+        ->name('sp.undangan.show');
+
     // Berita Acara alur baru (instruksi user 2026-10-01) - proses klarifikasi sebelum SP.
     Route::get('/berita-acara/tambah', CreateBeritaAcaraPage::class)
         ->name('ba.create');
@@ -123,14 +134,16 @@ Route::prefix('pembinaan')->group(function () {
     Route::get('/berita-acara/{record}', BeritaAcaraDetailPage::class)
         ->name('ba.show');
 
-    // Gerbang sama dengan BeritaAcaraDetailPage::mount(), plus harus sudah SELESAI.
+    // Gerbang sama dengan BeritaAcaraDetailPage::mount(). Sebelum SELESAI (draft / menunggu TTD)
+    // yang tampil hanya pratinjau berwatermark, bukan dokumen final.
     Route::get('/berita-acara/{record}/preview', function (SpReport $record) {
         $user = Auth::user();
 
         abort_unless(
-            ! $record->isLegacy() && $record->status === SpReportStatus::SELESAI
+            ! $record->isLegacy()
                 && ($user->id === $record->created_by
                     || $user->id === $record->knows_by
+                    || $user->id === $record->supervisor_id
                     || ($user->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value) && $user->can('View:EmployeeSp') && $user->company_id === $record->company_id)),
             403
         );

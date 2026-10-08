@@ -9,26 +9,20 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
-                <label class="form-label">Karyawan <span style="color:var(--danger-text);">*</span></label>
-                <select data-tom-select data-placeholder="Pilih karyawan" wire:model.live="user_id" class="form-input">
-                    <option value="">Pilih karyawan</option>
-                    @foreach ($this->employeeOptions as $id => $name)
-                        <option value="{{ $id }}">{{ $name }}</option>
-                    @endforeach
-                </select>
-                @error('user_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                @if ($user_id)
-                    <p style="font-size:12.5px;color:var(--text-muted);margin:6px 0 0;">
-                        Atasan langsung:
-                        @if ($this->supervisor)
-                            <strong style="color:var(--text-heading);">{{ $this->supervisor->name }}</strong>
-                            {{ $this->supervisor->activeJobPosition?->jobPosition?->name ? '(' . $this->supervisor->activeJobPosition->jobPosition->name . ')' : '' }}
-                            &middot; ikut menandatangani setelah yang mengetahui.
-                        @else
-                            tidak ditemukan.
-                        @endif
-                    </p>
-                @endif
+                @php $invitation = $this->invitation; @endphp
+                <label class="form-label">Karyawan (dari undangan klarifikasi)</label>
+                <p style="font-size:14px;font-weight:600;color:var(--text-heading);margin:0;">{{ $invitation->user->name }}</p>
+                <p style="font-size:12.5px;color:var(--text-muted);margin:6px 0 0;">
+                    Klarifikasi: {{ $invitation->scheduled_at->translatedFormat('d M Y H:i') }}, {{ $invitation->location }}.
+                    Atasan langsung:
+                    @if ($invitation->supervisor)
+                        <strong style="color:var(--text-heading);">{{ $invitation->supervisor->name }}</strong>
+                        {{ $invitation->supervisor->activeJobPosition?->jobPosition?->name ? '(' . $invitation->supervisor->activeJobPosition->jobPosition->name . ')' : '' }}
+                        &middot; ikut menandatangani setelah yang mengetahui.
+                    @else
+                        tidak ditemukan.
+                    @endif
+                </p>
             </div>
 
             <div>
@@ -42,6 +36,18 @@
                 @error('knows_by') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
 
+            @if (\App\Services\Sp\SpReportService::coachingSourceEnabled())
+            <div>
+                <label class="form-label">Sumber dari Coaching (opsional)</label>
+                <select wire:model="coaching_id" class="form-input">
+                    <option value="">Tanpa Coaching</option>
+                    @foreach ($this->coachingOptions as $id => $label)
+                        <option value="{{ $id }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('coaching_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+            </div>
+            @endif
             <div>
                 <label class="form-label">Nomor Berita Acara</label>
                 <input type="text" wire:model="nomor" class="form-input" placeholder="mis. 001/BA/HC-GA/X/2026">
@@ -58,7 +64,7 @@
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div>
                 <label class="form-label">Dasar Klarifikasi <span style="color:var(--danger-text);">*</span></label>
-                @include('livewire.sp.partials.reason-items-editor', ['field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
+                @include('livewire.sp.partials.reason-items-editor', ['options' => $this->dasarReasonOptions, 'noun' => 'dasar klarifikasi', 'withNote' => false, 'field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
             </div>
 
             @foreach ([['kejadian', 'Kejadian', true], ['subject_clarification', 'Klarifikasi Karyawan', false], ['analysis', 'Analisis', false], ['kesimpulan', 'Kesimpulan', false], ['followup_plan', 'Rencana Tindak Lanjut', false]] as [$field, $label, $required])

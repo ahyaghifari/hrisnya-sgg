@@ -13,6 +13,7 @@ use App\Services\Sp\SpReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
+use Tests\Support\SpFixtures;
 use Tests\TestCase;
 
 /** Alur Berita Acara baru (instruksi user 2026-10-01): status, urutan TTD, dan penguncian. */
@@ -46,7 +47,7 @@ class SpReportFlowTest extends TestCase
     private function draft(): SpReport
     {
         return $this->service->create($this->hc, [
-            'user_id' => $this->employee->id,
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id,
             'knows_by' => $this->knower->id,
             'kejadian' => 'Terlambat 5 kali',
             'dasar_items' => ['Rekap presensi'],
@@ -152,7 +153,14 @@ class SpReportFlowTest extends TestCase
         $report->update(['supervisor_id' => $supervisor->id]);
 
         $this->assertSame(['supervisor', 'created_by', 'knows_by', 'employee'], array_keys($report->fresh()->expectedSignerRoles()));
-        $this->assertSame('Dibuat oleh (Atasan Langsung)', $report->fresh()->expectedSignerRoles()['supervisor']);
+        $this->assertSame('Atasan Langsung', $report->fresh()->expectedSignerRoles()['supervisor']);
+        $this->assertSame('Mengetahui', $report->fresh()->expectedSignerRoles()['created_by']);
+
+        // Atasan langsung = HC pembuat: HC menempati slot Atasan Langsung, tidak tanda tangan dua kali.
+        $asCreator = $this->untilWaitingSignature();
+        $asCreator->update(['supervisor_id' => $this->hc->id]);
+        $this->assertSame(['created_by', 'knows_by', 'employee'], array_keys($asCreator->fresh()->expectedSignerRoles()));
+        $this->assertSame('Atasan Langsung', $asCreator->fresh()->expectedSignerRoles()['created_by']);
 
         $this->assertNull($report->fresh()->assignedSigners()['created_by']);
         $this->assertSame($supervisor->id, $report->fresh()->assignedSigners()['supervisor']->id);
@@ -165,6 +173,96 @@ class SpReportFlowTest extends TestCase
         $this->sign($report, $this->employee);
 
         $this->assertSame(SpReportStatus::SELESAI, $report->fresh()->status);
+    }
+
+    public function test_hc_can_revise_after_fix_even_with_signatures_and_order_changes(): void
+    {
+        $supervisor = User::factory()->create(['company_id' => $this->company->id]);
+        $report = $this->untilWaitingSignature();
+        $report->update(['supervisor_id' => $supervisor->id]);
+        $this->sign($report, $supervisor);
+        $this->assertSame(1, $report->fresh()->document->signatures()->count());
+
+        $this->service->revise($report->fresh(), $this->hc, 'Kejadian salah tanggal');
+
+        $report = $report->fresh();
+        $this->assertSame(SpReportStatus::DRAFT, $report->status);
+        $this->assertNotNull($report->revised_at);
+        $this->assertSame(0, $report->document->signatures()->count());
+        $this->assertNull($report->document->fixed_at);
+        $voided = $report->document->events()->where('event', 'document_revised')->firstOrFail()->meta;
+        $this->assertSame('supervisor', $voided['voided_signatures'][0]['role']);
+
+        // Edit lalu FIX ulang: urutan TTD = HC pembuat, atasan langsung, mengetahui, karyawan.
+        $this->service->updateDraft($report, $this->hc, ['kejadian' => 'Kejadian dikoreksi']);
+        $this->service->sendForSigning($report->fresh(), $this->hc);
+
+        $report = $report->fresh();
+        $this->assertSame(['created_by', 'supervisor', 'knows_by', 'employee'], array_keys($report->expectedSignerRoles()));
+        $this->assertSame($this->hc->id, $report->assignedSigners()['created_by']->id);
+        $this->assertNull($report->assignedSigners()['supervisor']);
+    }
+
+    public function test_verification_page_lists_all_signers_and_voided_code_says_revised(): void
+    {
+        $supervisor = User::factory()->create(['company_id' => $this->company->id]);
+        $report = $this->untilWaitingSignature();
+        $report->update(['supervisor_id' => $supervisor->id]);
+        $this->sign($report, $supervisor);
+
+        $code = $report->fresh()->document->signatures()->with('verification')->firstOrFail()->verification->verification_code;
+
+        $this->get(route('public.verify', ['code' => $code]))
+            ->assertOk()
+            ->assertSee('Seluruh Penanda Tangan')
+            ->assertSee('1 dari 4 sudah menandatangani')
+            ->assertSee('Belum menandatangani')
+            ->assertSee('yang dipindai');
+
+        $this->service->revise($report->fresh(), $this->hc, 'Kejadian salah tanggal');
+
+        $this->get(route('public.verify', ['code' => $code]))
+            ->assertOk()
+            ->assertSee('TANDA TANGAN DIBATALKAN')
+            ->assertSee('Kejadian salah tanggal');
+    }
+
+    public function test_coaching_source_is_recorded_on_the_report_and_must_belong_to_the_employee(): void
+    {
+        $coaching = \App\Models\Coaching\Coaching::create([
+            'company_id' => $this->company->id, 'user_id' => $this->employee->id, 'coach_by' => $this->hc->id,
+            'title' => 'Coaching keterlambatan', 'improvement_due_date' => now()->addWeek(),
+        ]);
+        $data = fn ($coachingId) => [
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id,
+            'kejadian' => 'x', 'dasar_items' => ['d'], 'coaching_id' => $coachingId,
+        ];
+
+        $report = $this->service->create($this->hc, $data($coaching->id));
+        $this->assertSame($coaching->id, $report->fresh()->coaching_id);
+
+        // Coaching karyawan lain ditolak.
+        $other = \App\Models\Coaching\Coaching::create([
+            'company_id' => $this->company->id, 'user_id' => $this->knower->id, 'coach_by' => $this->hc->id,
+            'title' => 'Coaching lain', 'improvement_due_date' => now()->addWeek(),
+        ]);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->service->create($this->hc, $data($other->id));
+    }
+
+    public function test_revise_requires_reason_and_waiting_signature_status(): void
+    {
+        $draft = $this->draft();
+
+        try {
+            $this->service->revise($draft, $this->hc, 'x');
+            $this->fail('draft tidak boleh direvisi');
+        } catch (ValidationException) {
+        }
+
+        $report = $this->untilWaitingSignature();
+        $this->expectException(ValidationException::class);
+        $this->service->revise($report, $this->hc, '');
     }
 
     public function test_employee_can_request_reclarification_and_old_version_is_kept(): void
@@ -190,7 +288,7 @@ class SpReportFlowTest extends TestCase
     public function test_draft_requires_kejadian_and_dasar_klarifikasi(): void
     {
         $this->expectException(ValidationException::class);
-        $this->service->create($this->hc, ['user_id' => $this->employee->id, 'knows_by' => $this->knower->id, 'kejadian' => 'x']);
+        $this->service->create($this->hc, ['invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id, 'kejadian' => 'x']);
     }
 
     public function test_dasar_items_are_numbered_only_when_more_than_one(): void

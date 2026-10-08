@@ -4,8 +4,12 @@
     $D = \App\Enum\Sp\SpReportDecision::class;
 
     // Tahap: done | current | pending | skip
-    if ($report) {
-        $stages = [
+    $invitation = $invitation ?? $report?->invitation;
+
+    if (! $report && $invitation) {
+        $stages = ['Undangan' => $invitation->isCancelled() ? 'skip' : 'current', 'Berita Acara' => 'pending', 'Keputusan' => 'pending', 'Surat Peringatan' => 'pending'];
+    } elseif ($report) {
+        $stages = ($report->invitation_id ? ['Undangan' => 'done'] : []) + [
             'Berita Acara' => $report->status === $S::SELESAI ? 'done' : 'current',
             'Keputusan' => ($report->keputusan || $sp) ? 'done' : ($report->status === $S::SELESAI ? 'current' : 'pending'),
             'Surat Peringatan' => $sp ? 'done' : ($report->keputusan === $D::LANJUT_SP ? 'current' : ($report->keputusan === $D::TIDAK_LAYAK_SP ? 'skip' : 'pending')),

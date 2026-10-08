@@ -16,6 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
+use Tests\Support\SpFixtures;
 use Tests\TestCase;
 
 /** Sisi karyawan pada Berita Acara alur baru (instruksi user 2026-10-01) + notifikasinya. */
@@ -49,7 +50,7 @@ class SpReportEmployeePageTest extends TestCase
     private function draft(): SpReport
     {
         return $this->service->create($this->hc, [
-            'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'Terlambat', 'dasar_items' => ['Rekap'],
         ]);
     }

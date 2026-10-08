@@ -5,6 +5,7 @@ namespace App\Livewire\Sp;
 use App\Enum\CustomPermissionEnum;
 use App\Livewire\Sp\Concerns\HasReasonItems;
 use App\Models\Master\Companies;
+use App\Models\Invitation;
 use App\Models\User;
 use App\Services\Sp\SpReportService;
 use Filament\Notifications\Notification;
@@ -23,8 +24,10 @@ class CreateBeritaAcaraPage extends Component
     use HasReasonItems;
 
     public ?string $companyId = null;
+    public ?string $invitation_id = null;
     public ?string $user_id = null;
     public ?string $knows_by = null;
+    public ?string $coaching_id = null;
     public ?string $nomor = null;
     public array $dasar_items = [];
     public ?string $kejadian = null;
@@ -43,22 +46,24 @@ class CreateBeritaAcaraPage extends Component
         $this->companyId = $user->company_id;
         $this->dasar_items = [$this->blankReasonRow()];
 
-        if ($prefill = User::whereCompany($user->company_id)->find(request()->query('user_id'))) {
-            $this->user_id = $prefill->id;
-        }
+        // BA hanya dibuat dari undangan klarifikasi yang masih terbuka; karyawan mengikuti undangan.
+        $invitation = Invitation::ofType(\App\Enum\InvitationType::SP_KLARIFIKASI)->where('company_id', $user->company_id)->findOrFail(request()->query('invitation_id'));
+        abort_unless($invitation->isOpen(), 404);
+
+        $this->invitation_id = $invitation->id;
+        $this->user_id = $invitation->user_id;
     }
 
-    public function getEmployeeOptionsProperty()
+    /** Coaching karyawan ini yang bisa dicatat sebagai sumber (opsional). */
+    public function getCoachingOptionsProperty()
     {
-        return User::whereCompany($this->companyId)->orderByName()->get()->pluck('name', 'id');
+        return \App\Models\Coaching\Coaching::where('user_id', $this->user_id)->latest()->get()
+            ->mapWithKeys(fn ($c) => [$c->id => "{$c->title} ({$c->created_at->translatedFormat('d M Y')})"]);
     }
 
-    /** Atasan langsung karyawan terpilih - ditampilkan langsung setelah karyawan dipilih. */
-    public function getSupervisorProperty(): ?User
+    public function getInvitationProperty(): Invitation
     {
-        $employee = User::whereCompany($this->companyId)->find($this->user_id);
-
-        return $employee ? app(\App\Services\SikartapReviewerResolver::class)->directSupervisorOf($employee) : null;
+        return Invitation::with(['user', 'supervisor.activeJobPosition.jobPosition'])->findOrFail($this->invitation_id);
     }
 
     /** "Mengetahui" = manajer/atasan berjabatan di level Departemen. */
@@ -75,11 +80,11 @@ class CreateBeritaAcaraPage extends Component
     protected function rules(): array
     {
         return [
-            'user_id' => ['required', 'exists:users,id'],
             'knows_by' => ['required', 'exists:users,id'],
+            'coaching_id' => ['nullable', 'exists:coachings,id'],
             'nomor' => ['nullable', 'string', 'max:255'],
             'dasar_items' => ['required', 'array', 'min:1'],
-            'dasar_items.*.reason' => ['required', 'exists:sp_reasons,id'],
+            'dasar_items.*.reason' => ['required', \Illuminate\Validation\Rule::exists('sp_reasons', 'id')->where('kind', \App\Models\Sp\SpReason::KIND_DASAR)],
             'dasar_items.*.note' => ['nullable', 'string'],
             'kejadian' => ['required', 'string'],
             'subject_clarification' => ['nullable', 'string'],
@@ -91,7 +96,7 @@ class CreateBeritaAcaraPage extends Component
 
     protected function validationAttributes(): array
     {
-        return ['dasar_items.*.reason' => 'pelanggaran'];
+        return ['dasar_items.*.reason' => 'dasar klarifikasi'];
     }
 
     protected function reasonCompanyId(): ?string
@@ -113,16 +118,11 @@ class CreateBeritaAcaraPage extends Component
     {
         $data = $this->validate();
 
-        // Karyawan & mengetahui harus satu company dengan HC - cegah id company lain lewat wire:model manual.
-        abort_unless(
-            User::whereCompany($this->companyId)->whereIn('id', [$data['user_id'], $data['knows_by']])->count() === count(array_unique([$data['user_id'], $data['knows_by']])),
-            403
-        );
         abort_unless(User::whereCompany($this->companyId)->atDepartmentLevel()->whereKey($data['knows_by'])->exists(), 403);
 
         $data['dasar_items'] = $this->reasonPayload($data['dasar_items']);
 
-        $report = app(SpReportService::class)->create(Auth::user(), $data);
+        $report = app(SpReportService::class)->create(Auth::user(), $data + ['invitation_id' => $this->invitation_id]);
 
         Notification::make()->title('Berita Acara dibuat')->body('Tersimpan sebagai draft. Lengkapi isinya lalu FIX.')->success()->send();
 

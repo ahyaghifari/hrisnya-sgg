@@ -13,6 +13,7 @@ use App\Services\Sp\SpReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
+use Tests\Support\SpFixtures;
 use Tests\TestCase;
 
 /** Halaman HC untuk Berita Acara alur baru (instruksi user 2026-10-01). */
@@ -45,16 +46,15 @@ class SpReportPagesTest extends TestCase
 
     public function test_create_page_makes_draft_and_requires_dasar_and_kejadian(): void
     {
-        Livewire::actingAs($this->hc)->test(CreateBeritaAcaraPage::class)
-            ->set('user_id', $this->employee->id)
+        $inv = SpFixtures::invitation($this->hc, $this->employee);
+        Livewire::actingAs($this->hc)->withQueryParams(['invitation_id' => $inv->id])->test(CreateBeritaAcaraPage::class)
             ->set('knows_by', $this->knower->id)
             ->call('save')
             ->assertHasErrors(['dasar_items.0.reason', 'kejadian']);
 
-        $reason = \App\Models\Sp\SpReason::create(['company_id' => $this->company->id, 'name' => 'Keterlambatan']);
+        $reason = \App\Models\Sp\SpReason::create(['company_id' => $this->company->id, 'kind' => 'dasar', 'name' => 'Keterlambatan']);
 
-        Livewire::actingAs($this->hc)->test(CreateBeritaAcaraPage::class)
-            ->set('user_id', $this->employee->id)
+        Livewire::actingAs($this->hc)->withQueryParams(['invitation_id' => $inv->id])->test(CreateBeritaAcaraPage::class)
             ->set('knows_by', $this->knower->id)
             ->set('dasar_items', [['reason' => $reason->id, 'note' => 'Rekap presensi']])
             ->set('kejadian', 'Terlambat 5 kali')
@@ -63,6 +63,25 @@ class SpReportPagesTest extends TestCase
 
         $this->assertSame(SpReportStatus::DRAFT, SpReport::firstOrFail()->status);
         $this->assertSame('Keterlambatan — Rekap presensi', (string) SpReport::firstOrFail()->dasarKlarifikasiHtml());
+    }
+
+    public function test_dasar_klarifikasi_and_pelanggaran_are_separate_masters(): void
+    {
+        $pelanggaran = \App\Models\Sp\SpReason::create(['company_id' => $this->company->id, 'name' => 'Mangkir']);
+        $dasar = \App\Models\Sp\SpReason::create(['company_id' => $this->company->id, 'kind' => 'dasar', 'name' => 'Laporan atasan']);
+        $inv = SpFixtures::invitation($this->hc, $this->employee);
+
+        $page = Livewire::actingAs($this->hc)->withQueryParams(['invitation_id' => $inv->id])->test(CreateBeritaAcaraPage::class);
+
+        $this->assertTrue($page->instance()->dasarReasonOptions->has($dasar->id));
+        $this->assertFalse($page->instance()->dasarReasonOptions->has($pelanggaran->id));
+        $this->assertFalse($page->instance()->reasonOptions->has($dasar->id));
+
+        $page->set('knows_by', $this->knower->id)
+            ->set('dasar_items', [['reason' => $pelanggaran->id, 'note' => '']])
+            ->set('kejadian', 'x')
+            ->call('save')
+            ->assertHasErrors(['dasar_items.0.reason']);
     }
 
     public function test_employee_without_permission_cannot_open_hc_pages(): void
@@ -74,7 +93,7 @@ class SpReportPagesTest extends TestCase
     {
         $service = app(SpReportService::class);
         $report = $service->create($this->hc, [
-            'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'Terlambat', 'dasar_items' => ['Rekap'],
         ]);
 
@@ -109,7 +128,7 @@ class SpReportPagesTest extends TestCase
     {
         $service = app(SpReportService::class);
         $report = $service->create($this->hc, [
-            'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'x', 'dasar_items' => ['y'],
         ]);
         $service->updateDraft($report, $this->hc, ['subject_clarification' => 'z', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
@@ -124,17 +143,22 @@ class SpReportPagesTest extends TestCase
         $page()->assertSee('data:image/svg+xml', false)->assertSee($this->hc->name)->assertSee('Belum menandatangani');
     }
 
-    public function test_finished_ba_shows_one_section_and_pdf_only_after_selesai(): void
+    public function test_finished_ba_shows_one_section_and_final_pdf_after_selesai(): void
     {
         $service = app(SpReportService::class);
         $report = $service->create($this->hc, [
-            'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'Kejadian-X', 'dasar_items' => ['Dasar-Y'],
         ]);
         $service->updateDraft($report, $this->hc, ['subject_clarification' => 'Klarifikasi-Z', 'analysis' => 'Analisis-A', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
+        // Draft & menunggu TTD: HC boleh pratinjau PDF (berwatermark); karyawan belum, hanya setelah SELESAI.
+        $this->actingAs($this->hc)->get(route('ba.preview', $report))->assertOk();
+        $this->actingAs($this->employee)->get(route('ba.preview', $report))->assertForbidden();
+
         $service->sendForSigning($report->fresh(), $this->hc);
 
-        $this->actingAs($this->hc)->get(route('ba.preview', $report))->assertForbidden();
+        $this->actingAs($this->hc)->get(route('ba.preview', $report))->assertOk();
+        $this->actingAs($this->employee)->get(route('sp.saya.ba.preview', $report))->assertForbidden();
 
         $signing = app(\App\Services\Document\DocumentSigningService::class);
         foreach ([$this->hc, $this->knower, $this->employee] as $user) {
@@ -161,7 +185,7 @@ class SpReportPagesTest extends TestCase
         $this->hc->givePermissionTo('ViewAny:EmployeeSp');
 
         $report = app(SpReportService::class)->create($this->hc, [
-            'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'k', 'dasar_items' => ['d'],
         ]);
 
@@ -171,10 +195,23 @@ class SpReportPagesTest extends TestCase
         $this->assertCount(1, $page->instance()->cases->items());
     }
 
+    public function test_direct_supervisor_can_open_the_report_and_its_preview(): void
+    {
+        $supervisor = \App\Models\User::factory()->create(['company_id' => $this->company->id]);
+        $report = app(SpReportService::class)->create($this->hc, [
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id,
+            'kejadian' => 'x', 'dasar_items' => ['y'],
+        ]);
+        $report->update(['supervisor_id' => $supervisor->id]);
+
+        Livewire::actingAs($supervisor)->test(BeritaAcaraDetailPage::class, ['record' => $report])->assertOk();
+        $this->actingAs($supervisor)->get(route('ba.preview', $report))->assertOk();
+    }
+
     public function test_unrelated_user_and_legacy_report_are_blocked(): void
     {
         $report = app(SpReportService::class)->create($this->hc, [
-            'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
+            'invitation_id' => SpFixtures::invitation($this->hc, $this->employee)->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'x', 'dasar_items' => ['y'],
         ]);
 

@@ -3,8 +3,8 @@
 
 @if ($this->canCreate)
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-        <a href="{{ route('ba.create') }}" wire:navigate class="btn-primary">
-            <i class="fa-solid fa-plus"></i> Buat Surat Peringatan
+        <a href="{{ route('sp.undangan.create') }}" wire:navigate class="btn-primary">
+            <i class="fa-solid fa-plus"></i> Buat Undangan Klarifikasi
         </a>
     </div>
 @endif

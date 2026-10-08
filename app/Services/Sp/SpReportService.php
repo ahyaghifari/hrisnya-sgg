@@ -5,6 +5,7 @@ namespace App\Services\Sp;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpReportDecision;
 use App\Enum\Sp\SpReportStatus;
+use App\Models\Invitation;
 use App\Models\Sp\SpReport;
 use App\Models\User;
 use App\Notifications\SpReportUpdated;
@@ -30,20 +31,38 @@ class SpReportService
     /** Isian HC selain dasar/kejadian - boleh kosong selama draft, wajib saat FIX. */
     private const HC_CONTENT = ['subject_clarification', 'analysis', 'kesimpulan', 'followup_plan'];
 
-    /** HC membuat BA - dasar klarifikasi & kejadian WAJIB sejak awal. */
+    /** Kill-switch sementara (instruksi user): pilihan Sumber Coaching di form BA disembunyikan dulu.
+     *  Datanya (sp_reports.coaching_id) tetap didukung; balikin true kalau sudah siap dipakai. */
+    public static function coachingSourceEnabled(): bool
+    {
+        return false;
+    }
+
+    /** HC membuat BA dari undangan klarifikasi yang masih terbuka - karyawan mengikuti undangan. Dasar klarifikasi & kejadian WAJIB sejak awal. */
     public function create(User $creator, array $data): SpReport
     {
-        $this->assertCanManage($creator, $data['company_id'] ?? $creator->company_id);
+        $this->requireFilled($data['invitation_id'] ?? null, 'invitation_id');
+        $invitation = Invitation::ofType(\App\Enum\InvitationType::SP_KLARIFIKASI)->findOrFail($data['invitation_id']);
+        $data['user_id'] = $invitation->user_id;
+        $data['company_id'] = $invitation->company_id;
 
-        foreach (['user_id', 'knows_by', 'kejadian'] as $field) {
+        $this->assertCanManage($creator, $invitation->company_id);
+
+        if (! $invitation->isOpen()) {
+            throw ValidationException::withMessages(['invitation_id' => 'Undangan sudah dibatalkan atau sudah dibuatkan Berita Acara.']);
+        }
+
+        foreach (['knows_by', 'kejadian'] as $field) {
             $this->requireFilled($data[$field] ?? null, $field);
         }
         $this->requireFilled(array_filter($data['dasar_items'] ?? [], fn ($item) => is_array($item) ? filled($item['reason_id'] ?? null) || filled($item['note'] ?? null) : filled(trim($item))), 'dasar_klarifikasi');
 
-        return DB::transaction(function () use ($creator, $data) {
+        return DB::transaction(function () use ($creator, $data, $invitation) {
             $report = SpReport::create([
+                'invitation_id' => $invitation->id,
+                'coaching_id' => $this->validCoachingId($data['coaching_id'] ?? null, $data['user_id']),
                 'user_id' => $data['user_id'],
-                'company_id' => $data['company_id'] ?? $creator->company_id,
+                'company_id' => $data['company_id'],
                 'created_by' => $creator->id,
                 'knows_by' => $data['knows_by'],
                 'nomor' => $data['nomor'] ?? null,
@@ -64,6 +83,10 @@ class SpReportService
 
         $report->update(array_intersect_key($data, array_flip(['nomor', 'kejadian', 'knows_by', ...self::HC_CONTENT])));
 
+        if (array_key_exists('coaching_id', $data)) {
+            $report->update(['coaching_id' => $this->validCoachingId($data['coaching_id'], $report->user_id)]);
+        }
+
         if (array_key_exists('dasar_items', $data)) {
             $report->syncDasarItems($data['dasar_items']);
         }
@@ -83,9 +106,7 @@ class SpReportService
             $this->requireFilled(trim(strip_tags((string) $report->{$field})), $field);
         }
 
-        // Atasan langsung ikut TTD, kecuali dia sudah pembuat/mengetahui (satu orang tidak TTD dua peran).
-        $supervisor = app(SikartapReviewerResolver::class)->directSupervisorOf($report->user);
-        $supervisorId = $supervisor && ! in_array($supervisor->id, [$report->created_by, $report->knows_by, $report->user_id], true) ? $supervisor->id : null;
+        $supervisorId = $this->supervisorFor($report)?->id;
 
         DB::transaction(function () use ($report, $actor, $supervisorId) {
             $report->update([
@@ -106,9 +127,55 @@ class SpReportService
             $report->supervisor?->notify(new SpReportUpdated(
                 'Berita Acara Menunggu Tanda Tangan Anda',
                 "Berita Acara {$report->user?->name} dibuat atas nama Anda sebagai atasan langsung - giliran Anda menandatangani lebih dulu.",
-                documentSignId: $report->document?->id,
+                documentSignId: $report->document?->id, always: true,
             ));
         }
+
+        return $report;
+    }
+
+    /**
+     * Atasan langsung penanda tangan. Kalau dia HC pembuat, HC tampil di slot Atasan Langsung
+     * (supervisor_id = created_by, tidak TTD dua kali); kalau dia yang mengetahui atau karyawan itu sendiri, tidak
+     * ada atasan terpisah. Sebelum FIX dihitung langsung; sesudahnya dikunci di supervisor_id.
+     */
+    public function supervisorFor(SpReport $report): ?User
+    {
+        if ($report->supervisor_id) {
+            return $report->supervisor;
+        }
+
+        $supervisor = app(SikartapReviewerResolver::class)->directSupervisorOf($report->user);
+
+        return $supervisor && ! in_array($supervisor->id, [$report->knows_by, $report->user_id], true) ? $supervisor : null;
+    }
+
+    /**
+     * HC merevisi BA yang sudah FIX walau sebagian sudah menandatangani: semua TTD dibatalkan (jejak di
+     * event dokumen), BA kembali ke draft untuk diedit lalu di-FIX ulang. Urutan TTD sesudah revisi:
+     * HC pembuat, atasan langsung, mengetahui, karyawan (lihat SpReport::expectedSignerRoles).
+     * Hanya sebelum BA SELESAI.
+     */
+    public function revise(SpReport $report, User $actor, string $reason): SpReport
+    {
+        $this->assertManage($report, $actor);
+        $this->assertStatus($report, SpReportStatus::MENUNGGU_TTD);
+        $this->requireFilled($reason, 'alasan');
+
+        DB::transaction(function () use ($report, $actor, $reason) {
+            $report->document?->revise($actor, $reason);
+            $report->update(['status' => SpReportStatus::DRAFT, 'revised_at' => now()]);
+        });
+
+        // Semua pihak dikabari (kecuali yang merevisi); tanda tangan lama sudah tidak berlaku.
+        collect([$report->supervisor, $report->knowsBy, $report->user])->filter()->unique('id')
+            ->reject(fn ($user) => $user->id === $actor->id)
+            ->each(fn ($user) => $user->notify(new SpReportUpdated(
+                'Berita Acara Direvisi',
+                "Berita Acara {$report->user?->name} direvisi HC: {$reason}. Tanda tangan sebelumnya dibatalkan; Anda dikabari saat giliran menandatangani.",
+                $user->id === $report->user_id ? route('sp.saya.ba', $report) : route('ba.show', $report),
+                always: true,
+            )));
 
         return $report;
     }
@@ -172,7 +239,7 @@ class SpReportService
         ($nextRole ? $users[$nextRole] : null)?->notify(new SpReportUpdated(
             'Berita Acara Menunggu Tanda Tangan Anda',
             "{$users[$role]?->name} sudah menandatangani Berita Acara - giliran Anda menandatangani.",
-            documentSignId: $report->document?->id,
+            documentSignId: $report->document?->id, always: true,
         ));
 
         return $report;
@@ -212,7 +279,7 @@ class SpReportService
             }
 
             $level = \App\Enum\Sp\SpLevel::from($data['sp_level']);
-            $coachingId = $data['coaching_id'] ?? null;
+            $coachingId = $report->coaching_id;
 
             $sp = \App\Models\Sp\EmployeeSp::create([
                 'nomor' => $data['nomor'],
@@ -235,6 +302,18 @@ class SpReportService
 
             return $sp;
         });
+    }
+
+    /** Coaching sumber harus milik karyawan yang bersangkutan; kosong = tanpa coaching. */
+    private function validCoachingId(?string $coachingId, string $userId): ?string
+    {
+        if (! filled($coachingId)) {
+            return null;
+        }
+
+        abort_unless(\App\Models\Coaching\Coaching::where('id', $coachingId)->where('user_id', $userId)->exists(), 403, 'Coaching bukan milik karyawan ini.');
+
+        return $coachingId;
     }
 
     private function notifyEmployee(SpReport $report, string $title, string $body): void
