@@ -1213,12 +1213,12 @@ class TaskService
     }
 
     /** User yang disebut "@Nama"/"@Panggilan" di $text (selain $author). Teks terpanjang dicocokkan dulu supaya "@Budi Santoso" tidak ikut menandai "Budi". */
-    private function mentionedUsers(Task $task, string $text, User $author): \Illuminate\Support\Collection
+    private function mentionedUsers(\Illuminate\Support\Collection $candidates, string $text, User $author): \Illuminate\Support\Collection
     {
         $remaining = $text;
         $found = collect();
 
-        $this->mentionableUsers($task)
+        $candidates
             ->flatMap(fn ($u) => collect($this->mentionTerms($u))->map(fn ($term) => [$term, $u]))
             ->sortByDesc(fn ($pair) => mb_strlen($pair[0]))
             ->each(function ($pair) use (&$remaining, $found) {
@@ -1255,7 +1255,7 @@ class TaskService
         ]);
         $this->logActivity($task, $user, 'comment_added', 'Menambahkan komentar');
 
-        $mentioned = $this->mentionedUsers($task, $comment, $user);
+        $mentioned = $this->mentionedUsers($this->mentionableUsers($task), $comment, $user);
         $mentioned->each->notify(new TaskMentioned($task, $user->name, $comment));
 
         $recipients = $task->assignees->isNotEmpty() ? $task->assignees->map(fn ($a) => $a->user) : collect([$task->assignedTo]);
@@ -1264,6 +1264,59 @@ class TaskService
             ->unique('id')
             ->reject(fn ($u) => $u->id === $user->id || $mentioned->contains('id', $u->id))
             ->each->notify(new TaskCommented($task, $user->name, $comment));
+    }
+
+    /** Anggota Board yang bisa di-mention di Diskusi. */
+    public function projectMentionableUsers(TaskProject $project): \Illuminate\Support\Collection
+    {
+        return $project->members()->with('user.profile')->get()->pluck('user')->filter()->values();
+    }
+
+    /** Diskusi Board (tanpa kartu): semua anggota boleh, balasan 1 tingkat, "@Nama" menotifikasi. */
+    public function addProjectComment(TaskProject $project, User $user, string $comment, ?string $parentId = null): void
+    {
+        abort_unless($this->canAccessProject($project, $user), 403, 'Kamu bukan anggota Board ini.');
+        abort_if($project->isArchived(), 403, 'Board diarsipkan, diskusi hanya bisa dilihat.');
+
+        $parent = $parentId ? $project->comments()->find($parentId) : null;
+        abort_if($parentId && ! $parent, 404, 'Komentar yang dibalas tidak ditemukan.');
+        abort_if($parent?->parent_id !== null, 422, 'Balasan tidak bisa dibalas lagi.');
+
+        $project->comments()->create(['user_id' => $user->id, 'parent_id' => $parent?->id, 'comment' => $comment]);
+
+        $mentioned = $this->mentionedUsers($this->projectMentionableUsers($project), $comment, $user);
+        $mentioned->each->notify(new TaskMentioned(null, $user->name, $comment, $project->id));
+        // Penulis komentar yang dibalas dikabari kalau belum dapat notif mention.
+        if ($parent?->user && $parent->user_id !== $user->id && ! $mentioned->contains('id', $parent->user_id)) {
+            $parent->user->notify(new TaskMentioned(null, $user->name, $comment, $project->id));
+        }
+    }
+
+    public function discussionSeenAt(TaskProject $project, User $user): ?string
+    {
+        return \Illuminate\Support\Facades\DB::table('task_project_seen')
+            ->where('project_id', $project->id)->where('user_id', $user->id)->value('seen_at');
+    }
+
+    public function markDiscussionSeen(TaskProject $project, User $user): void
+    {
+        \Illuminate\Support\Facades\DB::table('task_project_seen')
+            ->upsert([['project_id' => $project->id, 'user_id' => $user->id, 'seen_at' => now()]], ['project_id', 'user_id'], ['seen_at']);
+    }
+
+    /** Jumlah pesan Diskusi sejak terakhir dibuka yang menandai ($user di-"@") atau membalas pesannya. */
+    public function unreadDiscussionMentions(TaskProject $project, User $user): int
+    {
+        $seen = $this->discussionSeenAt($project, $user);
+        $candidates = $this->projectMentionableUsers($project);
+
+        return $project->comments()
+            ->where('user_id', '!=', $user->id)
+            ->when($seen, fn ($q) => $q->where('created_at', '>', $seen))
+            ->get()
+            ->filter(fn ($c) => $c->parent?->user_id === $user->id
+                || $this->mentionedUsers($candidates, $c->comment, $c->user)->contains('id', $user->id))
+            ->count();
     }
 
     public function addFileAttachment(Task $task, User $user, UploadedFile $file, ?string $description = null): void

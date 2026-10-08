@@ -354,8 +354,9 @@
                 <div>
                     @if ($this->activeProject)
                         <div class="task-filter-tabs" role="tablist" aria-label="Filter tugas Board">
-                            <button type="button" role="tab" wire:click="setBoardFilter('semua')" class="{{ $boardFilter === 'semua' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'semua' ? 'true' : 'false' }}">Semua</button>
-                            <button type="button" role="tab" wire:click="setBoardFilter('saya')" class="{{ $boardFilter === 'saya' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'saya' ? 'true' : 'false' }}">Tugas Saya</button>
+                            <button type="button" role="tab" wire:loading.attr="disabled" wire:target="setBoardFilter" wire:click="setBoardFilter('semua')" class="{{ $boardFilter === 'semua' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'semua' ? 'true' : 'false' }}">Semua</button>
+                            <button type="button" role="tab" wire:loading.attr="disabled" wire:target="setBoardFilter" wire:click="setBoardFilter('saya')" class="{{ $boardFilter === 'saya' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'saya' ? 'true' : 'false' }}">Tugas Saya</button>
+                            <button type="button" role="tab" wire:loading.attr="disabled" wire:target="setBoardFilter" wire:click="setBoardFilter('diskusi')" class="{{ $boardFilter === 'diskusi' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'diskusi' ? 'true' : 'false' }}"><i class="fa-regular fa-comments"></i> Diskusi @if (($n = $this->discussionUnread) > 0)<span title="{{ $n }} pesan menandai/membalas kamu" style="background:#dc2626;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;padding:0 4px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;margin-left:2px;">{{ $n > 99 ? '99+' : $n }}</span>@endif</button>
                         </div>
                     @endif
                     @if (! $activeProjectId && $scope === 'individu')
@@ -378,12 +379,13 @@
                                     this.timer = setInterval(() => {
                                         if (this.secondsLeft > 1) { this.secondsLeft--; return; }
                                         this.secondsLeft = 10;
-                                        if (document.hidden || window.taskDragging || document.querySelector('.modal-overlay')) return;
+                                        if (document.hidden || window.taskDragging || document.querySelector('.modal-overlay') || document.getElementById('board-discussion-input')?.value) return;
                                         $wire.$refresh();
                                     }, 1000);
                                 },
                                 destroy() { clearInterval(this.timer); },
                             }"
+                            @board-filter-changed.window="secondsLeft = 10"
                             style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-faint);"
                             title="Board refresh otomatis tiap 10 detik"
                         >
@@ -422,7 +424,103 @@
             </div>
         @endif
 
-        @if ($isTableScope)
+        @if ($this->activeProject && $boardFilter === 'diskusi')
+            {{-- Tab Diskusi: ruang chat Board menggantikan papan. Tag "@Nama" + balas 1 tingkat, sama seperti komentar tugas. Ikut hitung mundur refresh di atas. --}}
+            @php
+                $dTaskService = app(\App\Services\Task\TaskService::class);
+                $dUsers = $dTaskService->projectMentionableUsers($this->activeProject);
+                $dNames = $dUsers->flatMap(fn ($u) => $dTaskService->mentionTerms($u))->all();
+                $dPick = $dUsers->reject(fn ($u) => $u->id === auth()->id())
+                    ->map(fn ($u) => ['label' => $dTaskService->mentionLabel($u), 'full' => $u->name])->values()->all();
+                $dComments = $this->activeProject->comments()->get();
+                $dReplies = $dComments->whereNotNull('parent_id')->groupBy('parent_id');
+                $dReplyingTo = $discussionReplyToId ? $dComments->firstWhere('id', $discussionReplyToId) : null;
+                $dIsNew = fn ($c) => $discussionSeenBefore && $c->user_id !== auth()->id() && $c->created_at->gt($discussionSeenBefore);
+            @endphp
+            <div style="background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:16px;height:calc(100vh - 280px);min-height:420px;display:flex;flex-direction:column;"
+                x-data="{
+                    names: @js($dPick), open: false, q: '',
+                    matches() { const q = this.q.toLowerCase(); return this.names.filter(n => n.label.toLowerCase().includes(q) || n.full.toLowerCase().includes(q)).slice(0, 6) },
+                    check(el) {
+                        const m = el.value.slice(0, el.selectionStart).match(/(?:^|\s)@([^\s@]*)$/);
+                        this.q = m ? m[1] : '';
+                        this.open = !!m && this.matches().length > 0;
+                    },
+                    pick(el, name) {
+                        const pos = el.selectionStart;
+                        el.value = el.value.slice(0, pos).replace(/@([^\s@]*)$/, '@' + name + ' ') + el.value.slice(pos);
+                        el.dispatchEvent(new Event('input'));
+                        this.open = false;
+                        el.focus();
+                    }
+                }"
+                @discussion-sent.window="$nextTick(() => { const s = $refs.msgs; s.scrollTop = s.scrollHeight })">
+                {{-- Pesan terlama di atas, terbaru di bawah (ala chat). --}}
+                <div x-ref="msgs" class="task-list-scroll" x-init="$el.scrollTop = $el.scrollHeight"
+                    style="flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;">
+                    {{-- Ala chat: pesan sendiri di kanan, anggota lain di kiri. Balasan (1 tingkat) tampil setelah induknya dengan kutipan "Membalas ...". --}}
+                    @forelse ($dComments->whereNull('parent_id')->flatMap(fn ($c) => collect([$c])->concat($dReplies->get($c->id, collect())))->values() as $comment)
+                        @php
+                            $mine = $comment->user_id === auth()->id();
+                            $quoted = $comment->parent_id ? $dComments->firstWhere('id', $comment->parent_id) : null;
+                        @endphp
+                        <div style="display:flex;gap:8px;align-items:flex-end;justify-content:{{ $mine ? 'flex-end' : 'flex-start' }};">
+                            @unless ($mine)
+                                <x-avatar :user="$comment->user" :size="28" />
+                            @endunless
+                            <div style="max-width:78%;min-width:0;display:flex;flex-direction:column;align-items:{{ $mine ? 'flex-end' : 'flex-start' }};">
+                                @unless ($mine)
+                                    <span style="font-weight:700;font-size:12px;margin:0 0 2px 4px;">{{ $comment->user?->name }}</span>
+                                @endunless
+                                <div style="font-size:13.5px;padding:8px 12px;border-radius:{{ $mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px' }};background:{{ $mine ? 'var(--brand-soft)' : 'var(--surface-alt)' }};{{ $dIsNew($comment) ? 'box-shadow:0 0 0 2px var(--brand);' : '' }}">
+                                    @if ($quoted)
+                                        <div style="font-size:11.5px;color:var(--text-muted);border-left:2px solid var(--border);padding-left:6px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;"><i class="fa-solid fa-reply"></i> {{ $quoted->user?->name }}: {{ \Illuminate\Support\Str::limit($quoted->comment, 50) }}</div>
+                                    @endif
+                                    <p style="margin:0;white-space:pre-line;word-break:break-word;">{{ $comment->bodyHtml($dNames) }}</p>
+                                </div>
+                                <div style="font-size:11px;color:var(--text-muted);margin:2px 4px 0;">
+                                    {{ $comment->created_at->diffForHumans() }}
+                                    {{-- Balasan nggak bisa dibalas lagi (1 tingkat). --}}
+                                    @if (! $comment->parent_id && ! $this->isProjectArchived)
+                                        &middot; <button type="button" wire:click="startDiscussionReply('{{ $comment->id }}')" @click="$nextTick(() => document.getElementById('board-discussion-input')?.focus())" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;color:var(--text-muted);">Balas</button>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <p style="font-size:13.5px;color:var(--text-muted);text-align:center;margin:auto 0;">Belum ada diskusi.</p>
+                    @endforelse
+                </div>
+
+                @unless ($this->isProjectArchived)
+                    <div style="flex-shrink:0;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-soft);">
+                        @if ($dReplyingTo)
+                            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:6px;">
+                                <i class="fa-solid fa-reply"></i>
+                                <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Membalas <strong>{{ $dReplyingTo->user?->name }}</strong>: {{ \Illuminate\Support\Str::limit($dReplyingTo->comment, 40) }}</span>
+                                <button type="button" wire:click="cancelDiscussionReply" style="background:none;border:none;cursor:pointer;color:var(--text-muted);" aria-label="Batal membalas"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        @endif
+                        <div style="display:flex;gap:8px;position:relative;">
+                            <input id="board-discussion-input" type="text" class="form-input" style="font-size:13.5px;" wire:model="newDiscussion" autocomplete="off"
+                                @input="check($el)" @click="check($el)" @keyup.arrow-left="check($el)" @keyup.arrow-right="check($el)"
+                                @keydown.escape="open = false"
+                                @keydown.enter.prevent="open ? pick($el, matches()[0]) : $wire.addDiscussion()"
+                                placeholder="{{ $dReplyingTo ? 'Tulis balasan...' : 'Tulis pesan... (@ untuk menyebut)' }}">
+                            <button type="button" wire:click="addDiscussion" class="btn-primary" style="font-size:13.5px;padding:8px 14px;">Kirim</button>
+                            <div x-show="open" x-cloak @click.outside="open = false" style="position:absolute;bottom:calc(100% + 4px);left:0;z-index:60;min-width:200px;max-height:220px;overflow-y:auto;background:var(--surface);border-radius:12px;padding:6px;box-shadow:0 8px 30px rgba(4,44,108,0.16),0 0 0 1px var(--border-soft);">
+                                <template x-for="n in matches()" :key="n.full">
+                                    <button type="button" @click="pick(document.getElementById('board-discussion-input'), n.label)" style="display:block;width:100%;padding:7px 10px;border:none;background:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text-body);text-align:left;" onmouseover="this.style.background='var(--surface-alt)'" onmouseout="this.style.background='none'">
+                                        <span x-text="'@' + n.label"></span>
+                                        <span x-show="n.label !== n.full" x-text="n.full" style="color:var(--text-muted);font-size:11.5px;margin-left:4px;"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                @endunless
+            </div>
+        @elseif ($isTableScope)
             {{-- Desktop: tabel biasa. Mobile: list bertumpuk (kolom nggak muat, scroll-x tabel di
             HP nggak enak) - dua markup ditoggle CSS (.task-view-desktop/.task-view-mobile),
             bukan satu markup dipaksa responsive, karena bentuknya beda banget (grid vs stack). --}}
