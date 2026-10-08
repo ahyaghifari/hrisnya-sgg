@@ -29,7 +29,7 @@ class TaskMentioned extends Notification implements ShouldQueue
 
     protected function title(): string
     {
-        return 'Kamu Disebut di Komentar';
+        return 'Anda Disebut di Komentar';
     }
 
     protected function body(): string
