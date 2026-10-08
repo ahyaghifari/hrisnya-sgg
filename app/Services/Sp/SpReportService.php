@@ -13,10 +13,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Alur Berita Acara baru (instruksi user 2026-10-01):
+ * Alur Berita Acara baru (instruksi user 2026-10-01; disederhanakan 2026-10-07: semua isian HC -
+ * dasar, kejadian, klarifikasi, analisis, kesimpulan, tindak lanjut - diisi sekaligus di tahap
+ * draft, FIX langsung ke tanda tangan):
  *
- *   draft -> menunggu_klarifikasi -> klarifikasi_diajukan -> menunggu_ttd -> selesai
- *                  ^------------------------------------------|  (karyawan ajukan ulang klarifikasi)
+ *   draft -> menunggu_ttd -> selesai
+ *     ^---------|  (karyawan ajukan ulang klarifikasi sebelum ada yang TTD)
  *
  * Tanda tangan sendiri lewat App\Services\Document\DocumentSigningService (generik); service ini
  * hanya mengurus transisi status, siapa boleh apa, dan penutupan otomatis begitu 3 pihak selesai
@@ -25,6 +27,9 @@ use Illuminate\Validation\ValidationException;
  */
 class SpReportService
 {
+    /** Isian HC selain dasar/kejadian - boleh kosong selama draft, wajib saat FIX. */
+    private const HC_CONTENT = ['subject_clarification', 'analysis', 'kesimpulan', 'followup_plan'];
+
     /** HC membuat BA - dasar klarifikasi & kejadian WAJIB sejak awal. */
     public function create(User $creator, array $data): SpReport
     {
@@ -44,20 +49,20 @@ class SpReportService
                 'nomor' => $data['nomor'] ?? null,
                 'kejadian' => $data['kejadian'],
                 'status' => SpReportStatus::DRAFT,
-            ]);
+            ] + array_intersect_key($data, array_flip(self::HC_CONTENT)));
             $report->syncDasarItems($data['dasar_items']);
 
             return $report;
         });
     }
 
-    /** Edit bagian HC sebelum klarifikasi diminta. */
+    /** Edit seluruh isian HC (dasar, kejadian, klarifikasi, analisis, ...) selama masih draft. */
     public function updateDraft(SpReport $report, User $actor, array $data): SpReport
     {
         $this->assertManage($report, $actor);
         $this->assertStatus($report, SpReportStatus::DRAFT);
 
-        $report->update(array_intersect_key($data, array_flip(['nomor', 'kejadian', 'knows_by'])));
+        $report->update(array_intersect_key($data, array_flip(['nomor', 'kejadian', 'knows_by', ...self::HC_CONTENT])));
 
         if (array_key_exists('dasar_items', $data)) {
             $report->syncDasarItems($data['dasar_items']);
@@ -66,57 +71,16 @@ class SpReportService
         return $report;
     }
 
-    public function requestClarification(SpReport $report, User $actor): SpReport
-    {
-        $this->assertManage($report, $actor);
-        $this->assertStatus($report, SpReportStatus::DRAFT);
-        $this->requireFilled($report->kejadian, 'kejadian');
-        $this->requireFilled($report->dasarItems()->exists(), 'dasar_klarifikasi');
-
-        // Klarifikasi diisikan pembuat/HC (instruksi user 2026-10-06), tidak lewat karyawan.
-        $report->update(['status' => SpReportStatus::MENUNGGU_KLARIFIKASI]);
-
-        return $report;
-    }
-
-    /** Pembuat/HC mengisi klarifikasi karyawan apa adanya sesuai keterangannya. */
-    public function fillClarificationByHc(SpReport $report, User $actor, string $text): SpReport
-    {
-        $this->assertManage($report, $actor);
-        $this->assertStatus($report, SpReportStatus::MENUNGGU_KLARIFIKASI);
-
-        // Trix kosong tetap mengirim markup (<div><br></div>) - cek isi teksnya.
-        $this->requireFilled(trim(strip_tags($text)), 'klarifikasi');
-
-        $report->update([
-            'subject_clarification' => $text,
-            'klarifikasi_diisi_hc' => true,
-            'klarifikasi_diajukan_at' => now(),
-            'status' => SpReportStatus::KLARIFIKASI_DIAJUKAN,
-        ]);
-
-        return $report;
-    }
-
-    /** Setelah klarifikasi diisi: tulis analisis, kesimpulan, rencana tindak lanjut (tanpa parafrase, instruksi user 2026-10-06). */
-    public function saveAnalysis(SpReport $report, User $actor, array $data): SpReport
-    {
-        $this->assertManage($report, $actor);
-        $this->assertStatus($report, SpReportStatus::KLARIFIKASI_DIAJUKAN);
-
-        $report->update(array_intersect_key($data, array_flip(['analysis', 'kesimpulan', 'followup_plan'])));
-
-        return $report;
-    }
-
-    /** Isi sudah lengkap -> dibekukan untuk ditandatangani (karyawan lebih dulu). */
+    /** Draft lengkap -> dibekukan untuk ditandatangani (pembuat lebih dulu, karyawan terakhir). */
     public function sendForSigning(SpReport $report, User $actor): SpReport
     {
         $this->assertManage($report, $actor);
-        $this->assertStatus($report, SpReportStatus::KLARIFIKASI_DIAJUKAN);
+        $this->assertStatus($report, SpReportStatus::DRAFT);
 
-        foreach (['analysis', 'kesimpulan', 'followup_plan'] as $field) {
-            $this->requireFilled($report->{$field}, $field);
+        $this->requireFilled($report->dasarItems()->exists(), 'dasar_klarifikasi');
+        // Trix kosong tetap mengirim markup (<div><br></div>) - cek isi teksnya.
+        foreach (['kejadian', ...self::HC_CONTENT] as $field) {
+            $this->requireFilled(trim(strip_tags((string) $report->{$field})), $field);
         }
 
         // Atasan langsung ikut TTD, kecuali dia sudah pembuat/mengetahui (satu orang tidak TTD dua peran).
@@ -124,11 +88,27 @@ class SpReportService
         $supervisorId = $supervisor && ! in_array($supervisor->id, [$report->created_by, $report->knows_by, $report->user_id], true) ? $supervisor->id : null;
 
         DB::transaction(function () use ($report, $actor, $supervisorId) {
-            $report->update(['status' => SpReportStatus::MENUNGGU_TTD, 'supervisor_id' => $supervisorId]);
+            $report->update([
+                'status' => SpReportStatus::MENUNGGU_TTD,
+                'supervisor_id' => $supervisorId,
+                'klarifikasi_diisi_hc' => true,
+                'klarifikasi_diajukan_at' => now(),
+            ]);
             $report->issueDocument("Berita Acara — {$report->user?->name}", $actor);
         });
 
-        $this->notifyEmployee($report, 'Berita Acara Telah Disusun', 'HC telah menyusun Berita Acara Anda dan akan menandatanganinya lebih dulu, disusul yang mengetahui dan atasan langsung. Anda menandatangani terakhir.');
+        $this->notifyEmployee($report, 'Berita Acara Telah Disusun', 'Berita Acara Anda telah disusun dan sedang ditandatangani atasan langsung, HC, dan yang mengetahui. Anda menandatangani terakhir.');
+
+        // Penanda tangan pertama (atasan langsung kalau ada, selain itu HC sendiri tidak perlu dikabari).
+        $report->unsetRelation('document');
+        $first = array_key_first($report->expectedSignerRoles());
+        if ($first === 'supervisor') {
+            $report->supervisor?->notify(new SpReportUpdated(
+                'Berita Acara Menunggu Tanda Tangan Anda',
+                "Berita Acara {$report->user?->name} dibuat atas nama Anda sebagai atasan langsung - giliran Anda menandatangani lebih dulu.",
+                documentSignId: $report->document?->id,
+            ));
+        }
 
         return $report;
     }
@@ -160,7 +140,7 @@ class SpReportService
                 ],
             ],
             'klarifikasi_diisi_hc' => false,
-            'status' => SpReportStatus::MENUNGGU_KLARIFIKASI,
+            'status' => SpReportStatus::DRAFT,
         ]);
 
         $this->notifyCreator($report, 'Karyawan Mengajukan Ulang Klarifikasi', "{$report->user?->name} keberatan dengan isi klarifikasi: {$reason}");
@@ -184,21 +164,16 @@ class SpReportService
             return $report;
         }
 
-        // Urutan: pembuat -> mengetahui -> atasan langsung (kalau ada) -> karyawan. Hanya pihak giliran berikutnya yang dikabari.
-        $next = [
-            'created_by' => [$report->knowsBy, $report->createdBy],
-            'knows_by' => $report->supervisor_id ? [$report->supervisor, $report->knowsBy] : [$report->user, $report->knowsBy],
-            'supervisor' => [$report->user, $report->supervisor],
-        ][$role] ?? null;
+        // Urutan = expectedSignerRoles(). Hanya pihak giliran berikutnya yang dikabari.
+        $order = array_keys($report->expectedSignerRoles());
+        $nextRole = $order[array_search($role, $order, true) + 1] ?? null;
+        $users = $report->signerUsers();
 
-        if ($next) {
-            [$signer, $previous] = $next;
-            $signer?->notify(new SpReportUpdated(
-                'Berita Acara Menunggu Tanda Tangan Anda',
-                "{$previous?->name} sudah menandatangani Berita Acara - giliran Anda menandatangani.",
-                documentSignId: $report->document?->id,
-            ));
-        }
+        ($nextRole ? $users[$nextRole] : null)?->notify(new SpReportUpdated(
+            'Berita Acara Menunggu Tanda Tangan Anda',
+            "{$users[$role]?->name} sudah menandatangani Berita Acara - giliran Anda menandatangani.",
+            documentSignId: $report->document?->id,
+        ));
 
         return $report;
     }

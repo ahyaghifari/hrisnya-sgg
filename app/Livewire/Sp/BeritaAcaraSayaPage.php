@@ -33,8 +33,7 @@ class BeritaAcaraSayaPage extends Component
         $this->record = $record;
     }
 
-    /** HC baru memparafrase/menganalisis setelah klarifikasi diajukan - sebelum dikirim untuk TTD
-     *  itu masih konsep HC, belum untuk dilihat karyawan. */
+    /** Analisis HC masih konsep sebelum dikirim untuk TTD, belum untuk dilihat karyawan. */
     public function getShowsHcContentProperty(): bool
     {
         return in_array($this->record->status->value, ['menunggu_ttd', 'selesai'], true);

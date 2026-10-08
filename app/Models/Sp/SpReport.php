@@ -236,18 +236,37 @@ class SpReport extends Model implements Signable
             ];
         }
 
-        return [
-            'created_by' => 'Dibuat oleh',
-            'knows_by' => 'Mengetahui',
-        ] + ($this->supervisor_id ? ['supervisor' => 'Atasan Langsung'] : [])
-          + ['employee' => 'Karyawan yang Bersangkutan'];
+        // Urutan = urutan tanda tangan = urutan kotak (2 kolom): secara tertulis yang membuat adalah
+        // atasan langsung, HC (pembuat sebenarnya) ikut sebagai yang mengetahui (instruksi user 2026-10-07).
+        return $this->supervisor_id
+            ? [
+                'supervisor' => 'Dibuat oleh (Atasan Langsung)',
+                'created_by' => 'Mengetahui (HC)',
+                'knows_by' => 'Mengetahui',
+                'employee' => 'Karyawan yang Bersangkutan',
+            ]
+            : [
+                'created_by' => 'Dibuat oleh',
+                'knows_by' => 'Mengetahui',
+                'employee' => 'Karyawan yang Bersangkutan',
+            ];
+    }
+
+    /** Penanda tangan BA baru per peran (peran 'supervisor' hanya ada kalau supervisor_id terisi). */
+    public function signerUsers(): array
+    {
+        return array_intersect_key([
+            'supervisor' => $this->supervisor,
+            'created_by' => $this->createdBy,
+            'knows_by' => $this->knowsBy,
+            'employee' => $this->user,
+        ], $this->expectedSignerRoles());
     }
 
     /**
-     * BA lama: dipinjam dari SP induk. BA baru: hanya terisi saat status MENUNGGU_TTD, dan
-     * PEMBUAT (HC) menandatangani lebih dulu (instruksi user 2026-10-02: Parafrase & Analisis
-     * HC sudah merupakan Berita Acara-nya), lalu yang mengetahui, atasan langsung (kalau ada), dan
-     * karyawan terakhir (instruksi user 2026-10-06).
+     * BA lama: dipinjam dari SP induk. BA baru: hanya terisi saat status MENUNGGU_TTD, berurutan
+     * sesuai expectedSignerRoles(): atasan langsung (kalau ada), HC pembuat, mengetahui, dan
+     * karyawan terakhir (instruksi user 2026-10-07).
      * Pengajuan ulang klarifikasi oleh karyawan hanya mungkin selama belum ada tanda tangan.
      */
     public function assignedSigners(): array
@@ -264,15 +283,14 @@ class SpReport extends Model implements Signable
         }
 
         $signedRoles = $this->document?->signatures()->pluck('signer_role') ?? collect();
-        $creatorSigned = $signedRoles->contains('created_by');
-        $knowsSigned = $creatorSigned && $signedRoles->contains('knows_by');
-        $supervisorDone = $knowsSigned && (! $this->supervisor_id || $signedRoles->contains('supervisor'));
+        $assigned = [];
+        $previousDone = true;
 
-        return [
-            'created_by' => $this->createdBy,
-            'knows_by' => $creatorSigned ? $this->knowsBy : null,
-            'supervisor' => $knowsSigned ? $this->supervisor : null,
-            'employee' => $supervisorDone ? $this->user : null,
-        ];
+        foreach ($this->signerUsers() as $role => $user) {
+            $assigned[$role] = $previousDone ? $user : null;
+            $previousDone = $previousDone && $signedRoles->contains($role);
+        }
+
+        return $assigned;
     }
 }

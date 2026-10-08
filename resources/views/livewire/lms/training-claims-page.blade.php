@@ -13,7 +13,24 @@
             @endforeach
         </div>
 
-        <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;">
+        <div class="md:hidden pwa-list">
+            @forelse ($this->claims as $row)
+                <a href="{{ route('pelatihan.klaim.show', $row) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                    <div class="pwa-tile-icon neutral"><i class="fa-solid fa-certificate"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $row->user->name }}</p>
+                        <p style="font-size:12px;color:var(--text-heading);margin-top:2px;">{{ $row->title }}</p>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $row->created_at?->translatedFormat('j F Y') }} &middot; JP {{ $row->jp ?? '-' }}</p>
+                        <span class="badge {{ $badge[$row->status] ?? '' }}" style="margin-top:4px;">{{ $label[$row->status] ?? $row->status }}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            @empty
+                <div style="padding:32px 16px;text-align:center;font-size:13px;color:var(--text-muted);">Belum ada pengajuan.</div>
+            @endforelse
+        </div>
+
+        <div class="hidden md:block" style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
                 <thead>
                     <tr style="border-bottom:1.5px solid var(--border);">

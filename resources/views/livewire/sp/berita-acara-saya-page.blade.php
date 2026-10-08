@@ -44,16 +44,9 @@
         <div class="section-icon"><i class="fa-solid fa-comment-dots" style="color:var(--brand);font-size:12px;"></i></div>
         <span class="section-title">Klarifikasi Anda</span>
     </div>
-    @if ($status === S::MENUNGGU_KLARIFIKASI)
-        <p style="font-size:13px;color:var(--text-muted);margin:0;">Pembuat Berita Acara sedang menyusun klarifikasi Anda.</p>
-    @else
-        <div class="prose">{!! $record->subjectClarificationHtml() !!}</div>
-        @if ($record->klarifikasi_diisi_hc)
-            <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">Diisikan oleh pembuat/HC.</p>
-        @endif
-        @if ($status === S::KLARIFIKASI_DIAJUKAN)
-            <p style="font-size:12px;color:var(--text-muted);margin:10px 0 0;">Klarifikasi sudah diajukan, menunggu HC memproses.</p>
-        @endif
+    <div class="prose">{!! $record->subjectClarificationHtml() !!}</div>
+    @if ($record->klarifikasi_diisi_hc)
+        <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">Diisikan oleh pembuat/HC.</p>
     @endif
 </div>
 
@@ -78,7 +71,8 @@
         </div>
         @include('livewire.document.partials.signature-boxes', [
             'signable' => $record,
-            'boxes' => ['created_by' => 'TTD Pembuat', 'knows_by' => 'TTD Mengetahui', 'employee' => 'TTD YBS'],
+            'boxes' => $record->expectedSignerRoles(),
+            'cols' => 2,
             'signatures' => $record->document?->signatures->keyBy('signer_role') ?? collect(),
         ])
         <div style="height:14px;"></div>
@@ -96,7 +90,7 @@
             <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Ajukan ulang klarifikasi dan jelaskan bagian yang tidak sesuai. Ini hanya bisa dilakukan sebelum pembuat menandatangani.</p>
             <textarea wire:model="alasan_ajukan_ulang" rows="3" class="form-input" placeholder="Bagian yang tidak sesuai..."></textarea>
             <div style="margin-top:12px;">
-                <button type="button" wire:click="requestReclarification" wire:confirm="Ajukan ulang klarifikasi? Berita Acara kembali ke tahap penyusunan klarifikasi." class="btn-secondary">Ajukan Ulang Klarifikasi</button>
+                <button type="button" wire:click="requestReclarification" wire:confirm="Ajukan ulang klarifikasi? Berita Acara kembali ke draft HC untuk disusun ulang." class="btn-secondary">Ajukan Ulang Klarifikasi</button>
             </div>
         @endif
     </div>

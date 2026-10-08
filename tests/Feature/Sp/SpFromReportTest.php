@@ -64,9 +64,7 @@ class SpFromReportTest extends TestCase
             'user_id' => $this->employee->id, 'knows_by' => $this->knower->id,
             'kejadian' => 'Terlambat', 'dasar_items' => ['Rekap'],
         ]);
-        $this->service->requestClarification($report, $this->hc);
-        $this->service->fillClarificationByHc($report, $this->hc, 'macet');
-        $this->service->saveAnalysis($report, $this->hc, ['klarifikasi_parafrase' => 'p', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
+        $this->service->updateDraft($report, $this->hc, ['subject_clarification' => 'macet', 'analysis' => 'a', 'kesimpulan' => 'k', 'followup_plan' => 'f']);
         $this->service->sendForSigning($report, $this->hc);
         foreach ([$this->hc, $this->knower, $this->employee] as $user) {
             $this->sign($report->fresh()->document, $user);
