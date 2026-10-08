@@ -393,7 +393,7 @@
                                 // total, tidak bisa diedit dari halaman jadwal (biar tidak bentrok sama
                                 // eksekusi swap). Lihat ScheduleShiftRosterTab::getSwapCellsProperty().
                                 // Sel serah-shift (ghost, lihat getSwapGhostsProperty) ikut dikunci + berikon.
-                                $swapLocked = $ghostId || isset($this->swapCells[$employee->id.'|'.$date->toDateString()]);
+                                $swapLocked = $ghostId || (isset($this->swapCells[$employee->id.'|'.$date->toDateString()]) && ! $this->canOverrideLeaveLock);
                                 // Sel Cuti/Izin disetujui otomatis - selalu ditandai (badge + kode
                                 // C/Izin), tapi cuma DIKUNCI dari edit buat yang bukan pemegang
                                 // Update:Schedule (Edit Jadwal) - instruksi user 2026-09-24. Lihat
