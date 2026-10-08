@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Task\Projects;
 
 use App\Filament\Resources\Task\Projects\Pages\EditTaskProject;
 use App\Filament\Resources\Task\Projects\Pages\ListTaskProjects;
+use App\Filament\Resources\Task\Projects\RelationManagers\DiscussionsRelationManager;
 use App\Filament\Resources\Task\Projects\RelationManagers\ListsRelationManager;
 use App\Filament\Resources\Task\Projects\RelationManagers\MembersRelationManager;
 use App\Filament\Resources\Task\Projects\RelationManagers\TasksRelationManager;
@@ -98,6 +99,7 @@ class TaskProjectResource extends Resource
             TasksRelationManager::class,
             ListsRelationManager::class,
             MembersRelationManager::class,
+            DiscussionsRelationManager::class,
         ];
     }
 
