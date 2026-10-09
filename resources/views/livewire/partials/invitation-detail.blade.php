@@ -1,16 +1,20 @@
 @php
     $rows = [
         ['fa-user', 'Karyawan', $record->user->name, 'var(--brand)'],
-        ['fa-user-tie', 'Atasan langsung', $record->supervisor?->name ?? '-', '#7c3aed'],
+        $record->type === \App\Enum\InvitationType::SP_KLARIFIKASI ? ['fa-user-tie', 'Atasan langsung', $record->supervisor?->name ?? '-', '#7c3aed'] : ['fa-user-group', 'Coach', $record->createdBy?->name ?? '-', '#7c3aed'],
         ['fa-calendar-days', 'Waktu', $record->scheduled_at->translatedFormat('l, d M Y') . ' · ' . $record->scheduled_at->format('H:i'), '#0891b2'],
         ['fa-location-dot', 'Tempat', $record->location, '#ea580c'],
     ];
+    // Coaching: atasan langsung hanya tampil kalau ikut diundang.
+    if ($record->type === \App\Enum\InvitationType::COACHING && $record->supervisor) {
+        array_splice($rows, 2, 0, [['fa-user-tie', 'Atasan langsung', $record->supervisor->name, '#0d9488']]);
+    }
     if ($record->note) {
-        $rows[] = ['fa-note-sticky', 'Catatan', $record->note, '#64748b'];
+        $rows[] = ['fa-clipboard-list', 'Topik / Hal Undangan', $record->note, '#64748b'];
     }
     [$statusLabel, $statusIcon, $statusBg, $statusFg] = $record->isCancelled()
         ? ['Dibatalkan', 'fa-ban', '#fee2e2', '#b91c1c']
-        : ($record->report ? ['Berita Acara dibuat', 'fa-circle-check', '#dcfce7', '#15803d'] : ['Menunggu klarifikasi', 'fa-hourglass-half', '#fef3c7', '#b45309']);
+        : ($record->report ? ['Berita Acara dibuat', 'fa-circle-check', '#dcfce7', '#15803d'] : ($record->coaching ? ['Coaching dibuat', 'fa-circle-check', '#dcfce7', '#15803d'] : [$record->type === \App\Enum\InvitationType::SP_KLARIFIKASI ? 'Menunggu klarifikasi' : 'Terjadwal', 'fa-hourglass-half', '#fef3c7', '#b45309']));
 @endphp
 
 <div class="form-card">
@@ -18,6 +22,9 @@
         <span class="badge" style="background:{{ $statusBg }};color:{{ $statusFg }};font-size:12px;padding:5px 12px;">
             <i class="fa-solid {{ $statusIcon }}" style="margin-right:5px;"></i>{{ $statusLabel }}
         </span>
+        @if ($record->coaching && ($coachingLink ?? false))
+            <a href="{{ route('coaching.show', $record->coaching) }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-user-group" style="font-size:12px;"></i> Lihat Coaching</a>
+        @endif
         @if ($record->report && ($baLink ?? false))
             <a href="{{ route('ba.show', $record->report) }}" wire:navigate class="btn-ghost"><i class="fa-solid fa-file-lines" style="font-size:12px;"></i> Lihat Berita Acara</a>
         @endif

@@ -56,14 +56,20 @@ class Invitation extends Model
         return $this->hasOne(SpReport::class, 'invitation_id');
     }
 
+    /** Coaching yang dibuat dari undangan coaching ini. */
+    public function coaching(): HasOne
+    {
+        return $this->hasOne(\App\Models\Coaching\Coaching::class, 'invitation_id');
+    }
+
     public function isCancelled(): bool
     {
         return $this->cancelled_at !== null;
     }
 
-    /** Masih boleh diubah/dibatalkan/dijadikan BA: belum dibatalkan dan belum punya BA. */
+    /** Masih boleh diubah/dibatalkan/ditindaklanjuti: belum dibatalkan dan belum punya BA (klarifikasi) / Coaching. */
     public function isOpen(): bool
     {
-        return ! $this->isCancelled() && ! $this->report()->exists();
+        return ! $this->isCancelled() && ! $this->report()->exists() && ! $this->coaching()->exists();
     }
 }

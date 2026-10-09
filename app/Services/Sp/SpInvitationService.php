@@ -77,12 +77,13 @@ class SpInvitationService
     {
         $invitation->loadMissing('user');
         $when = $invitation->scheduled_at->translatedFormat('d M Y H:i');
+        $topic = $invitation->note ? " Topik: {$invitation->note}." : '';
 
         // always: undangan resmi, tidak boleh hilang karena pengaturan notifikasi penerima.
         $url = route('undangan.show', $invitation);
 
-        $invitation->user?->notify(new SpReportUpdated($title, "Anda {$what}: {$when}, di {$invitation->location}.", $url, always: true));
-        $invitation->supervisor?->notify(new SpReportUpdated($title, "{$invitation->user?->name} dan Anda {$what}: {$when}, di {$invitation->location}.", $url, always: true));
+        $invitation->user?->notify(new SpReportUpdated($title, "Anda {$what}: {$when}, di {$invitation->location}.{$topic}", $url, always: true));
+        $invitation->supervisor?->notify(new SpReportUpdated($title, "{$invitation->user?->name} dan Anda {$what}: {$when}, di {$invitation->location}.{$topic}", $url, always: true));
     }
 
     private function assertCanManage(User $actor, ?string $companyId = null): void

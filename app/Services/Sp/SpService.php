@@ -66,6 +66,14 @@ class SpService
      *  (tidak ada langkah draft di jalur itu). */
     public function afterIssued(EmployeeSp $employeeSp): void
     {
+        // TTD digital ditahan: terbit = dokumen dikunci (FIX) + yang mengetahui dikabari. Efek SP (saldo, merit
+        // point, notifikasi karyawan) berlaku saat berkas bertanda tangan diunggah (uploadSigned).
+        if (! SpReportService::digitalSigningEnabled()) {
+            $this->signCreatedByAndNotifyKnowsBy($employeeSp);
+
+            return;
+        }
+
         $this->refreshBalance($employeeSp->user_id);
 
         // SP alur baru: karyawan baru dikabari saat gilirannya TTD (setelah "Mengetahui"), bukan saat terbit.
@@ -73,6 +81,13 @@ class SpService
             User::find($employeeSp->user_id)?->notify(new SpIssued($employeeSp));
         }
 
+        $this->applyMerit($employeeSp);
+
+        $this->signCreatedByAndNotifyKnowsBy($employeeSp);
+    }
+
+    private function applyMerit(EmployeeSp $employeeSp): void
+    {
         app(MeritPointService::class)->applyEvent(
             MeritPointEvent::from($employeeSp->sp_level->value),
             $employeeSp->user_id,
@@ -81,8 +96,49 @@ class SpService
             $employeeSp->id,
             'Penerbitan ' . $employeeSp->sp_level->name,
         );
+    }
 
-        $this->signCreatedByAndNotifyKnowsBy($employeeSp);
+    /**
+     * Unggah SP yang sudah ditandatangani langsung (pengganti TTD digital yang ditahan). Unggahan pertama
+     * meresmikan SP: saldo/level aktif diperbarui, merit point diterapkan, karyawan dikabari. Berkas boleh
+     * diganti sesudahnya selama SP belum dibatalkan.
+     */
+    public function uploadSigned(EmployeeSp $employeeSp, User $actor, \Illuminate\Http\UploadedFile $file): void
+    {
+        abort_unless(
+            $actor->can(\App\Enum\CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value) && $actor->company_id === $employeeSp->company_id,
+            403,
+            'Anda tidak berwenang mengunggah berkas Surat Peringatan ini.'
+        );
+
+        if (SpReportService::digitalSigningEnabled()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['status' => 'Surat Peringatan ini ditandatangani secara digital, tidak lewat unggah.']);
+        }
+
+        if ($employeeSp->isCancelled() || ! $employeeSp->document?->fixed_at) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['status' => 'Berkas hanya bisa diunggah untuk SP yang sudah diterbitkan dan belum dibatalkan.']);
+        }
+
+        $first = $employeeSp->signed_file_path === null;
+        $old = $employeeSp->signed_file_path;
+        $path = $file->storeAs('sp-signed', $employeeSp->id . '-' . now()->timestamp . '.' . $file->extension(), 'local');
+
+        $employeeSp->update([
+            'signed_file_path' => $path,
+            'signed_file_name' => $file->getClientOriginalName(),
+            'signed_uploaded_at' => now(),
+            'signed_uploaded_by' => $actor->id,
+        ]);
+
+        if ($old) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($old);
+        }
+
+        if ($first) {
+            $this->refreshBalance($employeeSp->user_id);
+            $this->applyMerit($employeeSp);
+            User::find($employeeSp->user_id)?->notify(new SpIssued($employeeSp->fresh()));
+        }
     }
 
     /**
@@ -109,6 +165,14 @@ class SpService
         $knowsBy = $employeeSp->knowsBy;
 
         if (! $createdBy || ! $knowsBy) {
+            return;
+        }
+
+        // TTD digital ditahan: cukup kunci dokumen (FIX) dan kabari yang mengetahui; tanda tangannya langsung di kertas.
+        if (! SpReportService::digitalSigningEnabled()) {
+            $employeeSp->issueDocument("Surat Peringatan {$employeeSp->sp_level->getLabel()} — {$employeeSp->user?->name}", $createdBy);
+            $knowsBy->notify(new SpAwaitingSignature($employeeSp));
+
             return;
         }
 
@@ -173,7 +237,10 @@ class SpService
     /** Terbitkan ulang SP yang sudah direvisi: kunci dokumen lagi, pembuat tanda tangan, Mengetahui dikabari. */
     public function reissue(EmployeeSp $employeeSp): void
     {
-        $this->refreshBalance($employeeSp->user_id); // tanggal berlaku bisa berubah saat revisi
+        if (SpReportService::digitalSigningEnabled()) {
+            $this->refreshBalance($employeeSp->user_id); // tanggal berlaku bisa berubah saat revisi
+        }
+
         $this->signCreatedByAndNotifyKnowsBy($employeeSp);
     }
 

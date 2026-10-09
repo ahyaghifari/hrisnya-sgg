@@ -110,6 +110,20 @@ class CoachingPage extends Component
             || Auth::user()->canAccessKaryawanMenu();
     }
 
+    /** Undangan coaching mendatang yang dibuat user ini (akses penuh: semua di company-nya); maksimal 5. */
+    public function getUpcomingInvitationsProperty()
+    {
+        $user = Auth::user();
+
+        return \App\Models\Invitation::ofType(\App\Enum\InvitationType::COACHING)
+            ->where('company_id', $user->company_id)
+            ->when(! $this->hasFullAccess, fn ($q) => $q->where('created_by', $user->id))
+            ->whereNull('cancelled_at')
+            ->whereDoesntHave('coaching')
+            ->where('scheduled_at', '>=', now()->startOfDay())
+            ->with('user')->orderBy('scheduled_at')->limit(5)->get();
+    }
+
     protected function baseQuery()
     {
         $search = trim($this->search);

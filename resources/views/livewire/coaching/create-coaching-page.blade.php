@@ -1,6 +1,13 @@
 <div>
 <x-page-header title="Buat Coaching" subtitle="Catat sesi pembinaan untuk karyawan" :back="route('coaching')" />
 
+@if ($this->invitation)
+    <div class="card-surface" style="margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+        <i class="fa-solid fa-envelope-open-text" style="color:var(--brand);"></i>
+        <p style="font-size:13px;margin:0;">Dari undangan coaching: <strong>{{ $this->invitation->scheduled_at->translatedFormat('l, d M Y H:i') }}</strong> &middot; {{ $this->invitation->location }}</p>
+    </div>
+@endif
+
 <form wire:submit="save">
     <div class="form-card">
         <div class="section-head">

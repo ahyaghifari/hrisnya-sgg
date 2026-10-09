@@ -12,12 +12,16 @@
                     @if ($record)
                         <p style="font-size:14px;font-weight:600;color:var(--text-heading);margin:0;">{{ $record->user->name }}</p>
                     @else
-                        <select data-tom-select data-placeholder="Pilih karyawan" wire:model.live="user_id" class="form-input">
-                            <option value="">Pilih karyawan</option>
-                            @foreach ($this->employeeOptions as $id => $name)
-                                <option value="{{ $id }}">{{ $name }}</option>
-                            @endforeach
-                        </select>
+                        {{-- wire:ignore (konvensi TomSelect di app ini): Tom Select menyuntik DOM sendiri; tanpa ini morph Livewire
+                             dari wire:model.live="user_id" mengosongkan pilihan. Opsi tidak berubah, jadi wire:key tetap. --}}
+                        <div wire:ignore wire:key="invitation-employee-select">
+                            <select data-tom-select data-placeholder="Pilih karyawan" wire:model.live="user_id" class="form-input">
+                                <option value="">Pilih karyawan</option>
+                                @foreach ($this->employeeOptions as $id => $name)
+                                    <option value="{{ $id }}">{{ $name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                         @error('user_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                     @endif
                     @if ($record || $user_id)
@@ -45,8 +49,8 @@
                 </div>
 
                 <div>
-                    <label class="form-label">Catatan</label>
-                    <textarea wire:model="note" class="form-input" rows="3"></textarea>
+                    <label class="form-label">Topik / Hal Undangan</label>
+                    <textarea wire:model="note" class="form-input" rows="3" placeholder="mis. Klarifikasi keterlambatan pada 1-5 Oktober 2026 (terlihat oleh karyawan dan atasan langsung)"></textarea>
                     @error('note') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                 </div>
             </div>

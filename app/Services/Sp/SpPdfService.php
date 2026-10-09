@@ -49,6 +49,15 @@ class SpPdfService
      */
     public function preview(EmployeeSp $sp)
     {
+        // SP bertanda tangan langsung: tampilkan berkas yang diunggah (PDF atau gambar).
+        if ($sp->signed_file_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($sp->signed_file_path)) {
+            return \Illuminate\Support\Facades\Storage::disk('local')->response(
+                $sp->signed_file_path,
+                $sp->signed_file_name,
+                ['Content-Disposition' => 'inline; filename="' . addslashes($sp->signed_file_name) . '"']
+            );
+        }
+
         $sp = $this->loadForPdf($sp);
 
         if ($final = $this->finalContents($sp)) {
@@ -195,12 +204,23 @@ class SpPdfService
         $identity = $report->user->nip ?: $report->user_id;
         $filename = 'beritaacara-' . $identity . '_' . str_replace(' ', '_', $report->user->name) . '.pdf';
 
+        // BA bertanda tangan langsung: tampilkan berkas yang diunggah (PDF atau gambar).
+        if ($report->signed_file_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($report->signed_file_path)) {
+            return \Illuminate\Support\Facades\Storage::disk('local')->response(
+                $report->signed_file_path,
+                $report->signed_file_name,
+                ['Content-Disposition' => 'inline; filename="' . addslashes($report->signed_file_name) . '"']
+            );
+        }
+
         if ($final = $this->finalContents($report)) {
             return $this->inline($final, $filename);
         }
 
-        // Belum selesai (draft / menunggu TTD): pratinjau dari data terkini, diberi watermark.
-        return $this->reportPdf($report, preview: true)->stream($filename);
+        // Draft (atau TTD digital aktif): pratinjau berwatermark. Sesudah FIX tanpa TTD digital: PDF bersih untuk dicetak & ditandatangani langsung.
+        $preview = $report->status === \App\Enum\Sp\SpReportStatus::DRAFT || SpReportService::digitalSigningEnabled();
+
+        return $this->reportPdf($report, preview: $preview)->stream($filename);
     }
 
     private function reportPdf(SpReport $report, bool $preview = false): \Barryvdh\DomPDF\PDF

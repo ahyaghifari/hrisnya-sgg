@@ -31,6 +31,12 @@ class SpReportService
     /** Isian HC selain dasar/kejadian - boleh kosong selama draft, wajib saat FIX. */
     private const HC_CONTENT = ['subject_clarification', 'analysis', 'kesimpulan', 'followup_plan'];
 
+    /** TTD digital BA ditahan (config sp.digital_signing = false): BA dicetak, ditandatangani langsung, lalu diunggah. */
+    public static function digitalSigningEnabled(): bool
+    {
+        return (bool) config('sp.digital_signing');
+    }
+
     /** Kill-switch sementara (instruksi user): pilihan Sumber Coaching di form BA disembunyikan dulu.
      *  Datanya (sp_reports.coaching_id) tetap didukung; balikin true kalau sudah siap dipakai. */
     public static function coachingSourceEnabled(): bool
@@ -118,7 +124,14 @@ class SpReportService
             $report->issueDocument("Berita Acara — {$report->user?->name}", $actor);
         });
 
-        $this->notifyEmployee($report, 'Berita Acara Telah Disusun', 'Berita Acara Anda telah disusun dan sedang ditandatangani atasan langsung, HC, dan yang mengetahui. Anda menandatangani terakhir.');
+        $this->notifyEmployee($report, 'Berita Acara Telah Disusun', self::digitalSigningEnabled()
+            ? 'Berita Acara Anda telah disusun dan sedang ditandatangani atasan langsung, HC, dan yang mengetahui. Anda menandatangani terakhir.'
+            : 'Berita Acara Anda telah disusun dan akan ditandatangani langsung. HC akan mengunggah berkas yang sudah ditandatangani.');
+
+        // Penanda tangan pertama baru dikabari kalau TTD digital aktif.
+        if (! self::digitalSigningEnabled()) {
+            return $report;
+        }
 
         // Penanda tangan pertama (atasan langsung kalau ada, selain itu HC sendiri tidak perlu dikabari).
         $report->unsetRelation('document');
@@ -241,6 +254,46 @@ class SpReportService
             "{$users[$role]?->name} sudah menandatangani Berita Acara - giliran Anda menandatangani.",
             documentSignId: $report->document?->id, always: true,
         ));
+
+        return $report;
+    }
+
+    /**
+     * Unggah Berita Acara yang sudah ditandatangani langsung (pengganti TTD digital yang ditahan). Begitu
+     * diunggah BA SELESAI dan lanjut ke keputusan SP. File boleh diganti selama keputusan belum ditetapkan.
+     */
+    public function uploadSigned(SpReport $report, User $actor, \Illuminate\Http\UploadedFile $file): SpReport
+    {
+        $this->assertManage($report, $actor);
+        abort_if($report->isLegacy(), 404);
+
+        if (self::digitalSigningEnabled()) {
+            throw ValidationException::withMessages(['status' => 'Berita Acara ini ditandatangani secara digital, tidak lewat unggah.']);
+        }
+
+        $replacing = $report->status === SpReportStatus::SELESAI && $report->keputusan === null && $report->signed_file_path;
+        if (! $replacing) {
+            $this->assertStatus($report, SpReportStatus::MENUNGGU_TTD);
+        }
+
+        $old = $report->signed_file_path;
+        $path = $file->storeAs('ba-signed', $report->id . '-' . now()->timestamp . '.' . $file->extension(), 'local');
+
+        $report->update([
+            'status' => SpReportStatus::SELESAI,
+            'signed_file_path' => $path,
+            'signed_file_name' => $file->getClientOriginalName(),
+            'signed_uploaded_at' => now(),
+            'signed_uploaded_by' => $actor->id,
+        ]);
+
+        if ($old) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($old);
+        }
+
+        if (! $replacing) {
+            $this->notifyEmployee($report, 'Berita Acara Bertanda Tangan Diunggah', 'Berita Acara Anda sudah ditandatangani dan diunggah HC. HC menentukan tindak lanjutnya.');
+        }
 
         return $report;
     }

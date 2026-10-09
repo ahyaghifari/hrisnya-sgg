@@ -36,6 +36,7 @@ class SpFromReportTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['sp.digital_signing' => true]); // alur TTD digital BA (default ditahan, diuji di SpReportUploadTest)
 
         $company = Companies::create(['code' => 'SFR', 'name' => 'Company SFR', 'location' => 'Test', 'is_active' => true]);
 
@@ -174,11 +175,15 @@ class SpFromReportTest extends TestCase
         // master lama tanpa level tetap muncul di semua level
         $this->assertTrue($options->has($this->reason->id));
 
-        $page->set('items.0.reason', $sp1->id)->set('sp_level', 'sp3')->assertSet('items.0.reason', '');
+        // Pelanggaran level bawah tetap valid di level lebih tinggi (grup 'Pelanggaran SP 1' di SP2/SP3)...
+        $page->set('items.0.reason', $sp1->id)->set('sp_level', 'sp3')->assertSet('items.0.reason', $sp1->id);
         $this->assertTrue($page->instance()->reasonOptions->has($sp3->id));
+
+        // ...tapi pelanggaran level lebih tinggi tidak valid saat level diturunkan: dikosongkan.
+        $page->set('items.0.reason', $sp3->id)->set('sp_level', 'sp1')->assertSet('items.0.reason', '');
     }
 
-    public function test_repeat_of_active_sp_violation_is_offered_suggests_next_level_and_is_stored(): void
+    public function test_repeat_of_active_sp_violation_is_offered_only_for_sp2_or_sp3_and_is_stored(): void
     {
         $first = $this->service->createSp($this->finishedReport(), $this->hc, [
             'nomor' => 'SP-1', 'sp_level' => 'sp1', 'start_date' => now()->toDateString(), 'knows_by' => $this->knower->id,
@@ -188,15 +193,94 @@ class SpFromReportTest extends TestCase
         $choice = "repeat:{$first->id}:{$this->reason->id}";
 
         $page = Livewire::actingAs($this->hc)->test(CreateSpFromReportPage::class, ['reportId' => $this->finishedReport()->id])
+            ->assertDontSee('berulang dari SP 1') // level belum dipilih
+            ->set('sp_level', 'sp1')
+            ->assertDontSee('berulang dari SP 1') // SP1 tidak punya pelanggaran berulang
+            ->set('sp_level', 'sp2')
             ->assertSee('berulang dari SP 1')
             ->set('items.0.reason', $choice)
-            ->assertSet('sp_level', 'sp2');
+            ->assertSet('items.0.reason', $choice)
+            ->set('sp_level', 'sp1') // pindah ke SP1: pilihan berulang dikosongkan
+            ->assertSet('items.0.reason', '')
+            ->set('sp_level', 'sp3')
+            ->assertSee('berulang dari SP 1') // SP3 masih bisa mengulang SP1 yang berlaku
+            ->set('items.0.reason', $choice)
+            ->set('sp_level', 'sp2');
 
         $page->set('nomor', 'SP-2')->set('items.0.note', 'lagi')->call('save')->assertHasNoErrors();
 
         $item = EmployeeSp::where('nomor', 'SP-2')->firstOrFail()->items->first();
         $this->assertSame($first->id, $item->repeat_sp_id);
         $this->assertStringContainsString('pelanggaran berulang', $item->text);
+    }
+
+    public function test_pelanggaran_lainnya_is_typed_manually_and_normal_choices_carry_no_note(): void
+    {
+        $page = Livewire::actingAs($this->hc)->test(CreateSpFromReportPage::class, ['reportId' => $this->finishedReport()->id])
+            ->set('nomor', 'SP-L')->set('sp_level', 'sp1')->set('start_date', now()->toDateString())->set('knows_by', $this->knower->id)
+            ->set('items', [
+                ['reason' => $this->reason->id, 'note' => 'sisa catatan lama'],
+                ['reason' => 'other', 'note' => ''],
+            ])
+            ->call('save')
+            ->assertHasErrors(['items.1.note']); // lainnya wajib diketik
+
+        $page->set('items.1.note', 'Meninggalkan pos tanpa izin')->call('save')->assertHasNoErrors();
+
+        $items = EmployeeSp::where('nomor', 'SP-L')->firstOrFail()->items;
+        $this->assertSame($this->reason->id, $items[0]->reason_id);
+        $this->assertStringNotContainsString('sisa catatan lama', $items[0]->text); // tanpa keterangan tambahan
+        $this->assertNull($items[1]->reason_id);
+        $this->assertSame('Meninggalkan pos tanpa izin', $items[1]->text);
+    }
+
+    public function test_lower_level_violations_not_done_before_are_offered_for_sp2_and_sp3(): void
+    {
+        $company = $this->hc->company_id;
+        $done = \App\Models\Sp\SpReason::create(['company_id' => $company, 'name' => 'Sudah dilakukan', 'sp_level' => 'sp1']);
+        $notDone = \App\Models\Sp\SpReason::create(['company_id' => $company, 'name' => 'Belum pernah', 'sp_level' => 'sp1']);
+        $sp2Reason = \App\Models\Sp\SpReason::create(['company_id' => $company, 'name' => 'Level dua', 'sp_level' => 'sp2']);
+
+        $first = $this->service->createSp($this->finishedReport(), $this->hc, [
+            'nomor' => 'SP-1', 'sp_level' => 'sp1', 'start_date' => now()->toDateString(), 'knows_by' => $this->knower->id,
+            'items' => [['reason_id' => $done->id]],
+        ]);
+        $first->issueDocument('SP 1', $this->hc);
+
+        $page = Livewire::actingAs($this->hc)->test(CreateSpFromReportPage::class, ['reportId' => $this->finishedReport()->id])
+            ->set('sp_level', 'sp1');
+        $this->assertSame([], $page->instance()->lowerReasonGroups); // SP1 tidak punya level di bawahnya
+
+        $page->set('sp_level', 'sp2');
+        $groups = $page->instance()->lowerReasonGroups;
+        $this->assertSame(['Pelanggaran SP 1'], array_keys($groups));
+        $this->assertArrayHasKey($notDone->id, $groups['Pelanggaran SP 1']);
+        $this->assertArrayNotHasKey($done->id, $groups['Pelanggaran SP 1']); // sudah muncul di pilihan berulang
+
+        $page->set('sp_level', 'sp3');
+        $this->assertSame(['Pelanggaran SP 1', 'Pelanggaran SP 2'], array_keys($page->instance()->lowerReasonGroups));
+        $this->assertArrayHasKey($sp2Reason->id, $page->instance()->lowerReasonGroups['Pelanggaran SP 2']);
+
+        // Memilih pelanggaran SP1 yang belum pernah dilakukan di SP2 boleh disimpan.
+        $page->set('sp_level', 'sp2')->set('nomor', 'SP-2L')->set('start_date', now()->toDateString())->set('knows_by', $this->knower->id)
+            ->set('items', [['reason' => $notDone->id, 'note' => '']])
+            ->call('save')->assertHasNoErrors();
+        $this->assertSame($notDone->id, EmployeeSp::where('nomor', 'SP-2L')->firstOrFail()->items->first()->reason_id);
+    }
+
+    public function test_repeat_is_not_offered_from_an_sp_of_the_same_or_higher_level(): void
+    {
+        $sp2 = $this->service->createSp($this->finishedReport(), $this->hc, [
+            'nomor' => 'SP-2A', 'sp_level' => 'sp2', 'start_date' => now()->toDateString(), 'knows_by' => $this->knower->id,
+            'items' => [['reason_id' => $this->reason->id]],
+        ]);
+        $sp2->issueDocument('SP 2', $this->hc);
+
+        Livewire::actingAs($this->hc)->test(CreateSpFromReportPage::class, ['reportId' => $this->finishedReport()->id])
+            ->set('sp_level', 'sp2')
+            ->assertDontSee('berulang dari SP 2')
+            ->set('sp_level', 'sp3')
+            ->assertSee('berulang dari SP 2');
     }
 
     public function test_repeat_choice_from_sp_that_is_not_offered_is_rejected(): void

@@ -13,9 +13,12 @@
     </div>
 @endif
 
-<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
-    @include('livewire.document.partials.pdf-button', ['document' => $record->document, 'url' => route('sp.preview', $record), 'label' => 'Preview PDF'])
-</div>
+{{-- Setelah dokumen bertanda tangan diunggah, berkasnya dilihat/diganti dari kartu unggahan (bukan tombol Preview PDF). --}}
+@unless ($record->signed_file_path && ! \App\Services\Sp\SpReportService::digitalSigningEnabled())
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
+        @include('livewire.document.partials.pdf-button', ['document' => $record->document, 'url' => route('sp.preview', $record), 'label' => 'Preview PDF'])
+    </div>
+@endunless
 
 @if ($cancellingSp)
     <div class="card-surface" style="margin-bottom:16px;border:1.5px solid var(--danger-text);">
@@ -53,27 +56,55 @@
                 <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">{{ $this->isAwaitingReissue ? 'Tanda tangan sebelumnya dibatalkan. Edit isinya, lalu pembuat menandatangani ulang; Mengetahui dan karyawan menandatangani sesudahnya.' : 'Surat belum ditandatangani & belum diterima karyawan. Masih bisa diedit bebas.' }}</p>
             </div>
             @if ($this->canIssue)
-                <button type="button" wire:click="openConfirmIssue" class="btn-primary" style="white-space:nowrap;">
-                    <i class="fa-solid fa-signature"></i> Tanda Tangan &amp; Terbitkan
-                </button>
+                @if (\App\Services\Sp\SpReportService::digitalSigningEnabled())
+                    <button type="button" wire:click="openConfirmIssue" class="btn-primary" style="white-space:nowrap;">
+                        <i class="fa-solid fa-signature"></i> Tanda Tangan &amp; Terbitkan
+                    </button>
+                @else
+                    <button type="button" wire:click="issue" wire:confirm="Terbitkan Surat Peringatan? Isi dikunci, lalu cetak, tandatangani langsung, dan unggah berkasnya." class="btn-primary" style="white-space:nowrap;">
+                        <i class="fa-solid fa-paper-plane"></i> Terbitkan
+                    </button>
+                @endif
             @endif
         </div>
     </div>
 @endif
 
+{{-- TTD digital ditahan: cetak, tandatangani langsung, unggah berkas (lalu SP resmi terbit). --}}
+@if ($this->awaitingUpload)
+    <div class="form-card" style="margin-bottom:16px;">
+        @include('livewire.sp.partials.ba-upload-panel', ['record' => $record, 'editable' => $this->canManage, 'docLabel' => 'Surat Peringatan', 'printUrl' => route('sp.preview', $record), 'signersText' => 'pembuat, yang mengetahui, dan karyawan'])
+    </div>
+@endif
+
 @if ($this->isLocked)
+    @php
+        $digital = \App\Services\Sp\SpReportService::digitalSigningEnabled();
+        $uploaded = ! $digital && $record->signed_file_path !== null;
+    @endphp
     <div class="card-surface" style="margin-bottom:16px;border:1.5px solid #16a34a;background:#f0fdf4;">
         <p style="font-size:13px;font-weight:700;color:#15803d;margin:0;">
-            <i class="fa-solid fa-lock"></i> Dokumen Terkunci
+            <i class="fa-solid {{ $uploaded ? 'fa-file-circle-check' : 'fa-lock' }}"></i>
+            {{ $digital ? 'Dokumen Terkunci' : ($uploaded ? 'Dokumen yang Sudah Ditandatangani Telah Diunggah' : 'Menunggu Dokumen yang Sudah Ditandatangani') }}
         </p>
-        <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">Pembuat sudah menandatangani - nomor, tanggal, Mengetahui, poin pelanggaran, dan Berita Acara tidak bisa diedit lagi.</p>
+        <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">
+            @if ($digital)
+                Pembuat sudah menandatangani - nomor, tanggal, Mengetahui, poin pelanggaran, dan Berita Acara tidak bisa diedit lagi.
+            @elseif ($uploaded)
+                Dokumen yang sudah ditandatangani sudah diunggah - nomor, tanggal, Mengetahui, poin pelanggaran, dan Berita Acara tidak bisa diedit lagi.
+            @else
+                Surat sudah diterbitkan dan isinya dikunci. Unggah dokumen yang sudah ditandatangani; isi baru bisa diubah lewat revisi.
+            @endif
+        </p>
         @if ($this->canRevise)
             <div style="margin-top:12px;padding-top:12px;border-top:1px solid #bbf7d0;">
                 <label class="form-label">Revisi Surat Peringatan</label>
-                <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Membuka kembali isi untuk diedit. Semua tanda tangan yang sudah masuk dibatalkan dan harus diulang.</p>
+                <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">
+                    {{ $digital ? 'Membuka kembali isi untuk diedit. Semua tanda tangan yang sudah masuk dibatalkan dan harus diulang.' : 'Membuka kembali isi untuk diedit. Setelah diedit, terbitkan ulang lalu cetak, tandatangani, dan unggah dokumen yang sudah ditandatangani.' }}
+                </p>
                 <textarea wire:model="revision_reason" class="form-input" rows="2" placeholder="Alasan revisi"></textarea>
                 @error('revision_reason') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-                <button type="button" wire:click="revise" wire:confirm="Revisi Surat Peringatan? Semua tanda tangan yang sudah masuk akan dibatalkan." class="btn-secondary" style="margin-top:8px;">
+                <button type="button" wire:click="revise" wire:confirm="{{ $digital ? 'Revisi Surat Peringatan? Semua tanda tangan yang sudah masuk akan dibatalkan.' : 'Revisi Surat Peringatan? Isi dibuka kembali untuk diedit.' }}" class="btn-secondary" style="margin-top:8px;">
                     <i class="fa-solid fa-rotate-left"></i> Revisi
                 </button>
             </div>
@@ -192,7 +223,7 @@
     </div>
 
     @if ($editingItems)
-        @include('livewire.sp.partials.reason-items-editor', ['field' => 'items', 'add' => 'addItem', 'remove' => 'removeItem', 'addLabel' => 'Tambah Pelanggaran', 'repeatOptions' => $this->repeatOptions])
+        @include('livewire.sp.partials.reason-items-editor', ['allowOther' => true, 'lowerGroups' => $this->lowerReasonGroups, 'field' => 'items', 'add' => 'addItem', 'remove' => 'removeItem', 'addLabel' => 'Tambah Pelanggaran', 'repeatOptions' => $this->repeatOptions])
 
         <div style="display:flex;gap:8px;margin-top:8px;">
             <button type="button" wire:click="saveItems" class="btn-primary" style="font-size:12px;padding:4px 10px;">Simpan</button>
@@ -210,10 +241,10 @@
     @endif
 </div>
 
-@include('livewire.sp.partials.sp-signature-card')
+@include('livewire.sp.partials.sp-signature-card', ['canReplace' => $this->canReplaceFile])
 
 {{-- BA yang sudah ditandatangani lengkap: isinya tertutup dulu (bisa dibuka), seperti bagian BA lainnya. --}}
-@php $baFinal = $record->report?->document?->isFullySigned() ?? false; @endphp
+@php $baFinal = ($record->report?->document?->isFullySigned() ?? false) || ($record->report && ! $record->report->isLegacy() && $record->report->status === \App\Enum\Sp\SpReportStatus::SELESAI); @endphp
 <div class="card-surface accent accent-green" style="margin-bottom:16px;" x-data="{ open: {{ $baFinal ? 'false' : 'true' }} }">
     <div class="section-head-icon" style="margin-bottom:14px;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" @click="open = !open">

@@ -44,6 +44,10 @@ class SpReport extends Model implements Signable
         'invitation_id',
         'coaching_id',
         'revised_at',
+        'signed_file_path',
+        'signed_file_name',
+        'signed_uploaded_at',
+        'signed_uploaded_by',
         'user_id',
         'company_id',
         'created_by',
@@ -68,6 +72,7 @@ class SpReport extends Model implements Signable
         'keputusan' => SpReportDecision::class,
         'klarifikasi_diajukan_at' => 'datetime',
         'revised_at' => 'datetime',
+        'signed_uploaded_at' => 'datetime',
         'klarifikasi_diisi_hc' => 'boolean',
         'riwayat_klarifikasi' => 'array',
     ];
@@ -93,6 +98,11 @@ class SpReport extends Model implements Signable
     public function coaching(): BelongsTo
     {
         return $this->belongsTo(\App\Models\Coaching\Coaching::class, 'coaching_id');
+    }
+
+    public function signedUploadedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signed_uploaded_by');
     }
 
     public function invitation(): BelongsTo
@@ -323,7 +333,8 @@ class SpReport extends Model implements Signable
             ];
         }
 
-        if ($this->status !== SpReportStatus::MENUNGGU_TTD) {
+        // TTD digital ditahan (config sp.digital_signing): BA ditandatangani langsung lalu file diunggah.
+        if ($this->status !== SpReportStatus::MENUNGGU_TTD || ! \App\Services\Sp\SpReportService::digitalSigningEnabled()) {
             return ['employee' => null, 'created_by' => null, 'knows_by' => null, 'supervisor' => null];
         }
 

@@ -44,6 +44,11 @@
             </div>
 
             <div>
+                <label class="form-label">Pelanggaran <span style="color:var(--danger-text);">*</span></label>
+                @include('livewire.sp.partials.reason-items-editor', ['allowOther' => true, 'lowerGroups' => $this->lowerReasonGroups, 'field' => 'items', 'add' => 'addItem', 'remove' => 'removeItem', 'addLabel' => 'Tambah Pelanggaran', 'repeatOptions' => $this->repeatOptions])
+            </div>
+
+            <div>
                 <label class="form-label">Tanggal Mulai <span style="color:var(--danger-text);">*</span></label>
                 <input type="date" wire:model.live="start_date" class="form-input">
                 @error('start_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
@@ -63,11 +68,6 @@
                     @endforeach
                 </select>
                 @error('knows_by') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <label class="form-label">Pelanggaran <span style="color:var(--danger-text);">*</span></label>
-                @include('livewire.sp.partials.reason-items-editor', ['field' => 'items', 'add' => 'addItem', 'remove' => 'removeItem', 'addLabel' => 'Tambah Pelanggaran', 'repeatOptions' => $this->repeatOptions])
             </div>
         </div>
     </div>

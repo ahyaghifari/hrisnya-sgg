@@ -32,6 +32,7 @@ class SpReportEmployeePageTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['sp.digital_signing' => true]); // alur TTD digital BA (default ditahan, diuji di SpReportUploadTest)
 
         $company = Companies::create(['code' => 'SPE', 'name' => 'Company SPE', 'location' => 'Test', 'is_active' => true]);
 

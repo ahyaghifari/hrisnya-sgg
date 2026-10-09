@@ -60,6 +60,11 @@ class SpDetailPage extends Component
      *  sebelumnya - password diminta lagi di sini sebagai bukti konsen itu. */
     public bool $confirmingIssue = false;
 
+    use \Livewire\WithFileUploads;
+
+    /** Berkas SP bertanda tangan yang akan diunggah (TTD digital ditahan). */
+    public $signedFile = null;
+
     public ?string $issuePassword = null;
 
     public bool $editingItems = false;
@@ -96,7 +101,8 @@ class SpDetailPage extends Component
         $document = $this->record->document;
 
         return $document !== null
-            && ($document->signatures->contains('signer_role', 'created_by') || $document->isFullySigned());
+            && ($document->signatures->contains('signer_role', 'created_by') || $document->isFullySigned()
+                || (! \App\Services\Sp\SpReportService::digitalSigningEnabled() && $document->fixed_at !== null));
     }
 
     /** Draft = belum ada baris registry `documents` sama sekali - dikenali dari ini, tidak perlu
@@ -118,10 +124,48 @@ class SpDetailPage extends Component
         $document = $this->record->document;
 
         return $this->canManage && $document !== null && $document->fixed_at !== null
-            && ! $this->record->isCancelled() && ! $document->isFullySigned();
+            && ! $this->record->isCancelled()
+            && (\App\Services\Sp\SpReportService::digitalSigningEnabled() ? ! $document->isFullySigned() : $this->record->signed_file_path === null);
     }
 
     public string $revision_reason = '';
+
+    /** TTD digital ditahan: SP sudah diterbitkan (FIX) dan menunggu berkas bertanda tangan diunggah. */
+    public function getAwaitingUploadProperty(): bool
+    {
+        return ! \App\Services\Sp\SpReportService::digitalSigningEnabled()
+            && ! $this->record->isCancelled()
+            && $this->record->document?->fixed_at !== null
+            && $this->record->signed_file_path === null;
+    }
+
+    /** Berkas sudah diunggah; HC boleh menggantinya selama SP belum dibatalkan. */
+    public function getCanReplaceFileProperty(): bool
+    {
+        return ! \App\Services\Sp\SpReportService::digitalSigningEnabled()
+            && ! $this->record->isCancelled()
+            && $this->record->signed_file_path !== null
+            && $this->canManage;
+    }
+
+    public function uploadSigned(): void
+    {
+        abort_unless($this->canManage, 403);
+
+        $this->validate(['signedFile' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240']], [], ['signedFile' => 'Berkas']);
+
+        try {
+            app(SpService::class)->uploadSigned($this->record, Auth::user(), $this->signedFile);
+        } catch (ValidationException $e) {
+            $this->addError('status', collect($e->errors())->flatten()->first());
+
+            return;
+        }
+
+        $this->reset('signedFile');
+        $this->record->refresh()->load(['document.signatures', 'report.document.signatures']);
+        Notification::make()->title('Berkas Surat Peringatan diunggah')->success()->send();
+    }
 
     public function revise(): void
     {
@@ -179,12 +223,15 @@ class SpDetailPage extends Component
     {
         abort_unless($this->canIssue, 403);
 
-        $this->validate(['issuePassword' => ['required', 'string']], [], ['issuePassword' => 'Password']);
+        // Password = konsen tanda tangan digital pembuat; tanpa TTD digital (ditahan) cukup konfirmasi di tombol.
+        if (\App\Services\Sp\SpReportService::digitalSigningEnabled()) {
+            $this->validate(['issuePassword' => ['required', 'string']], [], ['issuePassword' => 'Password']);
 
-        if (! Hash::check($this->issuePassword, Auth::user()->password)) {
-            $this->addError('issuePassword', 'Password salah.');
+            if (! Hash::check($this->issuePassword, Auth::user()->password)) {
+                $this->addError('issuePassword', 'Password salah.');
 
-            return;
+                return;
+            }
         }
 
         $this->isAwaitingReissue
@@ -272,8 +319,18 @@ class SpDetailPage extends Component
         abort_unless($this->canManage, 403);
         abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
-        $this->items = $this->reasonRowsFrom($this->record->items);
+        $this->items = $this->reasonRowsFrom($this->record->items, true);
         $this->editingItems = true;
+    }
+
+    protected function reasonUserId(): ?string
+    {
+        return $this->record->user_id;
+    }
+
+    protected function reasonExceptSpId(): ?string
+    {
+        return $this->record->id;
     }
 
     protected function reasonLevel(): ?string
@@ -286,20 +343,11 @@ class SpDetailPage extends Component
         return $this->record->company_id;
     }
 
-    /** Pelanggaran sama dengan SP lain karyawan ini yang aktif & terbit (rantai SP) - kecuali SP ini sendiri. */
+    /** Pelanggaran berulang: hanya jika SP ini SP2/SP3 dan ada SP lebih rendah yang masih berlaku & terbit (lihat HasReasonItems). */
     public function getRepeatOptionsProperty(): array
     {
-        $options = [];
-
-        foreach (EmployeeSp::active()->issued()->where('user_id', $this->record->user_id)->whereKeyNot($this->record->id)->with('items.reason')->orderBy('start_date')->get() as $sp) {
-            foreach ($sp->items->whereNotNull('reason_id') as $item) {
-                $options["repeat:{$sp->id}:{$item->reason_id}"] = "{$item->reason?->name} - berulang dari {$sp->sp_level->getLabel()} ({$sp->nomor})";
-            }
-        }
-
-        return $options;
+        return $this->repeatOptionsFor($this->record->user_id, $this->record->sp_level->value, $this->record->id);
     }
-
     public function addItem(): void
     {
         $this->items = $this->addReasonRow($this->items);
@@ -315,7 +363,7 @@ class SpDetailPage extends Component
         abort_unless($this->canManage, 403);
         abort_if($this->isLocked, 403, 'Dokumen sudah ditandatangani pembuat, tidak bisa diedit lagi.');
 
-        $rows = array_values(array_filter($this->reasonPayload($this->items), fn ($row) => filled($row['reason_id']) || filled($row['note'])));
+        $rows = array_values(array_filter($this->reasonPayload($this->items, true), fn ($row) => filled($row['reason_id']) || filled($row['note'])));
 
         if ($rows === []) {
             $this->addError('items', 'Minimal 1 pelanggaran.');
@@ -327,7 +375,7 @@ class SpDetailPage extends Component
             abort_unless(
                 (! $row['reason_id'] || ($row['repeat_sp_id']
                     ? isset($this->repeatOptions["repeat:{$row['repeat_sp_id']}:{$row['reason_id']}"])
-                    : $this->reasonOptions->has($row['reason_id']))),
+                    : $this->isReasonAllowed($row['reason_id']))),
                 403
             );
         }

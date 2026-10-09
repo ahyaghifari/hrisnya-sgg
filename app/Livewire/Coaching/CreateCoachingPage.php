@@ -28,6 +28,7 @@ class CreateCoachingPage extends Component
     public ?string $companyId = null;
     public ?string $user_id = null;
     public ?string $coach_by = null;
+    public ?string $invitation_id = null;
     public string $title = '';
     public ?string $improvement_due_date = null;
     public string $goals = '';
@@ -53,6 +54,17 @@ class CreateCoachingPage extends Component
         $this->coach_by = Auth::id();
         $this->improvement_due_date = today()->toDateString();
 
+        // Dari undangan coaching (tombol "Buat Coaching" di detail undangan): karyawan & coach mengikuti undangan,
+        // dan Coaching yang dibuat tertaut ke undangan itu (1 undangan = 1 Coaching).
+        if ($invitationId = request()->query('invitation_id')) {
+            $invitation = $this->resolveInvitation($invitationId);
+
+            $this->invitation_id = $invitation->id;
+            $this->companyId = $invitation->company_id;
+            $this->user_id = $invitation->user_id;
+            $this->coach_by = $invitation->created_by;
+        }
+
         // Prefill dari tombol pintasan "Buat Coaching Lanjutan" di CoachingDetailPage
         // (planning/2026-09-23-sp-dan-merit-point.md §1.1) - cuma kenyamanan UI, scope
         // staff/company tetap dicek ulang di save() saat submit.
@@ -67,6 +79,23 @@ class CreateCoachingPage extends Component
                 $this->user_id = $prefillUser->id;
             }
         }
+    }
+
+    /** Undangan coaching yang masih terbuka dan boleh ditindaklanjuti user ini (pembuatnya, atau akses penuh di company yang sama). */
+    private function resolveInvitation(string $id): \App\Models\Invitation
+    {
+        $invitation = \App\Models\Invitation::ofType(\App\Enum\InvitationType::COACHING)
+            ->where('company_id', Auth::user()->company_id)->findOrFail($id);
+
+        abort_unless($invitation->isOpen(), 404);
+        abort_unless($invitation->created_by === Auth::id() || $this->hasFullAccess, 403);
+
+        return $invitation;
+    }
+
+    public function getInvitationProperty(): ?\App\Models\Invitation
+    {
+        return $this->invitation_id ? \App\Models\Invitation::find($this->invitation_id) : null;
     }
 
     public function getHasFullAccessProperty(): bool
@@ -164,6 +193,13 @@ class CreateCoachingPage extends Component
         }
 
         $data['company_id'] = $this->companyId ?? Auth::user()->company_id;
+
+        if ($this->invitation_id) {
+            // Cek ulang saat simpan (undangan bisa sudah dibatalkan / sudah jadi Coaching) dan karyawannya harus sama.
+            $invitation = $this->resolveInvitation($this->invitation_id);
+            abort_unless($invitation->user_id === $data['user_id'], 403);
+            $data['invitation_id'] = $invitation->id;
+        }
 
         $coaching = app(CoachingService::class)->create($data);
 
