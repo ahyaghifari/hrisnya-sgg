@@ -11,6 +11,8 @@ use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\Attendance\PermissionTypeEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
+use App\Enum\OrgStructurLevel;
+use App\Models\Master\JobPositions;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
@@ -187,30 +189,44 @@ class AttendaceReqService
         return LeaveTypeCategoryEnum::usesLabelOverride($user->company_id);
     }
 
-    /** Calon pengganti cuti: kalau $user punya bawahan LANGSUNG (bukan bawahan dari bawahan) ->
-     * cuma bawahan itu; kalau tidak -> karyawan aktif lain di company & unit (org_structure
-     * jabatan) yang sama. */
+    /**
+     * Calon pengganti cuti, tergantung org_structure jabatan $user:
+     * - Divisi / Sub Divisi -> semua karyawan aktif di DIVISI yang sama (termasuk kepala divisi
+     *   dan semua sub divisinya).
+     * - Departemen (pejabat departemen) -> HANYA bawahan langsung (bukan bawahan dari bawahan).
+     * - Tanpa org_structure (mis. Direktur) -> bawahan langsung yang jabatannya level Departemen
+     *   (kepala departemen).
+     * Selalu karyawan aktif lain di company yang sama (instruksi user 2026-10-09).
+     */
     public function unitMates(User $user): \Illuminate\Database\Eloquent\Builder
     {
-        $orgId = $user->profile?->jobPosition?->org_structure_id;
-        $positionId = $user->activeJobPosition?->job_position_id;
-        $subordinateIds = User::query()
-            ->whereHas('activeJobPosition', fn ($q) => $q->whereIn(
-                'job_position_id',
-                \App\Models\Master\JobPositions::where('parent_id', $positionId ?? '__none__')->select('id')
-            ))
-            ->pluck('id');
+        $position = $user->profile?->jobPosition ?? $user->activeJobPosition?->jobPosition;
+        $org = $position?->orgStructure;
+        $level = $org?->level;
 
         $query = User::query()
             ->whereCompany($user->company_id)
             ->where('id', '!=', $user->id)
             ->where('is_active', true);
 
-        // Atasan (punya bawahan langsung) -> pengganti HANYA bawahan langsungnya; bukan atasan ->
-        // karyawan di unit yang sama (instruksi user 2026-10-03).
-        return $subordinateIds->isNotEmpty()
-            ? $query->whereIn('id', $subordinateIds)
-            : $query->whereHas('profile.jobPosition', fn ($j) => $j->where('org_structure_id', $orgId ?? '__none__'));
+        if (! $position) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if (in_array($level, [OrgStructurLevel::LEVEL_DIVISION->value, OrgStructurLevel::LEVEL_SUBDIVISION->value], true)) {
+            $division = $level === OrgStructurLevel::LEVEL_DIVISION->value ? $org : $org->parent;
+            $orgIds = array_filter([$division?->id, ...($division?->children()->pluck('id')->all() ?? [])]);
+
+            return $query->whereHas('profile.jobPosition', fn ($j) => $j->whereIn('org_structure_id', $orgIds ?: ['__none__']));
+        }
+
+        $direct = JobPositions::where('parent_id', $position->id);
+
+        if (! $org) {
+            $direct->whereHas('orgStructure', fn ($o) => $o->where('level', OrgStructurLevel::LEVEL_DEPARTMENT->value));
+        }
+
+        return $query->whereHas('activeJobPosition', fn ($q) => $q->whereIn('job_position_id', $direct->select('id')));
     }
 
     public function storeLeaveRequest(array $data, ?User $actingUser = null, bool $skipApproval = false, ?string $note = null, ?User $createdBy = null): object
