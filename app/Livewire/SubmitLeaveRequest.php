@@ -67,6 +67,10 @@ class SubmitLeaveRequest extends Component
      *  (satu-satunya tempat angka 30 didefinisikan, jangan duplikasi di sini). */
     public function getMinLeaveDateProperty(): ?string
     {
+        if ($lead = $this->selectedCategory?->minLeadDays()) {
+            return now()->addDays($lead)->toDateString();
+        }
+
         return $this->leave_type === LeaveTypeCategoryEnum::TAHUNAN->value
             ? app(AttendaceReqService::class)->minLeaveDate()->toDateString()
             : null;
@@ -256,7 +260,9 @@ class SubmitLeaveRequest extends Component
         return [
             'attachments.required' => 'Jenis cuti ini wajib melampirkan surat dokter/bidan.',
             'reason.required' => 'Alasan/Keterangan wajib diisi.',
-            'start_date.after_or_equal' => 'Cuti Tahunan wajib diajukan minimal 30 hari sebelum tanggal mulai.',
+            'start_date.after_or_equal' => $this->selectedCategory?->minLeadDays()
+                ? "{$this->selectedCategory->label()} wajib diajukan minimal {$this->selectedCategory->minLeadDays()} hari sebelum tanggal mulai."
+                : 'Cuti Tahunan wajib diajukan minimal 30 hari sebelum tanggal mulai.',
         ];
     }
 
