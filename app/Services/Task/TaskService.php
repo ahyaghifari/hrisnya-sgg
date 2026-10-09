@@ -1237,7 +1237,7 @@ class TaskService
      * di tugas yang sama. "@Nama" menotifikasi orang yang disebut; pelaksana dan penulis komentar yang
      * dibalas dikabari komentar baru (kecuali penulisnya sendiri atau yang sudah dapat notif mention).
      */
-    public function addComment(Task $task, User $user, string $comment, ?string $parentId = null): void
+    public function addComment(Task $task, User $user, string $comment, ?string $parentId = null, ?UploadedFile $file = null): void
     {
         abort_unless($this->canCommentOnTask($task, $user), 403, 'Kamu tidak bisa komentar di tugas ini.');
 
@@ -1248,12 +1248,20 @@ class TaskService
             abort_if($parent->parent_id !== null, 422, 'Balasan tidak bisa dibalas lagi.');
         }
 
-        $task->comments()->create([
+        // PDF terlalu besar ditolak sebelum komentar dibuat, supaya tidak ada komentar tanpa lampirannya.
+        abort_if($file && TaskAttachment::isPdf($file) && $file->getSize() > TaskAttachment::PDF_MAX_BYTES, 422, 'Ukuran file PDF maksimal 2 MB.');
+
+        $created = $task->comments()->create([
             'user_id' => $user->id,
             'parent_id' => $parent?->id,
             'comment' => $comment,
         ]);
-        $this->logActivity($task, $user, 'comment_added', 'Menambahkan komentar');
+        // Lampiran dari komentar juga masuk daftar Lampiran tugas (ditandai lewat comment_id).
+        if ($file) {
+            $this->storeFileAttachment($task, $user, $file, null, $created->id);
+        }
+        $this->logActivity($task, $user, 'comment_added', $file ? 'Menambahkan komentar dengan lampiran' : 'Menambahkan komentar');
+        $comment = filled($comment) ? $comment : 'Mengirim lampiran';
 
         $mentioned = $this->mentionedUsers($this->mentionableUsers($task), $comment, $user);
         $mentioned->each->notify(new TaskMentioned($task, $user->name, $comment));
@@ -1315,10 +1323,38 @@ class TaskService
             ->count();
     }
 
+    /** Boleh menambah lampiran: yang boleh mengelola tugas, atau anggota Board lain kalau pembuat mengaktifkan pengaturan kartu. */
+    public function canAttachToTask(Task $task, User $user): bool
+    {
+        if ($this->canContributeToTask($task, $user)) {
+            return true;
+        }
+
+        return $task->members_can_attach && $task->project_id
+            && ! $task->project?->isArchived()
+            && $this->canAccessProject($task->project, $user);
+    }
+
+    /** Pembuat tugas atau owner Board mengatur apakah anggota lain boleh melampirkan (di luar komentar). */
+    public function setMembersCanAttach(Task $task, bool $value, User $user): void
+    {
+        abort_unless($task->project_id, 422, 'Pengaturan ini cuma untuk tugas Board.');
+        abort_if($task->project->isArchived(), 403, 'Board diarsipkan.');
+        abort_unless($task->created_by === $user->id || $this->isProjectOwner($task->project, $user), 403, 'Cuma pembuat tugas atau pembuat Board yang bisa mengubah pengaturan ini.');
+
+        $this->taskRepository->update($task->id, ['members_can_attach' => $value]);
+    }
+
     public function addFileAttachment(Task $task, User $user, UploadedFile $file, ?string $description = null): void
     {
-        abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah lampiran.');
+        abort_unless($this->canAttachToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah lampiran.');
 
+        $this->storeFileAttachment($task, $user, $file, $description);
+    }
+
+    /** Simpan file lampiran. $commentId = lampiran dikirim lewat komentar (cukup hak komentar, tidak dicatat dobel di aktivitas). */
+    private function storeFileAttachment(Task $task, User $user, UploadedFile $file, ?string $description = null, ?string $commentId = null): void
+    {
         abort_if(
             TaskAttachment::isPdf($file) && $file->getSize() > TaskAttachment::PDF_MAX_BYTES,
             422,
@@ -1340,14 +1376,17 @@ class TaskService
             'file_name' => $file->getClientOriginalName(),
             'description' => filled($description) ? trim($description) : null,
             'uploaded_by' => $user->id,
+            'comment_id' => $commentId,
         ]);
 
-        $this->logActivity($task, $user, 'attachment_added', 'Mengunggah lampiran "' . $file->getClientOriginalName() . '"');
+        if (! $commentId) {
+            $this->logActivity($task, $user, 'attachment_added', 'Mengunggah lampiran "' . $file->getClientOriginalName() . '"');
+        }
     }
 
     public function addLinkAttachment(Task $task, User $user, string $url, ?string $label, ?string $description = null): void
     {
-        abort_unless($this->canContributeToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah lampiran.');
+        abort_unless($this->canAttachToTask($task, $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menambah lampiran.');
 
         $this->taskRepository->addAttachment($task->id, [
             'type' => TaskAttachment::TYPE_LINK,
@@ -1363,7 +1402,13 @@ class TaskService
     public function removeAttachment(string $attachmentId, User $user): void
     {
         $attachment = TaskAttachment::findOrFail($attachmentId);
-        abort_unless($this->canContributeToTask(Task::findOrFail($attachment->task_id), $user), 403, 'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menghapus lampiran.');
+        $task = Task::findOrFail($attachment->task_id);
+        // Anggota lain (lewat pengaturan kartu) cuma boleh menghapus lampiran miliknya sendiri.
+        abort_unless(
+            $this->canContributeToTask($task, $user) || ($this->canAttachToTask($task, $user) && $attachment->uploaded_by === $user->id),
+            403,
+            'Cuma pelaksana, pembuat tugas, atau pembuat Board yang bisa menghapus lampiran.'
+        );
 
         $this->taskRepository->deleteAttachment($attachmentId);
     }

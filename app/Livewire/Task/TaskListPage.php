@@ -77,6 +77,7 @@ class TaskListPage extends Component
     public ?string $seenBefore = null;
     public bool $trackNew = false;
     public string $newComment = '';
+    public $newCommentFile = null; // file/foto yang dilampirkan ke komentar (juga masuk daftar Lampiran)
     public ?string $replyToId = null; // komentar awal yang sedang dibalas (1 tingkat)
     public ?string $discussionSeenBefore = null; // terakhir dibuka sebelum sesi modal ini, buat sorot pesan baru
     public string $newDiscussion = '';
@@ -601,6 +602,7 @@ class TaskListPage extends Component
         $this->markTaskSeen($taskId);
         $this->replyToId = null;
         $this->newComment = '';
+        $this->newCommentFile = null;
         $this->newChecklistTitle = '';
         $this->editingChecklistItemId = null;
         $this->editingChecklistItemTitle = '';
@@ -627,7 +629,7 @@ class TaskListPage extends Component
             return null;
         }
 
-        return Task::with(['assignedTo', 'assignees.user.profile', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'attachments.uploadedBy', 'activities.user.profile', 'checklistItems.doneBy', 'checklistItems.assignee.profile', 'proofs', 'rejectionNoteBy'])
+        return Task::with(['assignedTo', 'assignees.user.profile', 'createdBy', 'reviewer', 'checklistItems', 'comments.user', 'comments.attachments', 'attachments.uploadedBy', 'activities.user.profile', 'checklistItems.doneBy', 'checklistItems.assignee.profile', 'proofs', 'rejectionNoteBy'])
             ->find($this->selectedTaskId);
     }
 
@@ -765,13 +767,16 @@ class TaskListPage extends Component
 
     public function addComment(string $taskId): void
     {
-        if (trim($this->newComment) === '') {
+        if (trim($this->newComment) === '' && ! $this->newCommentFile) {
             return;
         }
 
+        $this->validate(['newCommentFile' => ['nullable', 'file', 'max:10240']]);
+
         try {
-            app(TaskService::class)->addComment(Task::findOrFail($taskId), Auth::user(), $this->newComment, $this->replyToId);
+            app(TaskService::class)->addComment(Task::findOrFail($taskId), Auth::user(), trim($this->newComment), $this->replyToId, $this->newCommentFile);
             $this->newComment = '';
+            $this->newCommentFile = null;
             $this->replyToId = null;
             unset($this->tasks, $this->selectedTask);
         } catch (\Throwable $e) {
@@ -882,6 +887,17 @@ class TaskListPage extends Component
             $this->reset(['newAttachmentLink', 'newAttachmentLinkLabel', 'newAttachmentDescription']);
         } catch (\Throwable $e) {
             Notification::make()->title($e->getMessage() ?: 'Tidak bisa menambah lampiran')->danger()->send();
+        }
+
+        unset($this->selectedTask, $this->tasks);
+    }
+
+    public function setMembersCanAttach(string $taskId, bool $value): void
+    {
+        try {
+            app(TaskService::class)->setMembersCanAttach(Task::findOrFail($taskId), $value, Auth::user());
+        } catch (\Throwable $e) {
+            Notification::make()->title($e->getMessage() ?: 'Tidak bisa mengubah pengaturan lampiran')->danger()->send();
         }
 
         unset($this->selectedTask, $this->tasks);

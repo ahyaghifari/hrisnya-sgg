@@ -72,6 +72,7 @@ class TaskRepository
             'description' => $data['description'] ?? null,
             'url' => $data['url'] ?? null,
             'uploaded_by' => $data['uploaded_by'] ?? null,
+            'comment_id' => $data['comment_id'] ?? null,
         ]);
     }
 

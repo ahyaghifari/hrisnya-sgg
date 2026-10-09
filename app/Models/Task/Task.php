@@ -44,6 +44,7 @@ class Task extends Model
         'needs_review',
         'notify_creator_on_review',
         'notify_creator_on_complete',
+        'members_can_attach',
         'status',
         'rating',
         'priority',
@@ -74,6 +75,7 @@ class Task extends Model
         'needs_review' => 'boolean',
         'notify_creator_on_review' => 'boolean',
         'notify_creator_on_complete' => 'boolean',
+        'members_can_attach' => 'boolean',
         'is_overdue' => 'boolean',
         'recurrence_resume_at' => 'datetime',
     ];
