@@ -89,7 +89,7 @@ enum LeaveTypeCategoryEnum: string
     /** Jumlah hari baku: tanggal selesai terkunci = mulai + N - 1 (null = bebas). */
     public function lockedDays(): ?int
     {
-        return $this === self::MELAHIRKAN ? 10 : null;
+        return $this === self::MELAHIRKAN ? 90 : null;
     }
 
     /** Tanggal mulai paling cepat = hari ini + N hari (null = tidak ada, Tahunan punya jalur sendiri H-30). */
