@@ -5,6 +5,7 @@ namespace App\Services\Attendance;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ScheduleShiftType;
+use App\Enum\ShiftType;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -56,7 +57,7 @@ class ShiftAttendanceReader
             $extraOwns = $extraIsLater === $laterOwns;
             $owner = $extraOwns ? $extraShift->shiftType : $normalConfig;
 
-            $entry = $this->buildEntryFromScans($user, $date, $dayScans, $byDate, $consumedFirstScan, (bool) $owner->is_overnight);
+            $entry = $this->buildEntryFromScans($user, $date, $dayScans, $byDate, $consumedFirstScan, (bool) $owner->is_overnight, $owner);
 
             if ($entry && ! $extraOwns) {
                 $entry['extra_shift_handled'] = true;
@@ -69,9 +70,23 @@ class ShiftAttendanceReader
         // shift, jangan ditandai extra_shift_handled). "Pinjam scan besok" (overnight) boleh kalau
         // shift yang berlaku hari itu overnight.
         $allowNextDayBorrow = ($normalConfig?->is_overnight ?? false) || ($extraShift?->shiftType?->is_overnight ?? false);
-        $entry = $this->buildEntryFromScans($user, $date, $dayScans, $byDate, $consumedFirstScan, $allowNextDayBorrow);
+        $entry = $this->buildEntryFromScans($user, $date, $dayScans, $byDate, $consumedFirstScan, $allowNextDayBorrow, $normalConfig ?? $extraShift?->shiftType);
 
         return $entry ? [$entry] : [];
+    }
+
+    /**
+     * Scan tunggal yang waktunya sudah >= jam pulang shift (non-overnight, bukan Oncall) = scan
+     * pulang; karyawan lupa/lewat scan masuk. Dicatat hadir dengan check_out saja (check_in kosong),
+     * sama seperti presensi Fixed (AccessLogScheduleReader::singleScanIsCheckout()).
+     */
+    public function isCheckoutOnlyScan(string $scanTime, ?ScheduleShiftType $config): bool
+    {
+        return $config
+            && ! $config->is_overnight
+            && $config->shift_type !== ShiftType::ONCALL->value
+            && $config->end_time > $config->start_time
+            && $scanTime >= $config->end_time;
     }
 
     /**
@@ -96,6 +111,14 @@ class ShiftAttendanceReader
         $from = $this->checkInWindowStart($later);
         $to = $this->checkOutWindowEnd($earlier);
         $scans = $scans->filter(fn ($s, $i) => $i === 0 || $s->access_time < $from || $s->access_time > $to)->values();
+
+        // Scan tunggal sudah lewat jam pulang shift kedua = pulang shift kedua saja (lupa scan masuk).
+        // Shift awal tidak ada bukti dikerjakan, jadi tidak dibuat entrinya.
+        if ($scans->count() === 1 && $this->isCheckoutOnlyScan($scans->first()->access_time, $later)) {
+            $only = $this->buildEntryFromScans($user, $date, $scans, $byDate, $consumedFirstScan, false, $later);
+
+            return [array_merge($only, $earlierIsNormal ? [] : ['extra_shift_handled' => true])];
+        }
 
         $whole = $this->buildEntryFromScans($user, $date, $scans, $byDate, $consumedFirstScan, allowNextDayBorrow: (bool) $later->is_overnight);
         $in = $whole['check_in'];
@@ -264,7 +287,7 @@ class ShiftAttendanceReader
      * dilewatkan by-reference biar loop tanggal besok di pairScansForEmployee() tau scan
      * pertamanya sudah dipakai di sini.
      */
-    public function buildEntryFromScans(User $user, string $date, Collection $scans, Collection $byDate, array &$consumedFirstScan, bool $allowNextDayBorrow): ?array
+    public function buildEntryFromScans(User $user, string $date, Collection $scans, Collection $byDate, array &$consumedFirstScan, bool $allowNextDayBorrow, ?ScheduleShiftType $owner = null): ?array
     {
         if ($scans->isEmpty()) {
             return null;
@@ -277,6 +300,9 @@ class ShiftAttendanceReader
 
         if ($scans->count() > 1) {
             $checkOut = $scans->last()->access_time;
+        } elseif ($this->isCheckoutOnlyScan($checkIn, $owner)) {
+            $checkOut = $checkIn;
+            $checkIn  = null;
         } elseif ($allowNextDayBorrow) {
             $nextDate  = Carbon::parse($date)->addDay()->toDateString();
             $nextScans = $byDate->get($nextDate);

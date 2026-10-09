@@ -296,7 +296,7 @@ class AccessLogScheduleReader
      * hari itu overnight - dua-duanya berhak "minjem" scan pertama besok jadi check-out. Dipakai
      * jalur incremental (lookback checkout shift semalam) - jalur batch sudah lewat
      * ShiftAttendanceReader::pairDay() sepenuhnya, tidak butuh method ini lagi. */
-    private function isOvernightShiftDay(User $user, string $date): bool
+    public function isOvernightShiftDay(User $user, string $date): bool
     {
         $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
 
@@ -339,11 +339,15 @@ class AccessLogScheduleReader
     {
         $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
 
-        if (! $resolved || $resolved['type'] !== 'fixed' || ($resolved['is_off_day'] ?? false)) {
+        if (! $resolved || ($resolved['is_off_day'] ?? false)) {
             return false;
         }
 
-        return $scanTime >= $resolved['config']->end_time;
+        if ($resolved['type'] === 'shift') {
+            return $this->shiftReader->isCheckoutOnlyScan($scanTime, $resolved['config'] ?? null);
+        }
+
+        return $resolved['type'] === 'fixed' && $scanTime >= $resolved['config']->end_time;
     }
 
     /**
