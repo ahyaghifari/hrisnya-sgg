@@ -55,7 +55,8 @@ enum LeaveTypeCategoryEnum: string
     /** Wajib lampiran surat dokter/bidan (semua cuti khusus). */
     public function requiresAttachment(): bool
     {
-        return $this->isCutiKhusus();
+        // MELAHIRKAN: lampiran sementara opsional (instruksi user), kolom upload tetap tampil.
+        return $this->isCutiKhusus() && $this !== self::MELAHIRKAN;
     }
 
     /**
