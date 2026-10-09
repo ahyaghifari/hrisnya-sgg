@@ -24,6 +24,7 @@ class LeaveSubstituteTest extends TestCase
     private Companies $company;
     private OrgStructure $unitA;
     private OrgStructure $unitB;
+    private OrgStructure $dept;
 
     protected function setUp(): void
     {
@@ -41,8 +42,9 @@ class LeaveSubstituteTest extends TestCase
             'approver_ref_id' => $approver->id, 'approval_mode' => 'any', 'scope_type' => 'global', 'is_final' => true,
         ]);
 
-        $this->unitA = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Unit A', 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);
-        $this->unitB = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Unit B', 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);
+        $this->unitA = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Unit A', 'level' => OrgStructurLevel::LEVEL_DIVISION->value]);
+        $this->unitB = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Unit B', 'level' => OrgStructurLevel::LEVEL_DIVISION->value]);
+        $this->dept = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Departemen X', 'level' => OrgStructurLevel::LEVEL_DEPARTMENT->value]);
     }
 
     private function employeeIn(OrgStructure $unit, string $name): User
@@ -151,7 +153,7 @@ class LeaveSubstituteTest extends TestCase
     /** Atasan boleh memilih bawahannya sebagai pengganti walau bawahan itu di unit/org_structure lain. */
     public function test_supervisor_can_pick_subordinate_from_another_unit(): void
     {
-        $bossJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Karu', 'planned_manpower' => 1, 'org_structure_id' => $this->unitA->id]);
+        $bossJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Karu', 'planned_manpower' => 1, 'org_structure_id' => $this->dept->id]);
         $staffJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Perawat', 'planned_manpower' => 1, 'org_structure_id' => $this->unitB->id, 'parent_id' => $bossJob->id]);
         $boss = User::factory()->create(['company_id' => $this->company->id, 'is_active' => true]);
         $staff = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Perawat Bawahan', 'is_active' => true]);
@@ -173,7 +175,7 @@ class LeaveSubstituteTest extends TestCase
     /** Hanya bawahan LANGSUNG - bawahan dari bawahan (beda unit) tidak boleh jadi calon pengganti. */
     public function test_indirect_subordinate_is_not_a_candidate(): void
     {
-        $bossJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Karu', 'planned_manpower' => 1, 'org_structure_id' => $this->unitA->id]);
+        $bossJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Karu', 'planned_manpower' => 1, 'org_structure_id' => $this->dept->id]);
         $midJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Katim', 'planned_manpower' => 1, 'org_structure_id' => $this->unitB->id, 'parent_id' => $bossJob->id]);
         $lowJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Perawat', 'planned_manpower' => 1, 'org_structure_id' => $this->unitB->id, 'parent_id' => $midJob->id]);
         $users = [];
@@ -217,5 +219,47 @@ class LeaveSubstituteTest extends TestCase
         $this->submit($employee, null);
 
         $this->assertSame([], $this->substituteIds());
+    }
+
+    private function holder(string $name, JobPositions $job): User
+    {
+        $u = User::factory()->create(['company_id' => $this->company->id, 'name' => $name, 'is_active' => true]);
+        UserProfiles::create(['user_id' => $u->id, 'job_position_id' => $job->id]);
+        \App\Models\User\UserJobPositions::create(['user_id' => $u->id, 'job_position_id' => $job->id, 'start_date' => now()->subYear(), 'status' => 'active']);
+
+        return $u;
+    }
+
+    /** Pemohon di Sub Divisi: pengganti = semua orang di divisi induknya (kepala divisi, sub divisi lain), bukan divisi lain. */
+    public function test_subdivision_applicant_gets_whole_division(): void
+    {
+        $sub = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Sub 1', 'level' => OrgStructurLevel::LEVEL_SUBDIVISION->value, 'parent_id' => $this->unitA->id]);
+        $sub2 = OrgStructure::create(['company_id' => $this->company->id, 'name' => 'Sub 2', 'level' => OrgStructurLevel::LEVEL_SUBDIVISION->value, 'parent_id' => $this->unitA->id]);
+        $mk = fn (OrgStructure $o, string $n) => $this->holder($n, JobPositions::create(['company_id' => $this->company->id, 'name' => "J {$n}", 'planned_manpower' => 1, 'org_structure_id' => $o->id]));
+
+        $applicant = $mk($sub, 'Pemohon');
+        $mk($sub, 'Rekan Sub');
+        $mk($sub2, 'Orang Sub Lain');
+        $mk($this->unitA, 'Kepala Divisi');
+        $mk($this->unitB, 'Divisi Lain');
+
+        $this->assertEqualsCanonicalizing(
+            ['Rekan Sub', 'Orang Sub Lain', 'Kepala Divisi'],
+            app(AttendaceReqService::class)->unitMates($applicant)->pluck('name')->all()
+        );
+    }
+
+    /** Pemohon tanpa org_structure (Direktur): pengganti = bawahan langsung yang jabatannya level Departemen. */
+    public function test_applicant_without_org_gets_direct_department_heads(): void
+    {
+        $dirJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Direktur', 'planned_manpower' => 1]);
+        $kadepJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Kadep', 'planned_manpower' => 1, 'org_structure_id' => $this->dept->id, 'parent_id' => $dirJob->id]);
+        $stafJob = JobPositions::create(['company_id' => $this->company->id, 'name' => 'Staf', 'planned_manpower' => 1, 'org_structure_id' => $this->unitA->id, 'parent_id' => $dirJob->id]);
+
+        $dir = $this->holder('Direktur', $dirJob);
+        $this->holder('Kepala Departemen', $kadepJob);
+        $this->holder('Staf Langsung', $stafJob);
+
+        $this->assertSame(['Kepala Departemen'], app(AttendaceReqService::class)->unitMates($dir)->pluck('name')->all());
     }
 }
