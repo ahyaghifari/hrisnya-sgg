@@ -82,6 +82,9 @@ class ManualPayrollExcelImporter
 
     /** source_type kustom (bukan PayrollComponentEnum). */
     public const SOURCE_POTONGAN_KHUSUS = 'potongan_khusus';
+
+    /** Perusahaan yang boleh import manual (Banjarbaru & Barabai) — export rekap mereka juga diseragamkan. */
+    public const COMPANY_CODES = ['0001', '0002'];
     public const SOURCE_TUNJANGAN_KHUSUS = 'tunjangan_khusus';
 
     /**
