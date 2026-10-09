@@ -1528,10 +1528,13 @@
                         </div>
                         {{-- Pengaturan kartu: anggota Board lain boleh melampirkan (di luar komentar). Cuma pembuat tugas / owner Board. --}}
                         @if ($task->project_id && ! $this->isProjectArchived && ($isTaskCreator || $isBoardOwner))
-                            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-muted);margin:-4px 0 10px;cursor:pointer;">
-                                <input type="checkbox" @checked($task->members_can_attach) wire:click="setMembersCanAttach('{{ $task->id }}', {{ $task->members_can_attach ? 'false' : 'true' }})">
-                                Anggota Board lain boleh menambah lampiran
-                            </label>
+                            <div style="display:flex;align-items:center;gap:10px;margin:-4px 0 10px;">
+                                <label class="custom-checkbox" style="--accent:#042c6c;">
+                                    <input type="checkbox" @checked($task->members_can_attach) wire:click="setMembersCanAttach('{{ $task->id }}', {{ $task->members_can_attach ? 'false' : 'true' }})">
+                                    <span class="box"><i class="fa-solid fa-check"></i></span>
+                                </label>
+                                <span style="font-size:13px;color:var(--text-muted);">Anggota Board lain boleh menambah lampiran</span>
+                            </div>
                         @endif
 
                         <div x-show="showAddAttachment && @js($canAttach)" x-cloak style="margin-bottom:14px;padding:12px;background:var(--surface-alt);border-radius:10px;">
