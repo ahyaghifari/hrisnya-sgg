@@ -364,6 +364,29 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
                 </div>
             </div>
         @endif
+
+        @if ($this->canUploadAttachment)
+            <div style="padding:12px 0 0;">
+                <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 6px;">Lampiran Surat Dokter / Bidan</p>
+                <input type="file" class="form-input" wire:model="lampiran" multiple accept=".pdf,.jpg,.jpeg,.png" @disabled($confirmingUpload)>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">PDF/JPG/PNG, maks 10 MB per file. Hanya bisa diunggah 1 kali.</p>
+                <div wire:loading wire:target="lampiran" style="font-size:12px;color:var(--text-muted);margin-top:4px;">Mengunggah…</div>
+                @error('lampiran') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                @error('lampiran.*') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+
+                @if ($confirmingUpload)
+                    <div style="margin-top:10px;padding:12px;border-radius:10px;background:var(--warning-bg, #fff8e1);">
+                        <p style="font-size:12.5px;margin:0 0 10px;">Lampiran hanya bisa diunggah 1 kali dan tidak bisa diganti. Yakin sudah benar?</p>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" class="btn-primary" wire:click="confirmUpload" wire:loading.attr="disabled">Ya, unggah</button>
+                            <button type="button" class="btn-ghost" wire:click="$set('confirmingUpload', false)">Periksa lagi</button>
+                        </div>
+                    </div>
+                @else
+                    <button type="button" class="btn-primary" style="margin-top:10px;" wire:click="askUpload" wire:loading.attr="disabled" wire:target="lampiran,askUpload">Unggah Lampiran</button>
+                @endif
+            </div>
+        @endif
     </div>
 
     @php
