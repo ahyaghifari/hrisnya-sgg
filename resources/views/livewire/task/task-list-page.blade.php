@@ -1694,7 +1694,7 @@
                             // Dropdown: nama panggilan dulu (kalau ada), nama lengkap sebagai petunjuk.
                             $mentionPick = $mentionUsers->reject(fn ($u) => $u->id === auth()->id())
                                 ->map(fn ($u) => ['label' => $taskService->mentionLabel($u), 'full' => $u->name])->values()->all();
-                            $topComments = $task->comments->whereNull('parent_id');
+                            $topComments = $task->comments->whereNull('parent_id')->sortByDesc('created_at'); // terbaru di atas; balasan tetap urut lama ke baru di bawah induknya
                             $repliesByParent = $task->comments->whereNotNull('parent_id')->groupBy('parent_id');
                             $replyingTo = $this->replyToId ? $task->comments->firstWhere('id', $this->replyToId) : null;
                         @endphp

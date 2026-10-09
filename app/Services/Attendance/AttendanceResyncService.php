@@ -31,7 +31,23 @@ class AttendanceResyncService
         $counts = ['logs' => 0, 'recalculated' => 0, 'skipped' => 0, 'no_nip' => ! filled($user->nip)];
 
         if (! $counts['no_nip']) {
-            $result = app(AccessLogScheduleReader::class)->readAndGroup($from, $to, $user->nip);
+            $reader = app(AccessLogScheduleReader::class);
+
+            // Pairing overnight berantai (scan pertama hari ini "dipinjam" jadi pulang shift semalam),
+            // jadi rentang baca harus mulai dari awal rantai & lebihi 1 hari ke depan - kalau tidak,
+            // jadwal lewat tengah malam berturut2 salah pasang / pulang kosong. Hasil di luar
+            // [$from, $to] dibuang.
+            // ponytail: mundur maks 31 hari, cukup untuk rantai overnight realistis.
+            $readFrom = Carbon::parse($from);
+            for ($i = 0; $i < 31 && $reader->isOvernightShiftDay($user, $readFrom->copy()->subDay()->toDateString()); $i++) {
+                $readFrom->subDay();
+            }
+            $readTo = Carbon::parse($to)->addDay()->toDateString();
+
+            $result = $reader->readAndGroup($readFrom->toDateString(), $readTo, $user->nip);
+            foreach ($result['buckets'] as $type => $entries) {
+                $result['buckets'][$type] = array_filter($entries, fn ($e) => $e['date'] >= $from && $e['date'] <= $to);
+            }
             $repo = app(AttendanceRecordRepository::class);
             $calculators = [
                 'fixed' => app(FixedScheduleCalculator::class),
@@ -79,8 +95,10 @@ class AttendanceResyncService
      */
     public static function isGenuineExtraShiftScan(array $entry): bool
     {
+        // Pulang saja (check_in kosong, lupa scan masuk): pairDay() sudah memutuskan pemiliknya
+        // extra shift - entri milik shift normal membawa extra_shift_handled dan tidak sampai sini.
         if (! $entry['check_in']) {
-            return false;
+            return filled($entry['check_out'] ?? null);
         }
 
         $earliestCheckIn = Carbon::createFromFormat('H:i:s', $entry['config']->start_time)

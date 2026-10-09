@@ -33,6 +33,21 @@ class ShiftScheduleCalculator
         /** @var ScheduleShiftType $config */
         $config = $entry['config'];
 
+        // Scan tunggal yang sudah masuk jam pulang shift (lihat ShiftAttendanceReader::
+        // isCheckoutOnlyScan()) - check_in kosong, tidak ada yang dihitung telat/jam kerja, tapi
+        // tetap hadir. Sama dengan FixedScheduleCalculator.
+        if ($entry['check_in'] === null) {
+            return $entry + [
+                'late_minutes'        => 0,
+                'early_leave_minutes' => 0,
+                'working_minutes'     => null,
+                'overtime_minutes'    => null,
+                'work_day_weight'     => $this->workDayWeight($config, null),
+                'status'              => AttendanceStatus::PRESENT->value,
+                'out_of_window'       => false,
+            ];
+        }
+
         if ($config->shift_type === ShiftType::ONCALL->value) {
             return $this->calculateOncall($entry, $config);
         }
