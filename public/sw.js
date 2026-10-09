@@ -2,7 +2,7 @@
 // (page navigations + build assets) is cached, so offline reloads show the last-seen
 // version instead of the browser's no-connection page. Not stale-while-revalidate or
 // precaching; upgrade to Workbox if per-route strategies are needed later.
-const CACHE = 'hris-runtime-v7';
+const CACHE = 'hris-runtime-v8';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
@@ -15,7 +15,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
     const req = event.request;
-    if (req.method !== 'GET' || !req.url.startsWith(self.location.origin)) {
+    // /login jangan di-cache: token CSRF basi -> 419 "Page Expired" saat submit.
+    if (req.method !== 'GET' || !req.url.startsWith(self.location.origin) || new URL(req.url).pathname === '/login') {
         return;
     }
 
