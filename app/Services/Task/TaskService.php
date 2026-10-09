@@ -1304,18 +1304,14 @@ class TaskService
             ->upsert([['project_id' => $project->id, 'user_id' => $user->id, 'seen_at' => now()]], ['project_id', 'user_id'], ['seen_at']);
     }
 
-    /** Jumlah pesan Diskusi sejak terakhir dibuka yang menandai ($user di-"@") atau membalas pesannya. */
-    public function unreadDiscussionMentions(TaskProject $project, User $user): int
+    /** Jumlah pesan Diskusi dari orang lain sejak $user terakhir membukanya (semua anggota, bukan cuma yang ditag; notifikasi tetap cuma untuk yang di-mention). */
+    public function unreadDiscussionCount(TaskProject $project, User $user): int
     {
         $seen = $this->discussionSeenAt($project, $user);
-        $candidates = $this->projectMentionableUsers($project);
 
         return $project->comments()
             ->where('user_id', '!=', $user->id)
             ->when($seen, fn ($q) => $q->where('created_at', '>', $seen))
-            ->get()
-            ->filter(fn ($c) => $c->parent?->user_id === $user->id
-                || $this->mentionedUsers($candidates, $c->comment, $c->user)->contains('id', $user->id))
             ->count();
     }
 

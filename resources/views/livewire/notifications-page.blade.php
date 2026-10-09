@@ -14,10 +14,11 @@
             <div
                 wire:click="markAsRead('{{ $notification->id }}')"
                 class="pwa-list-row"
-                style="align-items:flex-start;cursor:pointer;{{ $notification->read_at ? '' : 'background:var(--surface-alt, rgba(4,44,108,0.04));' }}"
+                style="align-items:flex-start;cursor:pointer;{{ ($notification->data['request_type'] ?? null) === 'task' ? 'border-left:3px solid var(--brand);' : '' }}{{ $notification->read_at ? '' : 'background:var(--surface-alt, rgba(4,44,108,0.04));' }}"
             >
                 <div style="width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;background:{{ $notification->read_at ? 'transparent' : '#ef4444' }};"></div>
                 <div style="flex:1;min-width:0;">
+                    <x-notification-task-badge :data="$notification->data" />
                     <div style="font-size:13.5px;font-weight:700;color:var(--text-body);">{{ $notification->data['title'] ?? 'Notifikasi' }}</div>
                     <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">{{ $notification->data['body'] ?? '' }}</div>
                     <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">{{ $notification->created_at->diffForHumans() }}</div>

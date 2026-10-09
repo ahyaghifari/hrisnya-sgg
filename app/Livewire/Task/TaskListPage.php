@@ -780,12 +780,29 @@ class TaskListPage extends Component
     }
 
 
-    /** Bubble tombol Diskusi: pesan baru yang menandai/membalas user. */
+    /** Bubble tombol Diskusi: pesan baru dari anggota lain (semua, bukan cuma yang menandai). */
     public function getDiscussionUnreadProperty(): int
     {
         return $this->activeProject && $this->boardFilter !== 'diskusi'
-            ? app(TaskService::class)->unreadDiscussionMentions($this->activeProject, Auth::user())
+            ? app(TaskService::class)->unreadDiscussionCount($this->activeProject, Auth::user())
             : 0;
+    }
+
+    /** Ringkasan "belum dilihat" satu Board: lampiran, komentar, ceklis selesai (dijumlah dari semua kartu) + diskusi. */
+    public function getBoardUnreadSummaryProperty(): array
+    {
+        if (! $this->activeProject) {
+            return [];
+        }
+
+        $perTask = collect($this->unreadCounts);
+
+        return array_filter([
+            'attachment_added' => $perTask->sum('attachment_added'),
+            'comment_added' => $perTask->sum('comment_added'),
+            'checklist_done' => $perTask->sum('checklist_done'),
+            'diskusi' => $this->discussionUnread,
+        ]);
     }
 
     public function startDiscussionReply(string $commentId): void

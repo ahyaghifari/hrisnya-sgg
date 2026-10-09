@@ -122,7 +122,7 @@ class TaskCommentReplyMentionTest extends TestCase
         }
     }
 
-    public function test_board_discussion_unread_counts_only_tags_and_replies_until_seen(): void
+    public function test_board_discussion_unread_counts_all_messages_from_others_until_seen(): void
     {
         [$service, $task, $owner, $budi, $budiS] = $this->board();
         $project = $task->project;
@@ -130,16 +130,16 @@ class TaskCommentReplyMentionTest extends TestCase
 
         $service->addProjectComment($project, $owner, 'halo @Budi Santoso');
         $service->addProjectComment($project, $owner, 'pesan umum tanpa tag');
-        $this->assertSame(1, $service->unreadDiscussionMentions($project, $budiS));
-        $this->assertSame(0, $service->unreadDiscussionMentions($project, $budi));
+        $this->assertSame(2, $service->unreadDiscussionCount($project, $budiS));
+        $this->assertSame(2, $service->unreadDiscussionCount($project, $budi));
 
         $service->markDiscussionSeen($project, $budiS);
-        $this->assertSame(0, $service->unreadDiscussionMentions($project, $budiS));
+        $this->assertSame(0, $service->unreadDiscussionCount($project, $budiS));
 
         $this->travel(5)->seconds();
         $service->addProjectComment($project, $budiS, 'pesanku');
         $mine = $project->comments()->where('user_id', $budiS->id)->first();
         $service->addProjectComment($project, $owner, 'balasan', $mine->id);
-        $this->assertSame(1, $service->unreadDiscussionMentions($project, $budiS));
+        $this->assertSame(1, $service->unreadDiscussionCount($project, $budiS));
     }
 }
