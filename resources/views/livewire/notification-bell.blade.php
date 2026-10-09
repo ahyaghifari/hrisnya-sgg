@@ -1,4 +1,4 @@
-@if ($variant === 'mobile')
+﻿@if ($variant === 'mobile')
     {{-- x-data (bukan class JS polos + getElementById) - state buka/tutup HARUS lewat sesuatu
     yang selamat dari morph wire:poll.30s/wire:click di komponen ini. Class ".open" yang
     ditoggle manual sebelumnya TIDAK ada di HTML hasil render server, jadi tiap poll/klik
@@ -41,6 +41,7 @@
                             <x-notification-task-badge :data="$notification->data" />
                             <div style="font-size:13.5px;font-weight:700;color:var(--text-body);">{{ $notification->data['title'] ?? 'Notifikasi' }}</div>
                             <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">{{ $notification->data['body'] ?? '' }}</div>
+                            @if (! empty($notification->data['context']))<div style="font-size:11.5px;color:var(--brand);font-weight:600;margin-top:2px;">{{ $notification->data['context'] }}</div>@endif
                             <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">{{ $notification->created_at->diffForHumans() }}</div>
                         </div>
                     </div>
@@ -93,6 +94,7 @@
                             <x-notification-task-badge :data="$notification->data" />
                             <div style="font-size:12.5px;font-weight:700;color:var(--text-body);">{{ $notification->data['title'] ?? 'Notifikasi' }}</div>
                             <div style="font-size:11.5px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $notification->data['body'] ?? '' }}</div>
+                            @if (! empty($notification->data['context']))<div style="font-size:11.5px;color:var(--brand);font-weight:600;margin-top:2px;">{{ $notification->data['context'] }}</div>@endif
                             <div style="font-size:10.5px;color:var(--text-faint);margin-top:2px;">{{ $notification->created_at->diffForHumans() }}</div>
                         </div>
                     </div>

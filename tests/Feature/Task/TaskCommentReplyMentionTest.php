@@ -142,4 +142,20 @@ class TaskCommentReplyMentionTest extends TestCase
         $service->addProjectComment($project, $owner, 'balasan', $mine->id);
         $this->assertSame(1, $service->unreadDiscussionCount($project, $budiS));
     }
+
+    public function test_notification_context_and_links_for_card_and_discussion(): void
+    {
+        [$service, $task, $owner, $budi] = $this->board();
+        $project = $task->project;
+
+        $card = (new TaskMentioned($task, 'Owner Satu', 'cek ini'))->toDatabase($budi);
+        $this->assertStringContainsString('Board "B"', $card['context']);
+        $this->assertStringContainsString('Kartu "T"', $card['context']);
+        $this->assertStringContainsString('task=' . $task->id, \App\Support\TaskNotificationUrl::for($card));
+
+        $disc = (new TaskMentioned(null, 'Owner Satu', 'cek ini', $project))->toDatabase($budi);
+        $this->assertSame('Board "B" · bagian Diskusi', $disc['context']);
+        $this->assertTrue($disc['discussion']);
+        $this->assertStringContainsString('boardFilter=diskusi', \App\Support\TaskNotificationUrl::for($disc));
+    }
 }

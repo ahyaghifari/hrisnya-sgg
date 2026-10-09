@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Enum\NotificationTypeEnum;
 use App\Models\Task\Task;
+use App\Models\Task\TaskProject;
 use App\Services\Notification\NotificationPreferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,9 +15,9 @@ use NotificationChannels\WebPush\WebPushMessage;
 
 class TaskMentioned extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\DescribesTaskContext;
 
-    public function __construct(protected ?Task $task, protected string $commenterName, protected string $comment, protected ?string $projectId = null) {}
+    public function __construct(protected ?Task $task, protected string $commenterName, protected string $comment, protected ?TaskProject $project = null) {}
 
     public function via(object $notifiable): array
     {
@@ -29,7 +30,7 @@ class TaskMentioned extends Notification implements ShouldQueue
 
     protected function title(): string
     {
-        return 'Anda Disebut di Komentar';
+        return $this->task ? 'Anda Disebut di Komentar' : 'Anda Disebut di Diskusi Board';
     }
 
     protected function body(): string
@@ -42,9 +43,11 @@ class TaskMentioned extends Notification implements ShouldQueue
         return [
             'title' => $this->title(),
             'body' => $this->body(),
+            'context' => $this->context(),
             'request_type' => 'task',
             'task_id' => $this->task?->id,
-            'project_id' => $this->task?->project_id ?? $this->projectId,
+            'project_id' => $this->task?->project_id ?? $this->project?->id,
+            'discussion' => ! $this->task,
             'created_at' => now()->toISOString(),
         ];
     }
@@ -54,8 +57,8 @@ class TaskMentioned extends Notification implements ShouldQueue
         return (new WebPushMessage)
             ->title($this->title())
             ->icon('/pwa/icons/icon-192-v3.png')
-            ->body($this->body())
-            ->data(['request_type' => 'task', 'task_id' => $this->task?->id, 'project_id' => $this->task?->project_id ?? $this->projectId])
+            ->body($this->body() . "\n" . $this->context())
+            ->data(['request_type' => 'task', 'task_id' => $this->task?->id, 'project_id' => $this->task?->project_id ?? $this->project?->id, 'discussion' => ! $this->task])
             ->action('Lihat', 'view');
     }
 }

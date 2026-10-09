@@ -85,7 +85,10 @@ self.addEventListener('notificationclick', (event) => {
         // Task di dalam Project/Board -> langsung ke board-nya; task pribadi/penugasan individu
         // (tidak ada project_id) -> halaman Tugas, scope "Tugas Saya". URL papan sendiri
         // (bukan lagi query string di /tugas) - lihat routes/tugas.php.
-        url = projectId ? `/tugas/papan/board/${projectId}` : '/tugas/papan/saya';
+        // Diskusi Board -> tab Diskusi; notifikasi kartu -> kartu langsung terbuka (?task=).
+        const taskId = event.notification.data?.task_id;
+        const query = event.notification.data?.discussion ? '?boardFilter=diskusi' : (taskId ? `?task=${taskId}` : '');
+        url = (projectId ? `/tugas/papan/board/${projectId}` : '/tugas/papan/saya') + query;
     } else if (requestId) {
         // request_type 'leave'/'permission'/'overtime' (Izin/Cuti/Lembur) -> halaman detail
         // pengajuan absensi; 'user_transition' (Perubahan Status Karyawan) -> halaman detail

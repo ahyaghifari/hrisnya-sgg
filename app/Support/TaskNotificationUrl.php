@@ -36,12 +36,17 @@ class TaskNotificationUrl
         }
 
         // Tugas/penilaian/undangan di Board -> langsung ke halaman Board-nya (kalau Board masih ada).
+        // Diskusi Board -> langsung ke tab Diskusi; notifikasi kartu -> kartu langsung terbuka (?task=).
+        $query = ! empty($data['discussion'])
+            ? ['boardFilter' => 'diskusi']
+            : (! empty($data['task_id']) ? ['task' => $data['task_id']] : []);
+
         if (! empty($data['project_id'])) {
             return TaskProject::whereKey($data['project_id'])->exists()
-                ? route('tugas.papan.board', $data['project_id'])
+                ? route('tugas.papan.board', ['project' => $data['project_id']] + $query)
                 : route('tugas');
         }
 
-        return route('tugas.papan', 'saya');
+        return route('tugas.papan', ['scope' => 'saya'] + $query);
     }
 }

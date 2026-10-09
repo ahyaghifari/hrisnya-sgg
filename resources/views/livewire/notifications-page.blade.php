@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     <x-page-header title="Notifikasi" subtitle="{{ $this->unreadCount > 0 ? $this->unreadCount . ' belum dibaca' : 'Semua sudah dibaca' }}" />
 
     @if ($this->unreadCount > 0)
@@ -21,6 +21,7 @@
                     <x-notification-task-badge :data="$notification->data" />
                     <div style="font-size:13.5px;font-weight:700;color:var(--text-body);">{{ $notification->data['title'] ?? 'Notifikasi' }}</div>
                     <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">{{ $notification->data['body'] ?? '' }}</div>
+                    @if (! empty($notification->data['context']))<div style="font-size:11.5px;color:var(--brand);font-weight:600;margin-top:2px;">{{ $notification->data['context'] }}</div>@endif
                     <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">{{ $notification->created_at->diffForHumans() }}</div>
                 </div>
             </div>
