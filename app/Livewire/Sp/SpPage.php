@@ -5,6 +5,7 @@ namespace App\Livewire\Sp;
 use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Companies;
 use App\Models\Sp\EmployeeSp;
+use App\Models\Invitation;
 use App\Models\Sp\SpReport;
 use App\Services\Sp\SpCaseList;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -93,12 +94,18 @@ class SpPage extends Component
             ->whereNotNull('status')
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
             ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->searchName($search)))
-            ->with(['user', 'sp'])
+            ->with(['user', 'sp', 'invitation'])
+            ->get();
+
+        $invitations = Invitation::ofType(\App\Enum\InvitationType::SP_KLARIFIKASI)
+            ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->searchName($search)))
+            ->with(['user', 'report'])
             ->get();
 
         $sps = $this->baseQuery()->with('report')->get();
 
-        $cases = SpCaseList::merge($reports, $sps);
+        $cases = SpCaseList::merge($reports, $sps, $invitations);
         $page = $this->getPage();
 
         return new LengthAwarePaginator($cases->forPage($page, 10)->values(), $cases->count(), 10, $page, [

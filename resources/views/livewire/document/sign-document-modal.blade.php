@@ -1,8 +1,10 @@
 <div>
 @if ($this->document)
     @php $doc = $this->document; @endphp
-    <div class="modal-overlay ms-modal" wire:click="close">
-        <div class="modal-box" style="max-width:640px;padding:0;overflow:hidden;" onclick="event.stopPropagation()">
+    {{-- Panel menyatu dengan halaman (bukan overlay, jadi ikut scroll halaman); tersembunyi sampai
+         event open-sign-modal, lalu halaman di-scroll ke sini. --}}
+    <div x-data x-init="$nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'center' }))" style="margin:0 0 16px;">
+        <div style="background:var(--surface);border:1.5px solid var(--brand);border-radius:14px;box-shadow:0 8px 28px rgba(4,44,108,0.14);overflow:hidden;">
             {{-- Header berwarna brand + ikon perisai: menandai ini tindakan resmi yang mengikat. --}}
             <div style="background:linear-gradient(135deg,var(--brand-fill) 0%,var(--brand-fill-strong) 100%);color:#fff;padding:20px 24px;display:flex;align-items:center;gap:14px;">
                 <div style="width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">
@@ -25,7 +27,7 @@
                     </p>
                     <p style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">{{ $doc->title }}</p>
                     <p style="font-size:12px;color:var(--text-muted);margin-top:2px;">
-                        No. {{ $doc->document_number ?: '-' }} &middot; Terbit {{ $doc->issued_at->translatedFormat('d M Y') }}
+                        No. {{ $doc->documentable?->nomor ?: 'Belum bernomor' }} &middot; Terbit {{ $doc->issued_at->translatedFormat('d M Y') }}
                     </p>
                     @foreach ($doc->documentable->signSummary() as $label => $value)
                         <p style="font-size:12.5px;color:var(--text-body);margin:6px 0 0;"><span style="color:var(--text-muted);">{{ $label }}:</span> <strong>{{ $value }}</strong></p>

@@ -43,14 +43,14 @@
     $isActive = ! $record->isCancelled() && $record->start_date->lte(today()) && ($record->end_date === null || $record->end_date->gte(today()));
 @endphp
 
-@if ($this->isDraft)
+@if ($this->isDraft || $this->isAwaitingReissue)
     <div class="card-surface" style="margin-bottom:16px;border:1.5px solid #a16207;background:#fefce8;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
             <div>
                 <p style="font-size:13px;font-weight:700;color:#a16207;margin:0;">
-                    <i class="fa-solid fa-pen-to-square"></i> Draft - Belum Terbit
+                    <i class="fa-solid fa-pen-to-square"></i> {{ $this->isAwaitingReissue ? 'Sedang Direvisi' : 'Draft - Belum Terbit' }}
                 </p>
-                <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">Surat belum ditandatangani &amp; belum diterima karyawan. Masih bisa diedit bebas.</p>
+                <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">{{ $this->isAwaitingReissue ? 'Tanda tangan sebelumnya dibatalkan. Edit isinya, lalu pembuat menandatangani ulang; Mengetahui dan karyawan menandatangani sesudahnya.' : 'Surat belum ditandatangani & belum diterima karyawan. Masih bisa diedit bebas.' }}</p>
             </div>
             @if ($this->canIssue)
                 <button type="button" wire:click="openConfirmIssue" class="btn-primary" style="white-space:nowrap;">
@@ -67,6 +67,17 @@
             <i class="fa-solid fa-lock"></i> Dokumen Terkunci
         </p>
         <p style="font-size:12.5px;color:var(--text-body);margin:4px 0 0;">Pembuat sudah menandatangani - nomor, tanggal, Mengetahui, poin pelanggaran, dan Berita Acara tidak bisa diedit lagi.</p>
+        @if ($this->canRevise)
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid #bbf7d0;">
+                <label class="form-label">Revisi Surat Peringatan</label>
+                <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Membuka kembali isi untuk diedit. Semua tanda tangan yang sudah masuk dibatalkan dan harus diulang.</p>
+                <textarea wire:model="revision_reason" class="form-input" rows="2" placeholder="Alasan revisi"></textarea>
+                @error('revision_reason') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                <button type="button" wire:click="revise" wire:confirm="Revisi Surat Peringatan? Semua tanda tangan yang sudah masuk akan dibatalkan." class="btn-secondary" style="margin-top:8px;">
+                    <i class="fa-solid fa-rotate-left"></i> Revisi
+                </button>
+            </div>
+        @endif
     </div>
 @endif
 
@@ -201,11 +212,14 @@
 
 @include('livewire.sp.partials.sp-signature-card')
 
-<div class="card-surface accent accent-green" style="margin-bottom:16px;">
+{{-- BA yang sudah ditandatangani lengkap: isinya tertutup dulu (bisa dibuka), seperti bagian BA lainnya. --}}
+@php $baFinal = $record->report?->document?->isFullySigned() ?? false; @endphp
+<div class="card-surface accent accent-green" style="margin-bottom:16px;" x-data="{ open: {{ $baFinal ? 'false' : 'true' }} }">
     <div class="section-head-icon" style="margin-bottom:14px;justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" @click="open = !open">
             <div class="section-icon"><i class="fa-solid fa-file-lines"></i></div>
             <p style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;">Berita Acara</p>
+            <i class="fa-solid fa-chevron-right" style="font-size:10px;color:var(--text-muted);transition:transform 0.15s;" :style="open ? 'transform:rotate(90deg)' : ''"></i>
         </div>
         <div style="display:flex;align-items-center;gap:3px;">
             @include('livewire.document.partials.pdf-button', ['document' => $record->report?->document, 'url' => route('sp.beritaacara_preview', $record), 'label' => 'Preview PDF', 'style' => 'font-size:12px;padding:4px 10px;'])
@@ -219,6 +233,7 @@
         </div>
     </div>
 
+    <div x-show="open" x-cloak style="{{ $baFinal ? 'display:none;' : '' }}">
     @if ($editingReport)
 
         <div style="margin-bottom: 12px;">
@@ -229,7 +244,7 @@
 
         <div style="margin-bottom:12px;">
             <label class="form-label">Dasar Klarifikasi</label>
-            @include('livewire.sp.partials.reason-items-editor', ['field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
+            @include('livewire.sp.partials.reason-items-editor', ['options' => $this->dasarReasonOptions, 'noun' => 'dasar klarifikasi', 'withNote' => false, 'field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
         </div>
 
         @foreach (['kejadian' =>'Uraian Kronologi Permasalahan', 'subject_clarification' => 'Klarifikasi Karyawan', 'analysis' => 'Analisis', 'kesimpulan' => 'Kesimpulan Sementara', 'followup_plan' => 'Rencana Tindak Lanjut'] as $field => $label)
@@ -274,6 +289,7 @@
             <p style="font-size:13px;color:var(--text-muted);margin:0;">Belum ada Berita Acara.</p>
         @endunless
     @endif
+    </div>
 </div>
 
 @if ($this->canManage)

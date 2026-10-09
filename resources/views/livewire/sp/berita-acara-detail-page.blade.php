@@ -14,11 +14,31 @@
     @if ($status !== S::SELESAI)
         <p style="font-size:12.5px;margin:0 0 8px;color:var(--text-muted);">Tahap Berita Acara: <strong style="color:var(--text-heading);">{{ $status->getLabel() }}</strong></p>
     @endif
-    <p style="font-size:13px;margin:0;"><strong>{{ $record->user?->name }}</strong>
-        <span style="color:var(--text-muted);">&middot; dibuat oleh {{ $record->createdBy?->name }} &middot; mengetahui {{ $record->knowsBy?->name }}</span></p>
+    @php
+        $parties = [
+            ['fa-user', 'Yang bersangkutan', $record->user, 'var(--brand)'],
+            ['fa-user-tie', 'Atasan langsung', $this->supervisor, '#7c3aed'],
+            ['fa-user-shield', 'HC', $record->createdBy, '#0891b2'],
+            ['fa-user-check', 'Mengetahui', $record->knowsBy, '#ea580c'],
+        ];
+    @endphp
+    <div style="display:flex;flex-direction:column;gap:12px;">
+        @foreach ($parties as [$icon, $label, $person, $color])
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+                <div style="flex:none;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb, {{ $color }} 13%, transparent);color:{{ $color }};">
+                    <i class="fa-solid {{ $icon }}" style="font-size:13px;"></i>
+                </div>
+                <div style="min-width:0;">
+                    <div style="font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);">{{ $label }}</div>
+                    <div style="font-size:13.5px;font-weight:600;color:var(--text-heading);word-break:break-word;">{{ $person?->name ?? '-' }}</div>
+                </div>
+            </div>
+        @endforeach
+    </div>
     @if ($record->keputusan)
         <p style="font-size:13px;margin:6px 0 0;font-weight:700;">Keputusan: {{ $record->keputusan->getLabel() }}</p>
     @endif
+
 </div>
 
 {{-- Setelah SELESAI: seluruh bagian BA dijadikan 1 section (lihat bawah), 4 section proses disembunyikan. --}}
@@ -29,21 +49,34 @@
     <div class="section-head">
         <div class="section-icon"><i class="fa-solid fa-file-lines" style="color:var(--brand);font-size:12px;"></i></div>
         <span class="section-title">Isi Berita Acara</span>
+        <a href="{{ route('ba.preview', $record) }}" target="_blank" class="btn-secondary" style="margin-left:auto;font-size:12px;padding:5px 12px;" title="Hanya pratinjau, bukan untuk ditandatangani"><i class="fa-solid fa-file-pdf"></i> Preview PDF</a>
     </div>
     <div style="display:flex;flex-direction:column;gap:16px;">
+        @if (\App\Services\Sp\SpReportService::coachingSourceEnabled())
+        <div>
+            <label class="form-label">Sumber dari Coaching (opsional)</label>
+            <select wire:model="coaching_id" class="form-input">
+                <option value="">Tanpa Coaching</option>
+                @foreach ($this->coachingOptions as $id => $label)
+                    <option value="{{ $id }}">{{ $label }}</option>
+                @endforeach
+            </select>
+            @error('coaching_id') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+        </div>
+        @endif
         <div>
             <label class="form-label">Nomor</label>
             <input type="text" wire:model="nomor" class="form-input">
         </div>
         <div>
             <label class="form-label">Dasar Klarifikasi <span style="color:var(--danger-text);">*</span></label>
-            @include('livewire.sp.partials.reason-items-editor', ['field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
+            @include('livewire.sp.partials.reason-items-editor', ['options' => $this->dasarReasonOptions, 'noun' => 'dasar klarifikasi', 'withNote' => false, 'field' => 'dasar_items', 'add' => 'addDasarItem', 'remove' => 'removeDasarItem', 'addLabel' => 'Tambah Dasar'])
         </div>
         @foreach ([['kejadian', 'Kejadian'], ['subject_clarification', 'Klarifikasi Karyawan'], ['analysis', 'Analisis'], ['kesimpulan', 'Kesimpulan'], ['followup_plan', 'Rencana Tindak Lanjut']] as [$field, $label])
             <div>
                 <label class="form-label">{{ $label }} <span style="color:var(--danger-text);">*</span></label>
                 @if ($field === 'subject_clarification')
-                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Tulis klarifikasi {{ $record->user?->name }} apa adanya sesuai keterangannya.</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Tuliskan klarifikasi yang bersangkutan tentang klarifikasinya terhadap uraian atau kronologi yang ditanyakan.</p>
                 @endif
                 <div wire:ignore>
                     <input type="hidden" id="trix-ba-d-{{ $field }}" wire:model="{{ $field }}" value="{{ $$field }}">
@@ -65,8 +98,12 @@
     <div class="section-head">
         <div class="section-icon"><i class="fa-solid fa-file-lines" style="color:var(--brand);font-size:12px;"></i></div>
         <span class="section-title">Isi Berita Acara</span>
+        <a href="{{ route('ba.preview', $record) }}" target="_blank" class="btn-secondary" style="margin-left:auto;font-size:12px;padding:5px 12px;" title="Hanya pratinjau, bukan untuk ditandatangani"><i class="fa-solid fa-file-pdf"></i> Preview PDF</a>
     </div>
     <p class="form-label">Nomor</p><p style="margin:0 0 12px;">{{ $record->nomor ?? '-' }}</p>
+    @if ($record->coaching && \App\Services\Sp\SpReportService::coachingSourceEnabled())
+        <p class="form-label">Sumber dari Coaching</p><p style="margin:0 0 12px;">{{ $record->coaching->title }} ({{ $record->coaching->created_at->translatedFormat('d M Y') }})</p>
+    @endif
     <p class="form-label">Dasar Klarifikasi</p><div class="prose" style="margin-bottom:12px;">{!! $record->dasarKlarifikasiHtml() !!}</div>
     <p class="form-label">Kejadian</p><div class="prose" style="margin-bottom:12px;">{!! $record->kejadian !!}</div>
     @if (filled($record->subject_clarification))
@@ -104,11 +141,21 @@
             'signatures' => $this->signatures,
         ])
         @if ($status === S::MENUNGGU_TTD)
-            <p style="font-size:12px;color:var(--text-muted);margin:12px 0 0;">Urutan tanda tangan: pembuat, yang mengetahui, atasan langsung (jika ada), lalu karyawan.</p>
+            <p style="font-size:12px;color:var(--text-muted);margin:12px 0 0;">Urutan tanda tangan: {{ $record->revised_at ? 'HC pembuat, atasan langsung (jika ada), mengetahui, lalu karyawan' : 'atasan langsung (jika ada), HC pembuat, mengetahui, lalu karyawan' }}.</p>
             @if ($record->document && $this->canSignNow)
                 <button type="button" wire:click="$dispatch('open-sign-modal', { id: '{{ $record->document->id }}' })" class="btn-primary" style="margin-top:10px;">
                     <i class="fa-solid fa-signature"></i> Tanda Tangani Sekarang
                 </button>
+            @endif
+            @if ($editable)
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);">
+                    <label class="form-label">Revisi Berita Acara</label>
+                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Membuka kembali isi untuk diedit. Semua tanda tangan yang sudah masuk dibatalkan dan diulang.</p>
+                    <textarea wire:model="revision_reason" class="form-input" rows="2" placeholder="Alasan revisi"></textarea>
+                    <button type="button" wire:click="revise" wire:confirm="Revisi Berita Acara? Semua tanda tangan yang sudah masuk akan dibatalkan." class="btn-secondary" style="margin-top:8px;">
+                        <i class="fa-solid fa-rotate-left"></i> Revisi
+                    </button>
+                </div>
             @endif
         @endif
     </div>

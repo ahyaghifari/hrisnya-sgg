@@ -84,6 +84,47 @@ class Document extends Model
         }
     }
 
+    /**
+     * Revisi setelah FIX: semua tanda tangan yang sudah masuk dibatalkan (isi akan berubah, hash lama tidak
+     * sah lagi) dan kunci dibuka. Jejaknya (siapa, hash, kode verifikasi) disimpan di event audit.
+     * Hanya sebelum dokumen selesai ditandatangani semua pihak.
+     */
+    public function revise(?User $actor, string $reason): void
+    {
+        abort_if($this->finalized_at || $this->isFullySigned(), 409, 'Dokumen sudah selesai ditandatangani, tidak bisa direvisi.');
+
+        $signatures = $this->signatures()->with('verification')->get();
+        $voided = $signatures->map(fn ($s) => [
+            'role' => $s->signer_role,
+            'signer' => $s->signer_name,
+            'signed_at' => $s->signed_at?->toDateTimeString(),
+            'hash' => $s->document_hash,
+            'code' => $s->verification?->verification_code,
+        ])->all();
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($actor, $reason, $voided, $signatures) {
+            foreach ($signatures as $s) {
+                if ($s->verification) {
+                    DocumentVoidedVerification::create([
+                        'document_id' => $this->id,
+                        'verification_code' => $s->verification->verification_code,
+                        'signer_role' => $s->signer_role,
+                        'signer_name' => $s->signer_name,
+                        'signer_position' => $s->signer_position,
+                        'signed_at' => $s->signed_at,
+                        'reason' => $reason,
+                        'voided_at' => now(),
+                    ]);
+                }
+            }
+
+            $signatures->each->delete();
+            $this->unsetRelation('signatures');
+            $this->unfix($actor);
+            $this->logEvent('document_revised', $actor, ['reason' => $reason, 'voided_signatures' => $voided]);
+        });
+    }
+
     /** Semua TTD wajib selesai: catat waktu, hash payload akhir, dan PDF final yang sudah disimpan
      *  (lihat DocumentFinalizer). Idempotent. */
     public function finalize(string $filePath, string $fileHash): void

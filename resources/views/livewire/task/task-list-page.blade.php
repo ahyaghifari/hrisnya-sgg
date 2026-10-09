@@ -343,10 +343,23 @@
             keliatan jelas dari pill terisi warna, keterangan teks di bawahnya jadi mubazir.
             Board tetap dapat judul karena nama project itu informasi baru, bukan pengulangan. --}}
             @if ($this->activeProject)
-                <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;display:flex;align-items:center;gap:8px;">
-                    <span style="width:10px;height:10px;border-radius:50%;background:{{ $this->activeProject->color }};"></span>
-                    {{ $this->activeProject->name }}
-                </h3>
+                @php $projectDesc = $this->activeProject->description; $longProjectDesc = filled($projectDesc) && (mb_strlen($projectDesc) > 800 || substr_count($projectDesc, "\n") >= 10); @endphp
+                <div style="flex:1 1 100%;min-width:0;" x-data="{ full: false }">
+                    <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;display:flex;align-items:center;gap:8px;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:{{ $this->activeProject->color }};"></span>
+                        {{ $this->activeProject->name }}
+                    </h3>
+                    @if (filled($projectDesc))
+                        <p style="font-size:13px;line-height:1.5;color:var(--text-muted);margin:4px 0 0 18px;white-space:pre-line;word-break:break-word;"
+                            @if ($longProjectDesc) :style="full ? '' : 'display:-webkit-box;-webkit-line-clamp:10;-webkit-box-orient:vertical;overflow:hidden;'" @endif>{{ $projectDesc }}</p>
+                        @if ($longProjectDesc)
+                            <button type="button" @click="full = !full" style="background:none;border:none;padding:0;margin:4px 0 0 18px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--brand);">
+                                <span x-text="full ? 'Sembunyikan detail' : 'Tampilkan detail'"></span>
+                                <i class="fa-solid" :class="full ? 'fa-chevron-up' : 'fa-chevron-down'" style="font-size:10px;"></i>
+                            </button>
+                        @endif
+                    @endif
+                </div>
             @endif
             <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;flex:1 1 100%;">
                 {{-- Kiri: pencarian. Div tetap dirender kosong kalau nggak relevan, biar grup
@@ -1240,9 +1253,18 @@
 
                     {{-- Deskripsi (uraian detail) dipisah dari Kebutuhan (judul di atas). --}}
                     @if (filled($task->description))
-                        <div style="margin-bottom:18px;">
+                        {{-- Deskripsi panjang diringkas 4 baris, tombol buat buka/tutup. --}}
+                        @php $longDescription = mb_strlen($task->description) > 240 || substr_count($task->description, "\n") >= 4; @endphp
+                        <div style="margin-bottom:18px;" x-data="{ full: false }">
                             <h4 style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 6px;">Deskripsi</h4>
-                            <p style="font-size:13.5px;line-height:1.5;color:var(--text-body);margin:0;white-space:pre-line;word-break:break-word;">{{ $task->description }}</p>
+                            <p style="font-size:13.5px;line-height:1.5;color:var(--text-body);margin:0;white-space:pre-line;word-break:break-word;"
+                                @if ($longDescription) :style="full ? '' : 'display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;'" @endif>{{ $task->description }}</p>
+                            @if ($longDescription)
+                                <button type="button" @click="full = !full" style="background:none;border:none;padding:0;margin-top:4px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--brand);">
+                                    <span x-text="full ? 'Sembunyikan detail' : 'Tampilkan detail'"></span>
+                                    <i class="fa-solid" :class="full ? 'fa-chevron-up' : 'fa-chevron-down'" style="font-size:10px;"></i>
+                                </button>
+                            @endif
                         </div>
                     @endif
 

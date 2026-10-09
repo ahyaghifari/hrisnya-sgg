@@ -30,6 +30,16 @@ class SpFixtures
         ]);
     }
 
+    /** Undangan klarifikasi terbuka, syarat membuat Berita Acara. */
+    public static function invitation(User $hc, User $employee): \App\Models\Invitation
+    {
+        return \App\Models\Invitation::create([
+            'type' => \App\Enum\InvitationType::SP_KLARIFIKASI,
+            'company_id' => $employee->company_id, 'user_id' => $employee->id, 'created_by' => $hc->id,
+            'scheduled_at' => now()->addDay(), 'location' => 'Ruang HC',
+        ]);
+    }
+
     /**
      * @param  array<string, string>  $report  kolom Berita Acara lama (kejadian, dasar_klarifikasi, ...); kosong = tanpa BA
      */

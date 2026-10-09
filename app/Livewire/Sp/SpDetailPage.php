@@ -8,10 +8,12 @@ use App\Models\Sp\EmployeeSp;
 use App\Models\Sp\SpReason;
 use App\Models\User;
 use App\Services\Sp\SpService;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 /**
@@ -104,11 +106,45 @@ class SpDetailPage extends Component
         return ! $this->record->document;
     }
 
+    /** SP terbit yang sedang direvisi: dokumen ada tapi kuncinya dibuka, menunggu pembuat menerbitkan ulang. */
+    public function getIsAwaitingReissueProperty(): bool
+    {
+        return $this->record->document !== null && $this->record->document->fixed_at === null;
+    }
+
+    /** HC boleh merevisi SP yang sudah terkunci selama belum semua pihak menandatangani. */
+    public function getCanReviseProperty(): bool
+    {
+        $document = $this->record->document;
+
+        return $this->canManage && $document !== null && $document->fixed_at !== null
+            && ! $this->record->isCancelled() && ! $document->isFullySigned();
+    }
+
+    public string $revision_reason = '';
+
+    public function revise(): void
+    {
+        abort_unless($this->canRevise, 403);
+
+        try {
+            app(SpService::class)->revise($this->record, Auth::user(), trim($this->revision_reason));
+        } catch (ValidationException $e) {
+            $this->addError('revision_reason', collect($e->errors())->flatten()->first());
+
+            return;
+        }
+
+        $this->revision_reason = '';
+        $this->record->refresh()->load(['document.signatures', 'report.document.signatures']);
+        Notification::make()->title('Surat Peringatan dibuka untuk revisi, tanda tangan sebelumnya dibatalkan')->success()->send();
+    }
+
     /** Cuma pembuat SP sendiri yang boleh menandatangani & menerbitkan draftnya (instruksi user
      *  2026-09-29) - bukan HC lain yang kebetulan punya izin sama. */
     public function getCanIssueProperty(): bool
     {
-        return $this->isDraft && ! $this->record->isCancelled() && Auth::id() === $this->record->created_by;
+        return ($this->isDraft || $this->isAwaitingReissue) && ! $this->record->isCancelled() && Auth::id() === $this->record->created_by;
     }
 
     /** HC beneran (bukan cuma "Mengetahui" yang ikut boleh LIHAT lewat canBeViewedBy()) - dipakai
@@ -151,7 +187,9 @@ class SpDetailPage extends Component
             return;
         }
 
-        app(SpService::class)->afterIssued($this->record);
+        $this->isAwaitingReissue
+            ? app(SpService::class)->reissue($this->record)
+            : app(SpService::class)->afterIssued($this->record);
 
         $this->record->refresh()->load(['document.signatures', 'report.document.signatures']);
         $this->confirmingIssue = false;
@@ -238,6 +276,11 @@ class SpDetailPage extends Component
         $this->editingItems = true;
     }
 
+    protected function reasonLevel(): ?string
+    {
+        return $this->record->sp_level->value;
+    }
+
     protected function reasonCompanyId(): ?string
     {
         return $this->record->company_id;
@@ -282,8 +325,9 @@ class SpDetailPage extends Component
 
         foreach ($rows as $row) {
             abort_unless(
-                (! $row['reason_id'] || $this->reasonOptions->has($row['reason_id']))
-                    && (! $row['repeat_sp_id'] || isset($this->repeatOptions["repeat:{$row['repeat_sp_id']}:{$row['reason_id']}"])),
+                (! $row['reason_id'] || ($row['repeat_sp_id']
+                    ? isset($this->repeatOptions["repeat:{$row['repeat_sp_id']}:{$row['reason_id']}"])
+                    : $this->reasonOptions->has($row['reason_id']))),
                 403
             );
         }

@@ -199,11 +199,20 @@ class SpPdfService
             return $this->inline($final, $filename);
         }
 
-        return $this->reportPdf($report)->stream($filename);
+        // Belum selesai (draft / menunggu TTD): pratinjau dari data terkini, diberi watermark.
+        return $this->reportPdf($report, preview: true)->stream($filename);
     }
 
-    private function reportPdf(SpReport $report): \Barryvdh\DomPDF\PDF
+    private function reportPdf(SpReport $report, bool $preview = false): \Barryvdh\DomPDF\PDF
     {
+        // Pratinjau draft: atasan langsung baru dikunci saat FIX, jadi dihitung langsung (tidak disimpan)
+        // supaya jumlah kotak tanda tangan sama dengan hasil akhirnya.
+        if ($preview && $report->status === \App\Enum\Sp\SpReportStatus::DRAFT && ! $report->supervisor_id) {
+            $supervisor = app(SpReportService::class)->supervisorFor($report);
+            $report->setAttribute('supervisor_id', $supervisor?->id);
+            $report->setRelation('supervisor', $supervisor);
+        }
+
         $report->loadMissing([
             'company',
             'dasarItems',
@@ -224,6 +233,7 @@ class SpPdfService
             'coach' => $report->createdBy,
             'knowsBy' => $report->knowsBy,
             'verification' => $this->verificationBySignerRole($report),
+            'preview' => $preview,
         ]);
     }
 

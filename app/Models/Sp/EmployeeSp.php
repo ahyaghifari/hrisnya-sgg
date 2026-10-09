@@ -42,6 +42,7 @@ class EmployeeSp extends Model implements Signable
         'cancelled_at',
         'cancelled_reason',
         'cancelled_by',
+        'revised_at',
     ];
 
     /** Field yang masuk signablePayload() - dikunci begitu dokumen FIX (Document::fixed_at). */
@@ -62,6 +63,7 @@ class EmployeeSp extends Model implements Signable
         'start_date' => 'date',
         'end_date' => 'date',
         'cancelled_at' => 'datetime',
+        'revised_at' => 'datetime',
     ];
 
     /**
@@ -192,8 +194,10 @@ class EmployeeSp extends Model implements Signable
         $this->loadMissing(['user.activeJobPosition.jobPosition', 'items']);
 
         return array_filter([
-            'Untuk' => $this->user?->name,
+            'Karyawan' => $this->user?->name,
+            'ID Karyawan' => $this->user?->nip,
             'Jabatan' => $this->user?->activeJobPosition?->jobPosition?->name,
+            'Unit Kerja' => $this->user?->activeJobPosition?->jobPosition?->department_name,
             'Jenis SP' => $this->sp_level->getLabel(),
             'Berlaku' => $this->start_date?->translatedFormat('d M Y') . ($this->end_date ? ' - ' . $this->end_date->translatedFormat('d M Y') : ' (tanpa batas akhir)'),
             'Poin pelanggaran' => $this->items->count() . ' poin',

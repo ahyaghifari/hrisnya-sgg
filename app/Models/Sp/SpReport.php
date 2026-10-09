@@ -7,6 +7,7 @@ use App\Enum\DocumentType;
 use App\Enum\Sp\SpReportDecision;
 use App\Enum\Sp\SpReportStatus;
 use App\Models\Concerns\HasDocumentSignatures;
+use App\Models\Invitation;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -40,6 +41,9 @@ class SpReport extends Model implements Signable
 
     protected $fillable = [
         'sp_id',
+        'invitation_id',
+        'coaching_id',
+        'revised_at',
         'user_id',
         'company_id',
         'created_by',
@@ -63,6 +67,7 @@ class SpReport extends Model implements Signable
         'status' => SpReportStatus::class,
         'keputusan' => SpReportDecision::class,
         'klarifikasi_diajukan_at' => 'datetime',
+        'revised_at' => 'datetime',
         'klarifikasi_diisi_hc' => 'boolean',
         'riwayat_klarifikasi' => 'array',
     ];
@@ -82,6 +87,17 @@ class SpReport extends Model implements Signable
     public function sp(): BelongsTo
     {
         return $this->belongsTo(EmployeeSp::class, 'sp_id');
+    }
+
+    /** Coaching yang mendahului klarifikasi ini (opsional, dipilih HC di BA). */
+    public function coaching(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Coaching\Coaching::class, 'coaching_id');
+    }
+
+    public function invitation(): BelongsTo
+    {
+        return $this->belongsTo(Invitation::class, 'invitation_id');
     }
 
     public function dasarItems(): HasMany
@@ -201,8 +217,11 @@ class SpReport extends Model implements Signable
         $this->loadMissing(['user.activeJobPosition.jobPosition']);
 
         return array_filter([
-            'Untuk' => $this->user?->name,
+            'Karyawan' => $this->user?->name,
+            'ID Karyawan' => $this->user?->nip,
             'Jabatan' => $this->user?->activeJobPosition?->jobPosition?->name,
+            'Unit Kerja' => $this->user?->activeJobPosition?->jobPosition?->department_name,
+            'Perihal' => \Illuminate\Support\Str::limit(trim(strip_tags((string) $this->kejadian)), 160) ?: null,
         ]);
     }
 
@@ -236,12 +255,35 @@ class SpReport extends Model implements Signable
             ];
         }
 
-        // Urutan = urutan tanda tangan = urutan kotak (2 kolom): secara tertulis yang membuat adalah
-        // atasan langsung, HC (pembuat sebenarnya) ikut sebagai yang mengetahui (instruksi user 2026-10-07).
+        return $this->orderedForSigning($this->baseSignerRoles());
+    }
+
+    /** BA yang pernah direvisi: HC pembuat menandatangani lebih dulu, lalu atasan langsung, mengetahui, karyawan. */
+    private function orderedForSigning(array $roles): array
+    {
+        if (! $this->revised_at) {
+            return $roles;
+        }
+
+        return array_intersect_key(array_replace(array_flip(['created_by', 'supervisor', 'knows_by', 'employee']), $roles), $roles);
+    }
+
+    private function baseSignerRoles(): array
+    {
+        // Urutan = urutan tanda tangan. Tata letak PDF: Atasan Langsung | Karyawan, lalu "Mengetahui," dua penanda tangan (cukup nama + jabatan aslinya).
+        // Atasan langsung = HC pembuat -> HC menempati slot Atasan Langsung dan hanya Manajer di bawah "Mengetahui,".
+        if ($this->supervisor_id && $this->supervisor_id === $this->created_by) {
+            return [
+                'created_by' => 'Atasan Langsung',
+                'knows_by' => 'Mengetahui',
+                'employee' => 'Karyawan yang Bersangkutan',
+            ];
+        }
+
         return $this->supervisor_id
             ? [
-                'supervisor' => 'Dibuat oleh (Atasan Langsung)',
-                'created_by' => 'Mengetahui (HC)',
+                'supervisor' => 'Atasan Langsung',
+                'created_by' => 'Mengetahui',
                 'knows_by' => 'Mengetahui',
                 'employee' => 'Karyawan yang Bersangkutan',
             ]
@@ -255,12 +297,15 @@ class SpReport extends Model implements Signable
     /** Penanda tangan BA baru per peran (peran 'supervisor' hanya ada kalau supervisor_id terisi). */
     public function signerUsers(): array
     {
-        return array_intersect_key([
+        $all = [
             'supervisor' => $this->supervisor,
             'created_by' => $this->createdBy,
             'knows_by' => $this->knowsBy,
             'employee' => $this->user,
-        ], $this->expectedSignerRoles());
+        ];
+
+        // Urutan mengikuti expectedSignerRoles() (berbeda untuk BA yang direvisi).
+        return collect(array_keys($this->expectedSignerRoles()))->mapWithKeys(fn ($role) => [$role => $all[$role]])->all();
     }
 
     /**

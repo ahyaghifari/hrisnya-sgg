@@ -13,9 +13,9 @@
 
     $jabatan = fn ($user) => $user?->activeJobPosition?->jobPosition?->name ?? '-';
 
-    // Unit Kerja = divisi/departemen jabatan aktif karyawan, reuse accessor yang sudah ada
-    // (JobPositions::getDivisionOrUnitNameAttribute() - dipakai juga di modul Rekrutmen).
-    $unitKerja = $user->activeJobPosition?->jobPosition?->division_or_unit_name ?? '-';
+    // Unit Kerja = departemen jabatan aktif karyawan (JobPositions::getDepartmentNameAttribute(),
+    // dipakai juga di modul Rekrutmen).
+    $unitKerja = $user->activeJobPosition?->jobPosition?->department_name ?? '-';
 
     // Masa Kerja dari profile->joining_date s.d. tanggal SP - tahun+bulan, kalau belum setahun
     // cuma bulan (instruksi user 2026-09-28).
@@ -227,6 +227,9 @@
 <body>
 
 <div class="bg-page"><img src="{{ $bgPath }}"></div>
+@if ($preview ?? false)
+    <div style="position:fixed;top:42%;left:0;right:0;text-align:center;font-size:64px;font-weight:bold;color:#d9d9d9;transform:rotate(-30deg);z-index:0;">PRATINJAU - BELUM DITANDATANGANI</div>
+@endif
 
 <div class="page">
 
@@ -315,14 +318,22 @@
             Baris terakhir yang berisi satu kotak dipusatkan. --}}
             @php
                 $signers = ['supervisor' => $report->supervisor, 'created_by' => $coach, 'knows_by' => $knowsBy, 'employee' => $user];
-                $rows = collect($report->expectedSignerRoles())->map(fn ($label, $role) => [$role, $label, $signers[$role] ?? null])->values()->chunk(2);
+                $labels = $report->expectedSignerRoles();
+                // Atas: Atasan Langsung (atau pembuat bila dia atasannya / tanpa atasan) | Karyawan. Bawah, di bawah "Mengetahui,": pembuat | yang mengetahui, tanpa label peran di kotak mana pun (nama + jabatan aslinya).
+                $hasSupervisorRole = array_key_exists('supervisor', $labels);
+                $top = [$hasSupervisorRole ? 'supervisor' : 'created_by', 'employee'];
+                $bottom = $hasSupervisorRole ? ['created_by', 'knows_by'] : ['knows_by'];
+                $cell = fn ($role) => [$role, $labels[$role], $signers[$role] ?? null];
             @endphp
             <table style="width:100%;margin-top:0.5cm;margin-bottom:32px;border-collapse:collapse;">
-                @foreach ($rows as $row)
+                @foreach ([['rows' => $top], ['heading' => 'Mengetahui,'], ['rows' => $bottom]] as $section)
+                    @if (isset($section['heading']))
+                        <tr><td colspan="2" style="text-align:center;padding:4px 0 12px;">{{ $section['heading'] }}</td></tr>
+                        @continue
+                    @endif
                     <tr>
-                        @foreach ($row as [$role, $label, $person])
-                            <td style="width:50%;text-align:center;vertical-align:top;padding-bottom:16px;" @if ($row->count() === 1) colspan="2" @endif>
-                                {{ $label }}<br>
+                        @foreach (array_map($cell, $section['rows']) as [$role, $label, $person])
+                            <td style="width:50%;text-align:center;vertical-align:top;padding-bottom:16px;" @if (count($section['rows']) === 1) colspan="2" @endif>
                                 @if ($verification[$role] ?? null)
                                     <div class="verify-block">
                                         <img src="{{ $verification[$role]['qr'] }}" alt="QR Verifikasi" class="verify-qr">

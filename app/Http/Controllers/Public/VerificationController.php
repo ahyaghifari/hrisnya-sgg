@@ -20,11 +20,16 @@ class VerificationController extends Controller
     public function show(string $code): View
     {
         $verification = DocumentVerification::where('verification_code', $code)
-            ->with(['signature.document.documentable'])
+            ->with(['signature.document.documentable', 'signature.document.signatures'])
             ->first();
 
         if (! $verification) {
-            return view('public.verify-not-found', ['code' => $code]);
+            // Tanda tangan yang dibatalkan karena revisi dokumen: kodenya tetap dikenali.
+            $voided = \App\Models\Document\DocumentVoidedVerification::where('verification_code', $code)->with('document.documentable')->first();
+
+            return $voided
+                ? view('public.verify-voided', ['voided' => $voided, 'signable' => $voided->document?->documentable, 'code' => $code])
+                : view('public.verify-not-found', ['code' => $code]);
         }
 
         $signature = $verification->signature;
@@ -35,7 +40,22 @@ class VerificationController extends Controller
             ? hash('sha256', json_encode($signable->signablePayload())) === $signature->document_hash
             : false;
 
+        // Seluruh penanda tangan dokumen ini: yang sudah tanda tangan (sah atau tidak, dari hash masing-masing)
+        // dan yang belum. Yang sedang dipindai ditandai.
+        $signed = $document->signatures->keyBy('signer_role');
+        $participants = collect($signable?->expectedSignerRoles() ?? [])->map(function ($label, $role) use ($signed, $signature, $signable) {
+            $sig = $signed->get($role);
+
+            return [
+                'label' => $label,
+                'signature' => $sig,
+                'valid' => $sig ? hash('sha256', json_encode($signable->signablePayload())) === $sig->document_hash : null,
+                'scanned' => $sig?->id === $signature->id,
+            ];
+        })->values();
+
         return view('public.verify', [
+            'participants' => $participants,
             'document' => $document,
             'signable' => $signable,
             'signature' => $signature,

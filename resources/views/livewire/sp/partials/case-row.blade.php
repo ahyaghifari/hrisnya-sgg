@@ -2,14 +2,17 @@
 @php
     $report = $case['report'];
     $sp = $case['sp'];
+    $invitation = $case['invitation'] ?? null;
 
     $levelColors = ['sp1' => ['#fef9c3', '#a16207'], 'sp2' => ['#ffedd5', '#c2410c'], 'sp3' => ['#fee2e2', '#b91c1c']];
 
-    $url = $mine
+    $url = (! $report && $invitation) ? route('sp.undangan.show', $invitation) : ($mine
         ? ($sp ? route('sp.saya.show', $sp) : route('sp.saya.ba', $report))
-        : ($sp ? route('sp.show', $sp) : route('ba.show', $report));
+        : ($sp ? route('sp.show', $sp) : route('ba.show', $report)));
 
-    if ($sp) {
+    if (! $report && $invitation) {
+        $info = $invitation->scheduled_at->translatedFormat('d M Y H:i') . ' · ' . $invitation->location . ($invitation->isCancelled() ? ' · Dibatalkan' : '');
+    } elseif ($sp) {
         $isActive = ! $sp->isCancelled() && $sp->start_date->lte(today()) && ($sp->end_date === null || $sp->end_date->gte(today()));
         $info = ($sp->nomor ? 'No. ' . $sp->nomor . ' · ' : '') . $sp->start_date->translatedFormat('d M Y') . ' · ' . ($sp->isCancelled() ? 'Dibatalkan' : ($isActive ? 'Aktif' : 'Expired'));
     } else {
@@ -26,7 +29,7 @@
             {{ $mine ? 'Surat Peringatan' : ($case['user']?->name ?? '-') }}
         </p>
         <span style="font-size:11.5px;color:var(--text-muted);">{{ $info }}</span>
-        @include('livewire.sp.partials.stage-chips', ['report' => $report, 'sp' => $sp, 'chipsStyle' => 'margin-top:6px;'])
+        @include('livewire.sp.partials.stage-chips', ['report' => $report, 'sp' => $sp, 'invitation' => $invitation, 'chipsStyle' => 'margin-top:6px;'])
     </div>
     <i class="fa-solid fa-chevron-right"></i>
 </a>

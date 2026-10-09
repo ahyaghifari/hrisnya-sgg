@@ -6,7 +6,6 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Sp\SpLevel;
 use App\Livewire\Sp\Concerns\HasReasonItems;
 use App\Models\Sp\EmployeeSp;
-use App\Models\Coaching\Coaching;
 use App\Models\Sp\SpReport;
 use App\Services\Sp\SpReportService;
 use App\Services\Sp\SpService;
@@ -30,7 +29,6 @@ class CreateSpFromReportPage extends Component
     public ?string $sp_level = null;
     public ?string $knows_by = null;
     public ?string $start_date = null;
-    public ?string $coaching_id = null;
 
     /** @var array<int, array{reason: string, note: string}> */
     public array $items = [['reason' => '', 'note' => '']];
@@ -57,12 +55,6 @@ class CreateSpFromReportPage extends Component
         return \App\Models\User::whereCompany(Auth::user()->company_id)->atDepartmentLevel()->orderByName()->get()->pluck('name', 'id');
     }
 
-    public function getCoachingOptionsProperty()
-    {
-        return Coaching::where('user_id', $this->report->user_id)->latest()->get()
-            ->mapWithKeys(fn (Coaching $c) => [$c->id => "{$c->title} ({$c->created_at->translatedFormat('d M Y')})"]);
-    }
-
     public function getSpLevelOptionsProperty(): array
     {
         return collect(SpLevel::cases())->mapWithKeys(fn ($level) => [$level->value => $level->getLabel()])->all();
@@ -75,6 +67,26 @@ class CreateSpFromReportPage extends Component
         }
 
         return app(SpService::class)->resolveEndDate(SpLevel::from($this->sp_level), $this->report->company_id, $this->start_date);
+    }
+
+    protected function reasonLevel(): ?string
+    {
+        return $this->sp_level;
+    }
+
+    /** Ganti level SP: pelanggaran yang tidak berlaku untuk level baru dikosongkan (poin berulang tetap). */
+    public function updatedSpLevel(): void
+    {
+        $this->pruneItemsForLevel();
+    }
+
+    private function pruneItemsForLevel(): void
+    {
+        foreach ($this->items as $i => $row) {
+            if ($row['reason'] !== '' && ! str_starts_with($row['reason'], 'repeat:') && ! $this->reasonOptions->has($row['reason'])) {
+                $this->items[$i]['reason'] = '';
+            }
+        }
     }
 
     protected function reasonCompanyId(): ?string
@@ -112,6 +124,7 @@ class CreateSpFromReportPage extends Component
 
         if ($previous) {
             $this->sp_level = $previous->sp_level->next()->value;
+            $this->pruneItemsForLevel();
         }
     }
 
@@ -135,7 +148,6 @@ class CreateSpFromReportPage extends Component
             'items' => ['required', 'array', 'min:1'],
             'items.*.reason' => ['required', 'string'],
             'items.*.note' => ['nullable', 'string'],
-            'coaching_id' => ['nullable', 'exists:coachings,id'],
         ];
     }
 
@@ -154,17 +166,14 @@ class CreateSpFromReportPage extends Component
         $data['items'] = $this->reasonPayload($data['items']);
         foreach ($data['items'] as $item) {
             abort_unless(
-                $this->reasonOptions->has($item['reason_id'])
-                    && (! $item['repeat_sp_id'] || isset($this->repeatOptions["repeat:{$item['repeat_sp_id']}:{$item['reason_id']}"])),
+                $item['repeat_sp_id']
+                    ? isset($this->repeatOptions["repeat:{$item['repeat_sp_id']}:{$item['reason_id']}"])
+                    : $this->reasonOptions->has($item['reason_id']),
                 403
             );
         }
 
         abort_unless(\App\Models\User::whereCompany($report->company_id)->atDepartmentLevel()->whereKey($data['knows_by'])->exists(), 403);
-
-        if ($data['coaching_id']) {
-            abort_unless(Coaching::where('id', $data['coaching_id'])->where('user_id', $report->user_id)->exists(), 403);
-        }
 
         try {
             $sp = app(SpReportService::class)->createSp($report, Auth::user(), $data);
