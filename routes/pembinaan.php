@@ -84,6 +84,13 @@ Route::prefix('pembinaan')->group(function () {
     Route::get('/coaching/tambah', CreateCoachingPage::class)
         ->name('coaching.create');
 
+    // Undangan coaching (tabel invitations, type COACHING) - dibuat coach sebelum sesi.
+    Route::get('/coaching/undangan/tambah', \App\Livewire\Coaching\CoachingInvitationPage::class)
+        ->name('coaching.undangan.create');
+
+    Route::get('/coaching/undangan/{record}', \App\Livewire\Coaching\CoachingInvitationPage::class)
+        ->name('coaching.undangan.show');
+
     Route::get('/coaching/{record}', CoachingDetailPage::class)
         ->name('coaching.show');
 

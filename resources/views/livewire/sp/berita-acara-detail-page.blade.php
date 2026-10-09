@@ -127,26 +127,33 @@
 </div>
 @endif
 
-{{-- Tanda tangan --}}
+{{-- Tanda tangan: TTD digital (config sp.digital_signing) atau unggah berkas bertanda tangan langsung. --}}
 @if (in_array($status, [S::MENUNGGU_TTD, S::SELESAI], true))
     <div class="form-card">
-        <div class="section-head">
-            <div class="section-icon"><i class="fa-solid fa-signature" style="color:var(--brand);font-size:12px;"></i></div>
-            <span class="section-title">Tanda Tangan</span>
-        </div>
-        @include('livewire.document.partials.signature-boxes', [
-            'signable' => $record,
-            'boxes' => $record->expectedSignerRoles(),
-            'cols' => 2,
-            'signatures' => $this->signatures,
-        ])
-        @if ($status === S::MENUNGGU_TTD)
+        @if (\App\Services\Sp\SpReportService::digitalSigningEnabled())
+            <div class="section-head">
+                <div class="section-icon"><i class="fa-solid fa-signature" style="color:var(--brand);font-size:12px;"></i></div>
+                <span class="section-title">Tanda Tangan</span>
+            </div>
+            @include('livewire.document.partials.signature-boxes', [
+                'signable' => $record,
+                'boxes' => $record->expectedSignerRoles(),
+                'cols' => 2,
+                'signatures' => $this->signatures,
+            ])
+            @if ($status === S::MENUNGGU_TTD)
             <p style="font-size:12px;color:var(--text-muted);margin:12px 0 0;">Urutan tanda tangan: {{ $record->revised_at ? 'HC pembuat, atasan langsung (jika ada), mengetahui, lalu karyawan' : 'atasan langsung (jika ada), HC pembuat, mengetahui, lalu karyawan' }}.</p>
             @if ($record->document && $this->canSignNow)
                 <button type="button" wire:click="$dispatch('open-sign-modal', { id: '{{ $record->document->id }}' })" class="btn-primary" style="margin-top:10px;">
                     <i class="fa-solid fa-signature"></i> Tanda Tangani Sekarang
                 </button>
             @endif
+            @endif
+        @else
+            @include('livewire.sp.partials.ba-upload-panel', ['record' => $record, 'editable' => $editable])
+        @endif
+
+        @if ($status === S::MENUNGGU_TTD)
             @if ($editable)
                 <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);">
                     <label class="form-label">Revisi Berita Acara</label>
@@ -162,10 +169,16 @@
 @endif
 
 @endif
-
 {{-- Berita Acara selesai: 1 section utuh + kotak tanda tangan + PDF --}}
 @if ($status === S::SELESAI)
     @include('livewire.sp.partials.ba-selesai-section', ['record' => $record, 'pdfUrl' => route('ba.preview', $record)])
+@endif
+
+{{-- Ganti berkas bertanda tangan: boleh selama keputusan belum ditetapkan --}}
+@if ($status === S::SELESAI && ! $record->keputusan && $record->signed_file_path && $editable && ! \App\Services\Sp\SpReportService::digitalSigningEnabled())
+    <div class="form-card">
+        @include('livewire.sp.partials.ba-upload-panel', ['record' => $record, 'editable' => true, 'replace' => true])
+    </div>
 @endif
 
 {{-- 5. Keputusan --}}

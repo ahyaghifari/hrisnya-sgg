@@ -15,6 +15,7 @@ class Coaching extends Model
 
     protected $fillable = [
         'company_id',
+        'invitation_id',
         'user_id',
         'coach_by',
         'created_by',
@@ -33,6 +34,11 @@ class Coaching extends Model
         'follow_up_status' => CoachingFollowUpStatus::class,
         'follow_up_at' => 'datetime',
     ];
+
+    public function invitation(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Invitation::class, 'invitation_id');
+    }
 
     public function user(): BelongsTo
     {

@@ -13,7 +13,9 @@
 @endif
 
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;">
-    @include('livewire.document.partials.pdf-button', ['document' => $record->document, 'url' => route('sp.saya.preview', $record), 'label' => 'Preview PDF'])
+    @unless ($record->signed_file_path && ! \App\Services\Sp\SpReportService::digitalSigningEnabled())
+        @include('livewire.document.partials.pdf-button', ['document' => $record->document, 'url' => route('sp.saya.preview', $record), 'label' => 'Preview PDF'])
+    @endunless
     @if ($record->report)
         @include('livewire.document.partials.pdf-button', ['document' => $record->report->document, 'url' => route('sp.saya.beritaacara_preview', $record), 'label' => 'Preview Berita Acara', 'class' => 'btn-secondary'])
     @endif

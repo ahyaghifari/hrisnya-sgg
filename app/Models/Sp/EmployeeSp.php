@@ -43,6 +43,10 @@ class EmployeeSp extends Model implements Signable
         'cancelled_reason',
         'cancelled_by',
         'revised_at',
+        'signed_file_path',
+        'signed_file_name',
+        'signed_uploaded_at',
+        'signed_uploaded_by',
     ];
 
     /** Field yang masuk signablePayload() - dikunci begitu dokumen FIX (Document::fixed_at). */
@@ -64,6 +68,7 @@ class EmployeeSp extends Model implements Signable
         'end_date' => 'date',
         'cancelled_at' => 'datetime',
         'revised_at' => 'datetime',
+        'signed_uploaded_at' => 'datetime',
     ];
 
     /**
@@ -83,14 +88,22 @@ class EmployeeSp extends Model implements Signable
 
     /** Sudah diterbitkan = sudah punya baris registry `documents` (lihat SpDetailPage::getIsDraftProperty);
      *  draft belum boleh dilihat karyawan yang bersangkutan. */
+    /** Terbit = punya dokumen terkunci; tanpa TTD digital (config sp.digital_signing) baru resmi terbit setelah berkas bertanda tangan diunggah. */
     public function scopeIssued($query)
     {
-        return $query->whereHas('document');
+        return $query->whereHas('document')
+            ->when(! \App\Services\Sp\SpReportService::digitalSigningEnabled(), fn ($q) => $q->whereNotNull('signed_file_path'));
     }
 
     public function isIssued(): bool
     {
-        return $this->document !== null;
+        return $this->document !== null
+            && (\App\Services\Sp\SpReportService::digitalSigningEnabled() || $this->signed_file_path !== null);
+    }
+
+    public function signedUploadedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signed_uploaded_by');
     }
 
     public function isCancelled(): bool
@@ -245,6 +258,11 @@ class EmployeeSp extends Model implements Signable
      *  dua yang lain selesai. */
     public function assignedSigners(): array
     {
+        // TTD digital ditahan: SP ditandatangani langsung lalu berkasnya diunggah.
+        if (! \App\Services\Sp\SpReportService::digitalSigningEnabled()) {
+            return array_map(fn () => null, $this->expectedSignerRoles());
+        }
+
         $signers = [
             'created_by' => $this->createdBy,
             'knows_by' => $this->knowsBy,

@@ -69,6 +69,7 @@
             <div class="section-icon"><i class="fa-solid fa-signature" style="color:var(--brand);font-size:12px;"></i></div>
             <span class="section-title">Tanggapan Anda</span>
         </div>
+        @if (\App\Services\Sp\SpReportService::digitalSigningEnabled())
         @include('livewire.document.partials.signature-boxes', [
             'signable' => $record,
             'boxes' => $record->expectedSignerRoles(),
@@ -76,18 +77,20 @@
             'signatures' => $record->document?->signatures->keyBy('signer_role') ?? collect(),
         ])
         <div style="height:14px;"></div>
-        @if ($this->signDocumentId)
+        @endif
+
+        @if (\App\Services\Sp\SpReportService::digitalSigningEnabled() && $this->signDocumentId)
             <p style="font-size:13px;margin:0 0 12px;">Berita Acara sudah ditandatangani pembuat. Jika isinya sudah sesuai dengan maksud Anda, setujui dan tanda tangani.</p>
             <button type="button" wire:click="$dispatch('open-sign-modal', { id: '{{ $this->signDocumentId }}' })" class="btn-primary">
                 <i class="fa-solid fa-signature"></i> Setuju &amp; Tanda Tangan
             </button>
-        @elseif ($record->document?->signatures->contains('signer_role', 'employee'))
+        @elseif (\App\Services\Sp\SpReportService::digitalSigningEnabled() && $record->document?->signatures->contains('signer_role', 'employee'))
             <p style="font-size:13px;color:var(--text-muted);margin:0;">Anda sudah menandatangani. Menunggu penandatangan yang mengetahui.</p>
         @else
-            <p style="font-size:13px;margin:0 0 12px;">Menunggu pembuat Berita Acara menandatangani lebih dulu. Anda akan diminta menandatangani setelahnya.</p>
+            <p style="font-size:13px;margin:0 0 12px;">{{ \App\Services\Sp\SpReportService::digitalSigningEnabled() ? 'Menunggu pembuat Berita Acara menandatangani lebih dulu. Anda akan diminta menandatangani setelahnya.' : 'Berita Acara akan ditandatangani langsung. HC akan mengunggah berkas yang sudah ditandatangani, setelah itu HC menentukan tindak lanjutnya.' }}</p>
 
             <p style="font-size:13px;font-weight:700;margin:0 0 6px;">Isi klarifikasi tidak sesuai keterangan Anda?</p>
-            <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Ajukan ulang klarifikasi dan jelaskan bagian yang tidak sesuai. Ini hanya bisa dilakukan sebelum pembuat menandatangani.</p>
+            <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px;">Ajukan ulang klarifikasi dan jelaskan bagian yang tidak sesuai. Ini hanya bisa dilakukan sebelum Berita Acara ditandatangani.</p>
             <textarea wire:model="alasan_ajukan_ulang" rows="3" class="form-input" placeholder="Bagian yang tidak sesuai..."></textarea>
             <div style="margin-top:12px;">
                 <button type="button" wire:click="requestReclarification" wire:confirm="Ajukan ulang klarifikasi? Berita Acara kembali ke draft HC untuk disusun ulang." class="btn-secondary">Ajukan Ulang Klarifikasi</button>

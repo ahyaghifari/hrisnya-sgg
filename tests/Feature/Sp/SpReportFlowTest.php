@@ -30,6 +30,7 @@ class SpReportFlowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['sp.digital_signing' => true]); // alur TTD digital BA (default ditahan, diuji di SpReportUploadTest)
 
         $this->company = Companies::create(['code' => 'SPR', 'name' => 'Company SPR', 'location' => 'Test', 'is_active' => true]);
 

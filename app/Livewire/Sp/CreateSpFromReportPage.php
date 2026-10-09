@@ -69,12 +69,17 @@ class CreateSpFromReportPage extends Component
         return app(SpService::class)->resolveEndDate(SpLevel::from($this->sp_level), $this->report->company_id, $this->start_date);
     }
 
+    protected function reasonUserId(): ?string
+    {
+        return $this->report->user_id;
+    }
+
     protected function reasonLevel(): ?string
     {
         return $this->sp_level;
     }
 
-    /** Ganti level SP: pelanggaran yang tidak berlaku untuk level baru dikosongkan (poin berulang tetap). */
+    /** Ganti level SP: pelanggaran (termasuk yang berulang) yang tidak berlaku untuk level baru dikosongkan. */
     public function updatedSpLevel(): void
     {
         $this->pruneItemsForLevel();
@@ -83,7 +88,10 @@ class CreateSpFromReportPage extends Component
     private function pruneItemsForLevel(): void
     {
         foreach ($this->items as $i => $row) {
-            if ($row['reason'] !== '' && ! str_starts_with($row['reason'], 'repeat:') && ! $this->reasonOptions->has($row['reason'])) {
+            $valid = str_starts_with($row['reason'], 'repeat:') ? isset($this->repeatOptions[$row['reason']])
+                : ($row['reason'] === \App\Models\Sp\SpReason::CHOICE_OTHER || $this->isReasonAllowed($row['reason']));
+
+            if ($row['reason'] !== '' && ! $valid) {
                 $this->items[$i]['reason'] = '';
             }
         }
@@ -94,40 +102,11 @@ class CreateSpFromReportPage extends Component
         return $this->report->company_id;
     }
 
-    /**
-     * Pilihan "pelanggaran sama dengan SP sebelumnya" (rantai SP1 -> SP2 -> SP3): poin bermaster
-     * dari SP karyawan ini yang masih aktif & sudah terbit. value "repeat:<sp>:<reason>" -> label.
-     *
-     * @return array<string, string>
-     */
+    /** Pelanggaran berulang: hanya untuk SP2/SP3 yang karyawannya masih punya SP lebih rendah yang berlaku (lihat HasReasonItems). */
     public function getRepeatOptionsProperty(): array
     {
-        $options = [];
-
-        foreach (EmployeeSp::active()->issued()->where('user_id', $this->report->user_id)->with('items.reason')->orderBy('start_date')->get() as $sp) {
-            foreach ($sp->items->whereNotNull('reason_id') as $item) {
-                $options["repeat:{$sp->id}:{$item->reason_id}"] = "{$item->reason?->name} - berulang dari {$sp->sp_level->getLabel()} ({$sp->nomor})";
-            }
-        }
-
-        return $options;
+        return $this->repeatOptionsFor($this->report->user_id, $this->sp_level);
     }
-
-    /** Memilih pelanggaran berulang menyarankan level di atas SP sebelumnya (masih bisa diubah). */
-    public function updatedItems($value, $key): void
-    {
-        if (! str_ends_with((string) $key, '.reason') || ! str_starts_with((string) $value, 'repeat:')) {
-            return;
-        }
-
-        $previous = EmployeeSp::find(explode(':', $value)[1] ?? null);
-
-        if ($previous) {
-            $this->sp_level = $previous->sp_level->next()->value;
-            $this->pruneItemsForLevel();
-        }
-    }
-
     public function addItem(): void
     {
         $this->items = $this->addReasonRow($this->items);
@@ -147,13 +126,13 @@ class CreateSpFromReportPage extends Component
             'start_date' => ['required', 'date'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.reason' => ['required', 'string'],
-            'items.*.note' => ['nullable', 'string'],
+            'items.*.note' => ['nullable', 'string', 'required_if:items.*.reason,other'],
         ];
     }
 
     protected function validationAttributes(): array
     {
-        return ['items.*.reason' => 'pelanggaran'];
+        return ['items.*.reason' => 'pelanggaran', 'items.*.note' => 'pelanggaran lainnya'];
     }
 
     public function save(): void
@@ -163,12 +142,12 @@ class CreateSpFromReportPage extends Component
         $report = $this->report;
 
         // Pilihan harus dari master perusahaan ini atau opsi berulang yang memang ditawarkan.
-        $data['items'] = $this->reasonPayload($data['items']);
+        $data['items'] = $this->reasonPayload($data['items'], true);
         foreach ($data['items'] as $item) {
             abort_unless(
                 $item['repeat_sp_id']
                     ? isset($this->repeatOptions["repeat:{$item['repeat_sp_id']}:{$item['reason_id']}"])
-                    : $this->reasonOptions->has($item['reason_id']),
+                    : ($item['reason_id'] === null ? filled($item['note']) : $this->isReasonAllowed($item['reason_id'])),
                 403
             );
         }

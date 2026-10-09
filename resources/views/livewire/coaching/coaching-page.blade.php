@@ -2,11 +2,28 @@
 <x-page-header title="Coaching" subtitle="Kelola sesi coaching/pembinaan karyawan" />
 
 @if ($this->canCreate)
-    <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+    <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+        <a href="{{ route('coaching.undangan.create') }}" wire:navigate class="btn-secondary">
+            <i class="fa-solid fa-envelope-open-text"></i> Buat Undangan
+        </a>
         <a href="{{ route('coaching.create') }}" wire:navigate class="btn-primary">
             <i class="fa-solid fa-plus"></i> Buat Coaching
         </a>
     </div>
+
+    @if ($this->upcomingInvitations->isNotEmpty())
+        <div class="pwa-list" style="margin-bottom:16px;">
+            @foreach ($this->upcomingInvitations as $invitation)
+                <a href="{{ route('coaching.undangan.show', $invitation) }}" wire:navigate class="pwa-list-row" style="text-decoration:none;">
+                    <div style="flex:1;min-width:0;">
+                        <p class="pwa-row-title"><i class="fa-solid fa-envelope-open-text" style="font-size:12px;margin-right:6px;color:var(--brand);"></i>Undangan: {{ $invitation->user?->name }}</p>
+                        <span style="font-size:11.5px;color:var(--text-muted);">{{ $invitation->scheduled_at->translatedFormat('l, d M Y') }} · {{ $invitation->scheduled_at->format('H:i') }} · {{ $invitation->location }}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            @endforeach
+        </div>
+    @endif
 @endif
 
 <div class="mb-4" style="display:flex;flex-wrap:wrap;gap:12px;">

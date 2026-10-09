@@ -499,6 +499,9 @@ tombol banner membuka panduan ini. Dibuka/ditutup lewat JS (display none <-> fle
     </div>
     @endif
 
+    {{-- Undangan mendatang (klarifikasi dst.) - di bawah Tugas/Pelatihan; tidak tampil kalau kosong. --}}
+    <livewire:invitations-card key="invitations-card" />
+
     @if ($this->canJadwalShiftTim)
         <livewire:presensi.team-shift-schedule-card :key="'team-shift-schedule'" />
     @endif

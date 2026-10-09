@@ -37,10 +37,20 @@
 
     <hr style="border:none;border-top:1px solid var(--border-soft);margin:18px 0;">
 
+    @if ($record->signed_file_path)
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb, #15803d 13%, transparent);color:#15803d;"><i class="fa-solid fa-file-circle-check"></i></div>
+            <div style="min-width:0;">
+                <p style="font-size:13px;font-weight:700;margin:0;">Berita Acara bertanda tangan</p>
+                <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;word-break:break-all;">{{ $record->signed_file_name }} &middot; diunggah {{ $record->signedUploadedBy?->name ?? '-' }}, {{ $record->signed_uploaded_at?->translatedFormat('d M Y H:i') }}</p>
+            </div>
+        </div>
+    @else
     @include('livewire.document.partials.signature-boxes', [
         'signable' => $record,
         'boxes' => $record->expectedSignerRoles(),
             'cols' => 2,
         'signatures' => $record->document?->signatures->keyBy('signer_role') ?? collect(),
     ])
+    @endif
 </div>

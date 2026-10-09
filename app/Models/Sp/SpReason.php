@@ -15,6 +15,7 @@ class SpReason extends Model
 
     public const KIND_PELANGGARAN = 'pelanggaran';
     public const KIND_DASAR = 'dasar';
+    public const CHOICE_OTHER = 'other';
 
     protected $fillable = [
         'company_id',
@@ -76,6 +77,11 @@ class SpReason extends Model
      */
     public static function parseChoice(?string $choice): array
     {
+        // "Pelanggaran Lainnya" diketik manual: tanpa master, teks ada di note.
+        if ($choice === self::CHOICE_OTHER) {
+            return ['reason_id' => null, 'repeat_sp_id' => null];
+        }
+
         if ($choice && str_starts_with($choice, 'repeat:')) {
             [, $spId, $reasonId] = explode(':', $choice, 3) + [null, null, null];
 

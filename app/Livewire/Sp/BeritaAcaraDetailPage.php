@@ -24,7 +24,12 @@ class BeritaAcaraDetailPage extends Component
 {
     use HasReasonItems;
 
+    use \Livewire\WithFileUploads;
+
     public SpReport $record;
+
+    /** Berkas Berita Acara bertanda tangan yang akan diunggah. */
+    public $signedFile = null;
 
     public ?string $nomor = null;
     public ?string $coaching_id = null;
@@ -152,6 +157,15 @@ class BeritaAcaraDetailPage extends Component
         $document = $this->record->document?->loadMissing(['documentable', 'signatures']);
 
         return $document?->pendingRoleFor(Auth::user()) !== null;
+    }
+
+    /** Unggah BA yang sudah ditandatangani langsung -> BA selesai (lanjut ke keputusan). */
+    public function uploadSigned(): void
+    {
+        $this->validate(['signedFile' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240']], [], ['signedFile' => 'Berkas']);
+
+        $this->run(fn ($s) => $s->uploadSigned($this->record, Auth::user(), $this->signedFile), 'Berita Acara bertanda tangan diunggah');
+        $this->reset('signedFile');
     }
 
     public string $revision_reason = '';

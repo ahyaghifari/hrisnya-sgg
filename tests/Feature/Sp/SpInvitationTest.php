@@ -123,6 +123,27 @@ class SpInvitationTest extends TestCase
         \Livewire\Livewire::actingAs($outsider)->test(\App\Livewire\InvitationViewPage::class, ['record' => $invitation])->assertForbidden();
     }
 
+    public function test_home_widget_shows_upcoming_invitations_for_invitee_and_supervisor_only(): void
+    {
+        $supervisor = User::factory()->create(['company_id' => $this->employee->company_id]);
+        $other = User::factory()->create(['company_id' => $this->employee->company_id]);
+
+        $upcoming = SpFixtures::invitation($this->hc, $this->employee);
+        $upcoming->update(['supervisor_id' => $supervisor->id, 'scheduled_at' => now()->addDays(3), 'location' => 'Ruang Rapat HC', 'note' => 'Klarifikasi keterlambatan Oktober']);
+
+        // Dibatalkan dan sudah lewat tidak tampil.
+        SpFixtures::invitation($this->hc, $this->employee)->update(['cancelled_at' => now(), 'location' => 'Batal-X']);
+        SpFixtures::invitation($this->hc, $this->employee)->update(['scheduled_at' => now()->subDay(), 'location' => 'Lewat-X']);
+
+        foreach ([$this->employee, $supervisor] as $user) {
+            \Livewire\Livewire::actingAs($user)->test(\App\Livewire\InvitationsCard::class)
+                ->assertSee('Undangan Klarifikasi')->assertSee('Ruang Rapat HC')->assertSee('Klarifikasi keterlambatan Oktober')->assertSee('3 hari lagi')
+                ->assertDontSee('Batal-X')->assertDontSee('Lewat-X');
+        }
+
+        \Livewire\Livewire::actingAs($other)->test(\App\Livewire\InvitationsCard::class)->assertDontSee('Ruang Rapat HC');
+    }
+
     public function test_cancel_requires_reason(): void
     {
         $invitation = SpFixtures::invitation($this->hc, $this->employee);
