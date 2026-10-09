@@ -92,6 +92,12 @@ enum LeaveTypeCategoryEnum: string
         return $this === self::MELAHIRKAN ? 10 : null;
     }
 
+    /** Tanggal mulai paling cepat = hari ini + N hari (null = tidak ada, Tahunan punya jalur sendiri H-30). */
+    public function minLeadDays(): ?int
+    {
+        return $this === self::MELAHIRKAN ? 10 : null;
+    }
+
     /** Kuota hari sesuai UU/kebijakan (tahunan: per tahun, haid: per bulan, melahirkan/keguguran: per pengajuan). */
     public function quotaDays(): int
     {
