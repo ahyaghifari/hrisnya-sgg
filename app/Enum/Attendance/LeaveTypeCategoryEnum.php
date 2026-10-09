@@ -86,6 +86,12 @@ enum LeaveTypeCategoryEnum: string
         };
     }
 
+    /** Jumlah hari baku: tanggal selesai terkunci = mulai + N - 1 (null = bebas). */
+    public function lockedDays(): ?int
+    {
+        return $this === self::MELAHIRKAN ? 10 : null;
+    }
+
     /** Kuota hari sesuai UU/kebijakan (tahunan: per tahun, haid: per bulan, melahirkan/keguguran: per pengajuan). */
     public function quotaDays(): int
     {

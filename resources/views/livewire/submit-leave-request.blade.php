@@ -113,7 +113,7 @@
                         </div>
                         <div>
                             <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 5px;">Tanggal Selesai</p>
-                            <input type="date" class="form-input" wire:model.live="end_date" @if ($start_date || $this->minLeaveDate) min="{{ $start_date ?: $this->minLeaveDate }}" @endif>
+                            <input type="date" class="form-input" wire:model.live="end_date" @disabled($this->selectedCategory?->lockedDays()) @if ($start_date || $this->minLeaveDate) min="{{ $start_date ?: $this->minLeaveDate }}" @endif>
                             @error('end_date') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                         </div>
                     </div>
