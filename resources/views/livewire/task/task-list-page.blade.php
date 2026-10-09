@@ -524,12 +524,13 @@
                                 <button type="button" wire:click="cancelDiscussionReply" style="background:none;border:none;cursor:pointer;color:var(--text-muted);" aria-label="Batal membalas"><i class="fa-solid fa-xmark"></i></button>
                             </div>
                         @endif
-                        <div style="display:flex;gap:8px;position:relative;">
-                            <input id="board-discussion-input" type="text" class="form-input" style="font-size:13.5px;" wire:model="newDiscussion" autocomplete="off"
-                                @input="check($el)" @click="check($el)" @keyup.arrow-left="check($el)" @keyup.arrow-right="check($el)"
+                        <div style="display:flex;gap:8px;position:relative;align-items:flex-end;">
+                            <textarea id="board-discussion-input" rows="1" class="form-input" style="font-size:13.5px;resize:none;overflow-y:auto;max-height:200px;line-height:1.4;" wire:model="newDiscussion" autocomplete="off"
+                                x-init="$watch('$wire.newDiscussion', () => $nextTick(() => { $el.style.height = 'auto'; $el.style.height = Math.min($el.scrollHeight, 200) + 'px' }))"
+                                @input="check($el); $el.style.height = 'auto'; $el.style.height = Math.min($el.scrollHeight, 200) + 'px'" @click="check($el)" @keyup.arrow-left="check($el)" @keyup.arrow-right="check($el)"
                                 @keydown.escape="open = false"
-                                @keydown.enter.prevent="open ? pick($el, matches()[0]) : $wire.addDiscussion()"
-                                placeholder="{{ $dReplyingTo ? 'Tulis balasan...' : 'Tulis pesan... (@ untuk menyebut)' }}">
+                                @keydown.enter="if ($event.shiftKey) return; $event.preventDefault(); open ? pick($el, matches()[0]) : $wire.addDiscussion()"
+                                placeholder="{{ $dReplyingTo ? 'Tulis balasan...' : 'Tulis pesan... (@ untuk menyebut)' }}"></textarea>
                             <button type="button" wire:click="addDiscussion" class="btn-primary" style="font-size:13.5px;padding:8px 14px;">Kirim</button>
                             <div x-show="open" x-cloak @click.outside="open = false" style="position:absolute;bottom:calc(100% + 4px);left:0;z-index:60;min-width:200px;max-height:220px;overflow-y:auto;background:var(--surface);border-radius:12px;padding:6px;box-shadow:0 8px 30px rgba(4,44,108,0.16),0 0 0 1px var(--border-soft);">
                                 <template x-for="n in matches()" :key="n.full">
@@ -1418,6 +1419,8 @@
                             // checklist & lampiran - anggota lain cuma bisa melihat (Board arsip: lihat saja).
                             $isBoardOwner = $task->project_id && $this->isProjectOwner && ! $this->isProjectArchived;
                             $canToggleChecklist = ! $this->isProjectArchived && ($isTaskCreator || $isTaskAssignee || $isBoardOwner);
+                            // Boleh menambah lampiran: yang mengelola tugas, atau anggota Board lain kalau pembuat mengaktifkannya di kartu.
+                            $canAttach = $canToggleChecklist || ($task->project_id && $task->members_can_attach && ! $this->isProjectArchived);
                             // Pemberi tugas boleh edit/hapus item siapa pun. Pelaksana (bukan
                             // sekaligus pemberi tugas) cuma boleh edit/hapus item yang dia buat
                             // sendiri - tidak boleh utak-atik item bikinan pemberi tugas.
@@ -1519,12 +1522,19 @@
                     <div x-data="{ showAddAttachment: false, tab: 'file', drag: false }" style="margin-bottom:18px;padding-top:18px;border-top:1px solid var(--border-soft);">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                             <h4 style="font-size:16px;font-weight:700;margin:0;"><i class="fa-solid fa-paperclip"></i> Lampiran</h4>
-                            @if ($canToggleChecklist)
+                            @if ($canAttach)
                                 <button type="button" @click="showAddAttachment = !showAddAttachment" class="btn-ghost btn-sm">Tambah</button>
                             @endif
                         </div>
+                        {{-- Pengaturan kartu: anggota Board lain boleh melampirkan (di luar komentar). Cuma pembuat tugas / owner Board. --}}
+                        @if ($task->project_id && ! $this->isProjectArchived && ($isTaskCreator || $isBoardOwner))
+                            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-muted);margin:-4px 0 10px;cursor:pointer;">
+                                <input type="checkbox" @checked($task->members_can_attach) wire:click="setMembersCanAttach('{{ $task->id }}', {{ $task->members_can_attach ? 'false' : 'true' }})">
+                                Anggota Board lain boleh menambah lampiran
+                            </label>
+                        @endif
 
-                        <div x-show="showAddAttachment && @js($canToggleChecklist)" x-cloak style="margin-bottom:14px;padding:12px;background:var(--surface-alt);border-radius:10px;">
+                        <div x-show="showAddAttachment && @js($canAttach)" x-cloak style="margin-bottom:14px;padding:12px;background:var(--surface-alt);border-radius:10px;">
                             <div style="display:flex;gap:4px;margin-bottom:12px;">
                                 <button type="button" @click="tab = 'file'" class="btn-ghost btn-sm" :style="tab === 'file' ? 'background:var(--brand-fill);color:#fff;' : ''"><i class="fa-solid fa-file"></i> File</button>
                                 <button type="button" @click="tab = 'link'" class="btn-ghost btn-sm" :style="tab === 'link' ? 'background:var(--brand-fill);color:#fff;' : ''"><i class="fa-solid fa-link"></i> Link</button>
@@ -1613,6 +1623,9 @@
                                         @else
                                             <a href="{{ $attachment->file_url }}" target="_blank" rel="noopener" style="display:block;font-size:13.5px;font-weight:600;color:var(--text-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $attachment->file_name ?? 'File' }}</a>
                                         @endif
+                                        @if ($attachment->comment_id)
+                                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:1px 7px;margin-top:2px;border-radius:99px;background:var(--brand-soft);color:var(--brand);"><i class="fa-regular fa-comment" style="font-size:9px;"></i> dari komentar</span>
+                                        @endif
                                         @if (filled($attachment->description))
                                             <p style="font-size:12.5px;color:var(--text-body);margin:2px 0 2px;white-space:pre-line;word-break:break-word;">{{ $attachment->description }}</p>
                                         @endif
@@ -1627,7 +1640,7 @@
                                     @unless ($attachment->isLink())
                                         <a href="{{ $attachment->file_url }}" target="_blank" rel="noopener" class="btn-ghost" style="padding:6px 8px;flex-shrink:0;" title="Buka"><i class="fa-solid fa-up-right-from-square"></i></a>
                                     @endunless
-                                    @if ($canToggleChecklist)
+                                    @if ($canToggleChecklist || ($canAttach && $attachment->uploaded_by === auth()->id()))
                                         <button type="button" wire:click="removeAttachment('{{ $attachment->id }}')" wire:confirm="Hapus lampiran ini?" class="btn-ghost" style="padding:6px 8px;flex-shrink:0;color:var(--danger-text);" title="Hapus"><i class="fa-solid fa-xmark"></i></button>
                                     @endif
                                 </div>
@@ -1706,13 +1719,28 @@
                                     <button type="button" wire:click="cancelReply" style="background:none;border:none;cursor:pointer;color:var(--text-muted);" aria-label="Batal membalas"><i class="fa-solid fa-xmark"></i></button>
                                 </div>
                             @endif
-                            <div style="display:flex;gap:8px;position:relative;">
-                                <input id="task-comment-input" type="text" class="form-input" style="font-size:13.5px;" wire:model="newComment" autocomplete="off"
-                                    @input="check($el)" @click="check($el)" @keyup.arrow-left="check($el)" @keyup.arrow-right="check($el)"
+                            @if ($newCommentFile)
+                                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:6px;">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                    <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $newCommentFile->getClientOriginalName() }}</span>
+                                    <button type="button" wire:click="$set('newCommentFile', null)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);" aria-label="Batal lampiran"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            @endif
+                            @error('newCommentFile') <p style="color:var(--danger-text);font-size:12px;margin:0 0 6px;">{{ $message }}</p> @enderror
+                            <div style="display:flex;gap:8px;position:relative;align-items:flex-end;">
+                                {{-- Textarea yang tinggi otomatis ke bawah mengikuti isi (maks 200px, lalu scroll). Enter kirim, Shift+Enter baris baru. --}}
+                                <textarea id="task-comment-input" rows="1" class="form-input" style="font-size:13.5px;resize:none;overflow-y:auto;max-height:200px;line-height:1.4;" wire:model="newComment" autocomplete="off"
+                                    x-init="$watch('$wire.newComment', () => $nextTick(() => { $el.style.height = 'auto'; $el.style.height = Math.min($el.scrollHeight, 200) + 'px' }))"
+                                    @input="check($el); $el.style.height = 'auto'; $el.style.height = Math.min($el.scrollHeight, 200) + 'px'" @click="check($el)" @keyup.arrow-left="check($el)" @keyup.arrow-right="check($el)"
                                     @keydown.escape="open = false"
-                                    @keydown.enter.prevent="open ? pick($el, matches()[0]) : $wire.addComment('{{ $task->id }}')"
-                                    placeholder="{{ $replyingTo ? 'Tulis balasan...' : 'Tulis komentar... (@ untuk menyebut)' }}">
-                                <button type="button" wire:click="addComment('{{ $task->id }}')" class="btn-primary" style="font-size:13.5px;padding:8px 14px;">Kirim</button>
+                                    @keydown.enter="if ($event.shiftKey) return; $event.preventDefault(); open ? pick($el, matches()[0]) : $wire.addComment('{{ $task->id }}')"
+                                    placeholder="{{ $replyingTo ? 'Tulis balasan...' : 'Tulis komentar... (@ untuk menyebut)' }}"></textarea>
+                                {{-- Lampirkan file/foto ke komentar; hasilnya tampil di komentar dan masuk daftar Lampiran. --}}
+                                <label class="btn-ghost" style="padding:8px 10px;cursor:pointer;flex-shrink:0;" title="Lampirkan file atau foto" aria-label="Lampirkan file atau foto">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                    <input type="file" wire:model="newCommentFile" style="display:none;">
+                                </label>
+                                <button type="button" wire:click="addComment('{{ $task->id }}')" wire:loading.attr="disabled" wire:target="newCommentFile" class="btn-primary" style="font-size:13.5px;padding:8px 14px;">Kirim</button>
                                 <div x-show="open" x-cloak @click.outside="open = false" style="position:absolute;top:calc(100% + 4px);left:0;z-index:60;min-width:200px;max-height:220px;overflow-y:auto;background:var(--surface);border-radius:12px;padding:6px;box-shadow:0 8px 30px rgba(4,44,108,0.16),0 0 0 1px var(--border-soft);">
                                     <template x-for="n in matches()" :key="n.full">
                                         <button type="button" @click="pick(document.getElementById('task-comment-input'), n.label)" style="display:block;width:100%;padding:7px 10px;border:none;background:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text-body);text-align:left;" onmouseover="this.style.background='var(--surface-alt)'" onmouseout="this.style.background='none'">
@@ -1725,13 +1753,14 @@
                         </div>
                         <div class="task-list-scroll" style="display:flex;flex-direction:column;gap:14px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;">
                             @forelse ($topComments as $comment)
-                                <div style="font-size:13.5px;border-radius:8px;padding:8px 10px;{{ $this->isNewItem($comment->created_at, $comment->user_id) ? "background:var(--new-item-bg);" : "" }}">
-                                    <div style="display:flex;gap:9px;">
+                                <div style="font-size:13.5px;">
+                                    <div style="display:flex;gap:9px;padding:8px 10px;border-radius:10px;background:var(--surface-alt);border:1px solid var(--border-soft);{{ $this->isNewItem($comment->created_at, $comment->user_id) ? 'border-left:3px solid var(--brand);' : '' }}">
                                         <x-avatar :user="$comment->user" :size="26" />
                                         <div style="min-width:0;">
                                             <span style="font-weight:700;">{{ $comment->user?->name }}</span>
                                             <span style="color:var(--text-muted);font-size:12px;"> &middot; {{ $comment->created_at->diffForHumans() }}</span>
                                             <p style="margin:2px 0 0;white-space:pre-line;word-break:break-word;">{{ $comment->bodyHtml($mentionNames) }}</p>
+                                            @include("livewire.task.partials.comment-attachments", ["comment" => $comment])
                                             @unless ($this->isProjectArchived)
                                                 <button type="button" wire:click="startReply('{{ $comment->id }}')" @click="$nextTick(() => document.getElementById('task-comment-input')?.focus())" style="background:none;border:none;padding:0;margin-top:2px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;color:var(--text-muted);">Balas</button>
                                             @endunless
@@ -1739,12 +1768,13 @@
                                     </div>
                                     {{-- Balasan: 1 tingkat saja - nggak ada tombol Balas di sini. --}}
                                     @foreach ($repliesByParent->get($comment->id, collect()) as $reply)
-                                        <div style="display:flex;gap:8px;margin:10px 0 0 35px;padding-left:10px;border-left:2px solid var(--border-soft);border-radius:8px;padding:6px 10px;{{ $this->isNewItem($reply->created_at, $reply->user_id) ? "background:var(--new-item-bg);" : "" }}">
+                                        <div style="display:flex;gap:8px;margin:6px 0 0 35px;padding:6px 10px;border-radius:10px;background:var(--surface-alt);border:1px solid var(--border-soft);{{ $this->isNewItem($reply->created_at, $reply->user_id) ? 'border-left:3px solid var(--brand);' : '' }}">
                                             <x-avatar :user="$reply->user" :size="22" />
                                             <div style="min-width:0;">
                                                 <span style="font-weight:700;">{{ $reply->user?->name }}</span>
                                                 <span style="color:var(--text-muted);font-size:12px;"> &middot; {{ $reply->created_at->diffForHumans() }}</span>
                                                 <p style="margin:2px 0 0;white-space:pre-line;word-break:break-word;">{{ $reply->bodyHtml($mentionNames) }}</p>
+                                                @include("livewire.task.partials.comment-attachments", ["comment" => $reply])
                                             </div>
                                         </div>
                                     @endforeach

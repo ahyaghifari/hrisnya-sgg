@@ -31,6 +31,7 @@ class TaskAttachment extends Model
         'description',
         'url',
         'uploaded_by',
+        'comment_id',
     ];
 
     public function uploadedBy(): BelongsTo

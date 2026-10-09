@@ -158,4 +158,68 @@ class TaskCommentReplyMentionTest extends TestCase
         $this->assertTrue($disc['discussion']);
         $this->assertStringContainsString('boardFilter=diskusi', \App\Support\TaskNotificationUrl::for($disc));
     }
+
+    public function test_comment_with_file_is_attached_to_comment_and_listed_in_attachments(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        [$service, $task, $owner, $budi] = $this->board();
+        Notification::fake();
+
+        // Anggota Board yang bukan pelaksana/pembuat tetap boleh melampirkan lewat komentar.
+        $service->addComment($task, $budi, '', null, \Illuminate\Http\UploadedFile::fake()->create('laporan.docx', 20));
+
+        $comment = $task->comments()->first();
+        $this->assertSame('', $comment->comment);
+        $attachment = $task->attachments()->first();
+        $this->assertSame($comment->id, $attachment->comment_id);
+        $this->assertSame('laporan.docx', $attachment->file_name);
+        $this->assertSame(1, $comment->attachments()->count());
+
+        try {
+            $service->addComment($task, $budi, 'pdf besar', null, \Illuminate\Http\UploadedFile::fake()->create('besar.pdf', 3000, 'application/pdf'));
+            $this->fail('PDF > 2 MB harusnya ditolak');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+        }
+        $this->assertSame(1, $task->comments()->count());
+    }
+
+    public function test_members_can_attach_only_when_card_setting_enabled(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        [$service, $task, $owner, $budi, $budiS] = $this->board(); // $budi pelaksana, $budiS anggota biasa
+        $file = fn () => \Illuminate\Http\UploadedFile::fake()->create('a.docx', 10);
+
+        try {
+            $service->addFileAttachment($task, $budiS, $file());
+            $this->fail('anggota biasa harusnya ditolak saat pengaturan mati');
+        } catch (HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+
+        // Cuma pembuat/owner yang boleh mengubah pengaturan.
+        try {
+            $service->setMembersCanAttach($task, true, $budiS);
+            $this->fail('anggota biasa tidak boleh mengubah pengaturan');
+        } catch (HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+
+        $service->setMembersCanAttach($task, true, $owner);
+        $service->addFileAttachment($task->fresh(), $budiS, $file());
+        $this->assertSame(1, $task->attachments()->count());
+
+        // Anggota biasa hanya bisa menghapus lampiran miliknya sendiri.
+        $service->addFileAttachment($task->fresh(), $owner, $file());
+        $ownerAtt = $task->attachments()->where('uploaded_by', $owner->id)->first();
+        try {
+            $service->removeAttachment($ownerAtt->id, $budiS);
+            $this->fail('tidak boleh menghapus lampiran orang lain');
+        } catch (HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+        $own = $task->attachments()->where('uploaded_by', $budiS->id)->first();
+        $service->removeAttachment($own->id, $budiS);
+        $this->assertSame(1, $task->attachments()->count());
+    }
 }

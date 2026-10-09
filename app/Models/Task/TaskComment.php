@@ -24,6 +24,11 @@ class TaskComment extends Model
         return $this->belongsTo(Task::class, 'task_id');
     }
 
+    public function attachments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TaskAttachment::class, 'comment_id');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
