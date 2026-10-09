@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Enum\Attendance\LeaveTypeCategoryEnum;
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
+use App\Models\Attendance\AttendanceRequestAttachments;
 use App\Models\Attendance\AttendanceRequestCancellations;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\User;
@@ -16,10 +17,17 @@ use App\Services\OrgHierarchyService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class AttendanceRequestDetail extends Component
 {
+    use WithFileUploads;
+
     public AttendanceRequests $record;
+
+    /** Susulan lampiran Cuti Melahirkan - 1 kali saja (lihat getCanUploadAttachmentProperty()). */
+    public array $lampiran = [];
+    public bool $confirmingUpload = false;
 
     public ?string $pendingAction = null;
     public ?string $note = null;
@@ -85,6 +93,48 @@ class AttendanceRequestDetail extends Component
             ->subordinates($user)
             ->whereKey($record->user_id)
             ->exists();
+    }
+
+    /** Pemilik boleh susul lampiran Cuti Melahirkan (lampiran opsional saat ajukan) selama masih
+     *  kosong. Setelah terisi otomatis tertutup = kesempatan 1 kali, tanpa kolom tambahan. */
+    public function getCanUploadAttachmentProperty(): bool
+    {
+        return $this->record->user_id === Auth::id()
+            && $this->record->type === 'leave'
+            && $this->record->leaveDetails()->first()?->category === LeaveTypeCategoryEnum::MELAHIRKAN->value
+            && in_array($this->record->status, ['in_review', 'approved'], true)
+            && ! $this->record->attachments()->exists();
+    }
+
+    public function askUpload(): void
+    {
+        abort_unless($this->canUploadAttachment, 403);
+
+        $this->validate([
+            'lampiran' => ['required', 'array', 'min:1'],
+            'lampiran.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+        ], ['lampiran.required' => 'Pilih file lampiran dulu.', 'lampiran.min' => 'Pilih file lampiran dulu.'], ['lampiran.*' => 'Lampiran']);
+
+        $this->confirmingUpload = true;
+    }
+
+    public function confirmUpload(): void
+    {
+        abort_unless($this->canUploadAttachment, 403);
+
+        foreach ($this->lampiran as $file) {
+            AttendanceRequestAttachments::create([
+                'request_id' => $this->record->id,
+                'file_path' => \Illuminate\Support\Facades\Storage::disk('public')->putFile("leave/{$this->record->id}", $file),
+            ]);
+        }
+
+        $this->lampiran = [];
+        $this->confirmingUpload = false;
+        $this->record->load('attachments');
+        unset($this->canUploadAttachment);
+
+        Notification::make()->title('Lampiran berhasil diunggah')->success()->send();
     }
 
     public function getCanApproveProperty(): bool
