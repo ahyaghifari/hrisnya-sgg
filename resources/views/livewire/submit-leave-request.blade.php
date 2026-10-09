@@ -131,9 +131,9 @@
                     </div>
                 @endif
 
-                @if ($this->requiresAttachment)
+                @if ($this->selectedCategory?->isCutiKhusus())
                     <div>
-                        <label class="form-label">Lampiran Surat Dokter / Bidan <span style="color:var(--danger-text);">*</span></label>
+                        <label class="form-label">Lampiran Surat Dokter / Bidan @if ($this->requiresAttachment)<span style="color:var(--danger-text);">*</span>@else<span style="color:var(--text-muted);">(opsional)</span>@endif</label>
                         <input type="file" class="form-input" wire:model="attachments" multiple accept=".pdf,.jpg,.jpeg,.png">
                         <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">PDF/JPG/PNG, maks 10 MB per file.</p>
                         <div wire:loading wire:target="attachments" style="font-size:12px;color:var(--text-muted);margin-top:4px;">Mengunggah…</div>
