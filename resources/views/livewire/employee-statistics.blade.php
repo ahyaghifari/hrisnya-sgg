@@ -146,7 +146,7 @@ override tambahan. --}}
             </p>
             <div class="ia-meta" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;margin-top:12px;">
                 <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-id-badge" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->nip ?: 'NIP belum diisi' }}</span>
-                <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-envelope" style="color:var(--text-faint);margin-right:6px;"></i>{{ $record->email }}</span>
+                <span style="font-size:12.5px;color:var(--text-muted);"><i class="fa-solid fa-envelope" style="color:var(--text-faint);margin-right:6px;"></i>{{ $profile?->email_pribadi ?: 'Email pribadi belum diisi' }}</span>
             </div>
         </div>
 
