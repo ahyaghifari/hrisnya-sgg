@@ -15,7 +15,7 @@ use NotificationChannels\WebPush\WebPushMessage;
 /** Ke pelaksana, saat creator mutusin task yang di-REVIEW: approve (ke COMPLETE) atau kembalikan (ke IN_PROGRESS). */
 class TaskReviewDecided extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\DescribesTaskContext;
 
     public function __construct(protected Task $task, protected bool $approved, protected string $deciderName) {}
 
@@ -47,6 +47,7 @@ class TaskReviewDecided extends Notification implements ShouldQueue
         return [
             'title' => $this->title(),
             'body' => $this->body(),
+            'context' => $this->context(),
             'request_type' => 'task',
             'task_id' => $this->task->id,
             'project_id' => $this->task->project_id,
@@ -59,7 +60,7 @@ class TaskReviewDecided extends Notification implements ShouldQueue
         return (new WebPushMessage)
             ->title($this->title())
             ->icon('/pwa/icons/icon-192-v3.png')
-            ->body($this->body())
+            ->body($this->body() . "\n" . $this->context())
             ->data(['request_type' => 'task', 'task_id' => $this->task->id, 'project_id' => $this->task->project_id])
             ->action('Lihat', 'view');
     }

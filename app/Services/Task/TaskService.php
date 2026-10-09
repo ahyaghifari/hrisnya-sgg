@@ -1285,10 +1285,10 @@ class TaskService
         $project->comments()->create(['user_id' => $user->id, 'parent_id' => $parent?->id, 'comment' => $comment]);
 
         $mentioned = $this->mentionedUsers($this->projectMentionableUsers($project), $comment, $user);
-        $mentioned->each->notify(new TaskMentioned(null, $user->name, $comment, $project->id));
+        $mentioned->each->notify(new TaskMentioned(null, $user->name, $comment, $project));
         // Penulis komentar yang dibalas dikabari kalau belum dapat notif mention.
         if ($parent?->user && $parent->user_id !== $user->id && ! $mentioned->contains('id', $parent->user_id)) {
-            $parent->user->notify(new TaskMentioned(null, $user->name, $comment, $project->id));
+            $parent->user->notify(new TaskMentioned(null, $user->name, $comment, $project));
         }
     }
 

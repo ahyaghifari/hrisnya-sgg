@@ -14,7 +14,7 @@ use NotificationChannels\WebPush\WebPushMessage;
 
 class TaskReviewRequested extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\DescribesTaskContext;
 
     public function __construct(protected Task $task, protected string $assigneeName) {}
 
@@ -42,6 +42,7 @@ class TaskReviewRequested extends Notification implements ShouldQueue
         return [
             'title' => $this->title(),
             'body' => $this->body(),
+            'context' => $this->context(),
             'request_type' => 'task',
             'task_id' => $this->task->id,
             'project_id' => $this->task->project_id,
@@ -54,7 +55,7 @@ class TaskReviewRequested extends Notification implements ShouldQueue
         return (new WebPushMessage)
             ->title($this->title())
             ->icon('/pwa/icons/icon-192-v3.png')
-            ->body($this->body())
+            ->body($this->body() . "\n" . $this->context())
             ->data(['request_type' => 'task', 'task_id' => $this->task->id, 'project_id' => $this->task->project_id])
             ->action('Lihat', 'view');
     }

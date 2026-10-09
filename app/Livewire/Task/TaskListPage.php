@@ -139,6 +139,14 @@ class TaskListPage extends Component
         if ($this->boardFilter === 'diskusi') {
             $this->activeProject ? $this->enterDiscussion() : $this->boardFilter = 'semua';
         }
+
+        // Klik notifikasi kartu: ?task=ID langsung membuka detail kartunya (hanya kalau user berhak melihat).
+        if ($taskId = request()->query('task')) {
+            $task = Task::with('project')->find($taskId);
+            if ($task && app(TaskService::class)->canCommentOnTask($task, Auth::user())) {
+                $this->openTaskDetail($task->id);
+            }
+        }
     }
 
     /** Angka di pill nav "Tugas Saya" - jumlah tugas yang belum selesai. */
