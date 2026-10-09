@@ -359,6 +359,16 @@
                             </button>
                         @endif
                     @endif
+                    {{-- Ringkasan belum dilihat: lampiran, komentar, ceklis (dari semua kartu yang relevan buat Anda) dan diskusi. --}}
+                    @if ($summary = $this->boardUnreadSummary)
+                        @php $summaryLabels = ['attachment_added' => ['fa-paperclip', 'lampiran'], 'comment_added' => ['fa-comment', 'komentar'], 'checklist_done' => ['fa-square-check', 'ceklis selesai'], 'diskusi' => ['fa-comments', 'pesan diskusi']]; @endphp
+                        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 0 18px;font-size:12px;">
+                            <span style="color:var(--text-muted);font-weight:700;">Belum dilihat:</span>
+                            @foreach ($summary as $kind => $n)
+                                <span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;background:rgba(220,38,38,0.1);color:#dc2626;font-weight:700;"><i class="fa-solid {{ $summaryLabels[$kind][0] }}" style="font-size:10px;"></i> {{ $n }} {{ $summaryLabels[$kind][1] }}</span>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             @endif
             <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;flex:1 1 100%;">
@@ -369,7 +379,7 @@
                         <div class="task-filter-tabs" role="tablist" aria-label="Filter tugas Board">
                             <button type="button" role="tab" wire:loading.attr="disabled" wire:target="setBoardFilter" wire:click="setBoardFilter('semua')" class="{{ $boardFilter === 'semua' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'semua' ? 'true' : 'false' }}">Semua</button>
                             <button type="button" role="tab" wire:loading.attr="disabled" wire:target="setBoardFilter" wire:click="setBoardFilter('saya')" class="{{ $boardFilter === 'saya' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'saya' ? 'true' : 'false' }}">Tugas Saya</button>
-                            <button type="button" role="tab" wire:loading.attr="disabled" wire:target="setBoardFilter" wire:click="setBoardFilter('diskusi')" class="{{ $boardFilter === 'diskusi' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'diskusi' ? 'true' : 'false' }}"><i class="fa-regular fa-comments"></i> Diskusi @if (($n = $this->discussionUnread) > 0)<span title="{{ $n }} pesan menandai/membalas kamu" style="background:#dc2626;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;padding:0 4px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;margin-left:2px;">{{ $n > 99 ? '99+' : $n }}</span>@endif</button>
+                            <button type="button" role="tab" wire:loading.attr="disabled" wire:target="setBoardFilter" wire:click="setBoardFilter('diskusi')" class="{{ $boardFilter === 'diskusi' ? 'is-active' : '' }}" aria-selected="{{ $boardFilter === 'diskusi' ? 'true' : 'false' }}"><i class="fa-regular fa-comments"></i> Diskusi @if (($n = $this->discussionUnread) > 0)<span title="{{ $n }} pesan baru" style="background:#dc2626;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;padding:0 4px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;margin-left:2px;">{{ $n > 99 ? '99+' : $n }}</span>@endif</button>
                         </div>
                     @endif
                     @if (! $activeProjectId && $scope === 'individu')
