@@ -169,12 +169,24 @@ class SubmitLeaveRequest extends Component
     public function updatedLeaveType(): void
     {
         $this->attachments = [];
+        $this->lockEndDate();
         $this->refreshQuota();
     }
 
     public function updatedStartDate(): void
     {
+        $this->lockEndDate();
         $this->refreshQuota();
+    }
+
+    /** Jenis cuti dengan hari baku (lockedDays): tanggal selesai = mulai + N - 1, bukan input user. */
+    private function lockEndDate(): void
+    {
+        $days = $this->selectedCategory?->lockedDays();
+
+        if ($days && $this->start_date) {
+            $this->end_date = \Carbon\Carbon::parse($this->start_date)->addDays($days - 1)->toDateString();
+        }
     }
 
     /**
@@ -254,6 +266,7 @@ class SubmitLeaveRequest extends Component
             return;
         }
 
+        $this->lockEndDate(); // jaring server-side: request craft tidak bisa ubah end_date
         $data = $this->validate();
 
         // Guard server-side — jenis cuti female-only tidak boleh diajukan karyawan non-perempuan
