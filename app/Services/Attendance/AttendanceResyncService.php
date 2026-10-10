@@ -45,6 +45,14 @@ class AttendanceResyncService
             $readTo = Carbon::parse($to)->addDay()->toDateString();
 
             $result = $reader->readAndGroup($readFrom->toDateString(), $readTo, $user->nip);
+
+            $producedByDate = [];
+            foreach ($result['buckets'] as $entries) {
+                foreach ($entries as $e) {
+                    $producedByDate[$e['date']][] = $e;
+                }
+            }
+
             foreach ($result['buckets'] as $type => $entries) {
                 $result['buckets'][$type] = array_filter($entries, fn ($e) => $e['date'] >= $from && $e['date'] <= $to);
             }
@@ -76,6 +84,8 @@ class AttendanceResyncService
                     $this->saveExtraShiftEntry($entry, $calculators, $repo) && $counts['logs']++;
                 }
             }
+
+            $this->dropBorrowedScanRecords($user, $from, $to, $producedByDate);
         }
 
         $records = AttendanceRecords::query()
@@ -91,6 +101,40 @@ class AttendanceResyncService
         }
 
         return $counts;
+    }
+
+    /**
+     * Buang baris auto-hitung yang jam masuknya ternyata scan PULANG shift lewat tengah malam
+     * semalam (sisa sync lama yang salah baca scan itu sebagai masuk hari ini). Hitung ulang
+     * hanya menulis baris, tidak pernah menghapus, jadi baris basi itu bertahan. Syarat sempit:
+     * sumber access_logs_*, tanggal itu tidak menghasilkan entri sama sekali, dan jam masuknya
+     * persis sama dengan jam pulang entri kemarin.
+     *
+     * @param  array<string, array<int, array>>  $producedByDate
+     */
+    private function dropBorrowedScanRecords(User $user, string $from, string $to, array $producedByDate): void
+    {
+        AttendanceRecords::query()
+            ->where('user_id', $user->id)
+            ->whereBetween('date', [$from, $to])
+            ->where('source', 'like', 'access_logs_%')
+            ->whereNotNull('check_in_time')
+            ->get()
+            ->each(function (AttendanceRecords $record) use ($producedByDate) {
+                $date = Carbon::parse($record->date);
+
+                if (isset($producedByDate[$date->toDateString()])) {
+                    return;
+                }
+
+                foreach ($producedByDate[$date->copy()->subDay()->toDateString()] ?? [] as $prev) {
+                    if (($prev['check_out'] ?? null) === $record->check_in_time) {
+                        $record->delete();
+
+                        return;
+                    }
+                }
+            });
     }
 
     /**
