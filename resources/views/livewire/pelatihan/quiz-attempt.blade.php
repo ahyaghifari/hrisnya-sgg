@@ -1,4 +1,10 @@
-<div class="accent-{{ $this->accent }}">
+<div class="accent-{{ $this->accent }}"
+    x-data
+    x-on:quiz-submitted.window="
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const here = location.pathname;
+        setTimeout(() => { if (location.pathname === here) Livewire.navigate($event.detail.url); }, 5000);
+    ">
 <x-page-header title="Kuis" :back="route('pelatihan.show', ['course' => $meetingQuiz->meeting->course])" />
 
 <div class="quiz-header">
@@ -52,51 +58,6 @@
                 <p class="quiz-result-label">Salah</p>
             </div>
         </div>
-    </div>
-
-    <p class="quiz-review-heading">Pembahasan</p>
-
-    <div style="display:flex;flex-direction:column;gap:12px;">
-        @foreach ($review as $i => $item)
-            <div class="course-session-card">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">
-                    <p style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">
-                        {{ $i + 1 }}. {{ trim(html_entity_decode(strip_tags($item['question_text']))) }}
-                    </p>
-                    @if ($item['is_correct'])
-                        <span class="quiz-review-verdict is-correct"><i class="fa-solid fa-check"></i> Benar</span>
-                    @else
-                        <span class="quiz-review-verdict is-wrong"><i class="fa-solid fa-xmark"></i> Salah</span>
-                    @endif
-                </div>
-
-                <div style="display:flex;flex-direction:column;gap:8px;">
-                    @foreach ($item['options'] as $option)
-                        @php
-                            $isSelected = $option['id'] === $item['selected_option_id'];
-                            $optionClass = match (true) {
-                                $option['is_correct'] => 'is-correct-answer',
-                                $isSelected && ! $option['is_correct'] => 'is-wrong-selected',
-                                default => '',
-                            };
-                        @endphp
-                        <div class="quiz-review-option {{ $optionClass }}">
-                            <span>{{ $option['text'] }}</span>
-                            <span style="display:flex;align-items:center;gap:8px;">
-                                @if ($isSelected)
-                                    <span class="quiz-review-tag">Pilihanmu</span>
-                                @endif
-                                @if ($option['is_correct'])
-                                    <i class="fa-solid fa-check"></i>
-                                @elseif ($isSelected)
-                                    <i class="fa-solid fa-xmark"></i>
-                                @endif
-                            </span>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endforeach
     </div>
 @elseif (empty($questions))
     <div class="pwa-list" style="padding:32px 16px;text-align:center;">

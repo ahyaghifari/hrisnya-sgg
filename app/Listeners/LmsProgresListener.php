@@ -4,6 +4,8 @@ namespace App\Listeners;
 
 use App\Enum\CourseUserStatus;
 use App\Events\LmsProgresUpdated;
+use App\Models\LMS\LmsMeetingQuizzes;
+use App\Models\LMS\LmsQuizResults;
 use App\Repositories\LMS\CourseRepository;
 use App\Services\LMS\CourseService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -51,9 +53,46 @@ class LmsProgresListener implements ShouldQueue
             
             // Update course user status based on completion
             $courseUser->status = $this->checkCourseCompletion($courseUser, $totalScore);
-            
+
+            $this->syncPassed($courseUser, $course, $user->id);
+
             $courseUser->save();
         }
+    }
+
+    /**
+     * Kelulusan = semua kuis bertanda "syarat kelulusan" sudah selesai dinilai dan persentase
+     * skornya >= minimum_score kuis itu sendiri. Tanpa kuis penentu / masih ada yang belum
+     * dikerjakan atau menunggu review esai: is_passed tidak diubah. passed_at terisi saat
+     * keputusan final (is_passed=false + passed_at terisi = selesai tapi tidak lulus, lihat
+     * ParticipantCourses).
+     */
+    private function syncPassed($courseUser, $course, string $userId): void
+    {
+        $quizzes = LmsMeetingQuizzes::where('is_graduation_requirement', true)
+            ->whereHas('meeting', fn ($q) => $q->where('course_id', $course->id))
+            ->pluck('minimum_score', 'id');
+
+        if ($quizzes->isEmpty()) {
+            return;
+        }
+
+        $results = LmsQuizResults::whereIn('meeting_quiz_id', $quizzes->keys())
+            ->where('status', 'completed')
+            ->whereHas('respondent', fn ($q) => $q->where('user_id', $userId))
+            ->get()
+            ->keyBy('meeting_quiz_id');
+
+        if ($results->count() < $quizzes->count()) {
+            return;
+        }
+
+        $passed = $results->every(
+            fn ($r) => $r->max_score > 0 && round($r->total_score / $r->max_score * 100) >= (int) $quizzes[$r->meeting_quiz_id]
+        );
+
+        $courseUser->is_passed = $passed;
+        $courseUser->passed_at ??= now();
     }
 
     private function countTotalScore($courseUser): int
@@ -100,8 +139,8 @@ class LmsProgresListener implements ShouldQueue
      */
     private function checkCourseCompletion($courseUser, int $totalScore): string
     {
-        if ($courseUser->status === CourseUserStatus::COMPLETED->value) {
-            return CourseUserStatus::COMPLETED->value;
+        if (in_array($courseUser->status, [CourseUserStatus::COMPLETED->value, CourseUserStatus::NOT_COMPLETED->value], true)) {
+            return $courseUser->status;
         }
 
         if ($courseUser->status === CourseUserStatus::REQUESTED->value) {

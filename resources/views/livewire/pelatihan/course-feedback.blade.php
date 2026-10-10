@@ -1,4 +1,9 @@
-<div class="accent-{{ $this->accent }}">
+<div class="accent-{{ $this->accent }}"
+    x-data
+    x-on:feedback-submitted.window="
+        const here = location.pathname;
+        setTimeout(() => { if (location.pathname === here) Livewire.navigate($event.detail.url); }, 5000);
+    ">
 <x-page-header title="Umpan Balik" :back="route('pelatihan.show', ['course' => $course])" />
 
 <div class="course-hero-body" style="margin-bottom:16px;">
@@ -27,6 +32,10 @@
 @else
     @error('scores') <p style="color:#dc2626;font-size:12.5px;margin-bottom:10px;">{{ $message }}</p> @enderror
 
+    <style>
+        .feedback-radio .dot { border-color: #94a3b8; }
+        .feedback-radio input:checked ~ .dot { border-color: var(--accent, var(--brand)); }
+    </style>
     <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
         @foreach ($questions as $question)
             @php $isUnanswered = $errors->has('scores') && ! isset($scores[$question->id]); @endphp
@@ -38,11 +47,13 @@
                 <div style="display:flex;justify-content:space-between;gap:4px;">
                     @foreach ([1, 2, 3, 4, 5] as $score)
                         <label style="display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;flex:1;">
-                            <input type="radio"
-                                name="score-{{ $question->id }}"
-                                wire:click="rate('{{ $question->id }}', {{ $score }})"
-                                @checked(($scores[$question->id] ?? null) === $score)
-                                style="width:18px;height:18px;accent-color:#042c6c;cursor:pointer;">
+                            <span class="custom-radio feedback-radio">
+                                <input type="radio"
+                                    name="score-{{ $question->id }}"
+                                    wire:click="rate('{{ $question->id }}', {{ $score }})"
+                                    @checked(($scores[$question->id] ?? null) === $score)>
+                                <span class="dot"></span>
+                            </span>
                             @if ($score === 1)
                                 <span style="font-size:10.5px;color:var(--text-muted);text-align:center;">Kurang Baik</span>
                             @elseif ($score === 5)

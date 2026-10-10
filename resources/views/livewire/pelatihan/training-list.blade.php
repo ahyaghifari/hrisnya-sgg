@@ -84,7 +84,12 @@
                 <div class="course-card-body">
                     <div class="course-card-top-row">
                         <span class="course-card-eyebrow">{{ $course->category->name ?? 'Umum' }}</span>
-                        <span class="course-card-code">{{ $course->code }}</span>
+                        <span style="display:flex;gap:6px;align-items:center;">
+                            @if ($this->isTrainer($course))
+                                <span class="course-card-code" style="background:#fef3c7;color:#b45309;">Pemateri</span>
+                            @endif
+                            <span class="course-card-code">{{ $course->code }}</span>
+                        </span>
                     </div>
 
                     <p class="course-card-title">

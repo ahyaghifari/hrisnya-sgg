@@ -65,7 +65,11 @@ class TrainersResource extends Resource
                     ->label('Karyawan')
                     ->helperText('Isi kalau pemateri ini karyawan sendiri (tipe Internal).')
                     ->options(fn () => \App\Models\User::orderByName()->get()->pluck('name', 'id'))
-                    ->searchable(),
+                    ->searchable()
+                    ->unique(ignoreRecord: true)
+                    ->validationMessages([
+                        'unique' => 'Karyawan ini sudah terdaftar sebagai pemateri. Aktifkan kembali pemateri yang sudah ada kalau perlu.',
+                    ]),
 
                 Toggle::make('is_active')
                     ->label('Aktif')

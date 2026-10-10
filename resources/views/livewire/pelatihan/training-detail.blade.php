@@ -40,13 +40,17 @@
         @if ($this->isFollowed && $courseUserStatus === 'requested')
             <button type="button" disabled class="course-follow-btn is-pending">Menunggu persetujuan admin/HC</button>
         @elseif ($this->isFollowed)
-            <button type="button" disabled class="course-follow-btn is-followed">Kamu sudah mengikuti pelatihan ini</button>
-        @else
+            <button type="button" disabled class="course-follow-btn is-followed">Anda mengikuti pelatihan ini</button>
+        @elseif (! $this->isCourseTrainer)
             <button type="button" wire:click="followCourse" class="course-follow-btn">Ikuti Pelatihan</button>
         @endif
 
         @if ($this->isFollowed && $course->requires_feedback)
-            @if ($course->feedback_unlocked)
+            @if ($this->hasSubmittedFeedback)
+                <button type="button" disabled class="course-follow-btn is-followed" style="margin-top:8px;display:block;text-align:center;">
+                    <i class="fa-solid fa-circle-check"></i> Anda sudah memberikan umpan balik
+                </button>
+            @elseif ($course->feedback_unlocked)
                 <a href="{{ route('pelatihan.feedback', ['course' => $course]) }}" wire:navigate class="course-follow-btn" style="margin-top:8px;display:block;text-align:center;">
                     <i class="fa-solid fa-star"></i> Isi Umpan Balik
                 </a>

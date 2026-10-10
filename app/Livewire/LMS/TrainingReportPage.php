@@ -116,7 +116,7 @@ class TrainingReportPage extends Component
             return collect();
         }
 
-        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->whereCompany($baseline->company_id))
+        $courseIds = LmsCourseUsers::completed()->whereHas('user', fn ($q) => $q->whereCompany($baseline->company_id))
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->distinct()
@@ -144,7 +144,7 @@ class TrainingReportPage extends Component
 
         $users = User::whereCompany($baseline->company_id)->orderByName()->get();
 
-        $enrollments = LmsCourseUsers::whereIn('course_id', $courseIds)
+        $enrollments = LmsCourseUsers::completed()->whereIn('course_id', $courseIds)
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->get(['user_id', 'course_id', 'enrolled_at'])
@@ -157,7 +157,7 @@ class TrainingReportPage extends Component
             ->get()
             ->groupBy('user_id');
 
-        $totalCoursesByUser = LmsCourseUsers::whereIn('course_id', $courseIds)
+        $totalCoursesByUser = LmsCourseUsers::completed()->whereIn('course_id', $courseIds)
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->selectRaw('user_id, COUNT(DISTINCT course_id) as total')
@@ -189,6 +189,11 @@ class TrainingReportPage extends Component
 
             $totalMinutes = 0;
             foreach ($completedMeetingUsers->get($user->id, collect()) as $mu) {
+                // Hanya kursus yang peserta ini berstatus Completed (lihat $enrollments).
+                if (! $userEnrollments->has($mu->course_id)) {
+                    continue;
+                }
+
                 if ($mu->meeting && $mu->meeting->start_time && $mu->meeting->end_time) {
                     $start = Carbon::parse($mu->meeting->start_time);
                     $end = Carbon::parse($mu->meeting->end_time);

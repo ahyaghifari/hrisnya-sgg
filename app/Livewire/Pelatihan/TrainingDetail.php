@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Pelatihan;
 
+use App\Models\LMS\LmsCourseFeedbacks;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsRespondent;
@@ -57,6 +58,14 @@ class TrainingDetail extends Component
     public function getIsFollowedProperty(): bool
     {
         return $this->courseUserId !== null;
+    }
+
+    public function getHasSubmittedFeedbackProperty(): bool
+    {
+        return LmsCourseFeedbacks::where('course_id', $this->course->id)
+            ->whereHas('respondent', fn ($q) => $q->where('user_id', Auth::id())
+                ->where('category', LmsRespondent::CATEGORY_UMPAN_BALIK))
+            ->exists();
     }
 
     /**
@@ -168,7 +177,7 @@ class TrainingDetail extends Component
 
     public function followCourse(): void
     {
-        if ($this->isFollowed) {
+        if ($this->isFollowed || $this->isCourseTrainer) {
             return;
         }
 

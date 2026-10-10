@@ -139,7 +139,7 @@ class QuizAttemptTest extends TestCase
         $response->assertDontSee('Kirim Jawaban');
     }
 
-    public function test_result_page_shows_review_with_wrong_and_correct_option(): void
+    public function test_result_page_shows_only_final_score_without_per_question_review(): void
     {
         $user = User::factory()->create();
         $course = LmsCourses::create(['code' => 'Q07', 'title' => 'Kursus Quiz', 'status' => LsmCourseStatus::Published->value]);
@@ -158,12 +158,33 @@ class QuizAttemptTest extends TestCase
         $response = $this->actingAs($user)->get('/pelatihan/quiz/' . $meetingQuiz->id);
 
         $response->assertOk();
-        $response->assertSee('Pembahasan');
         $response->assertSee('Salah');
-        $response->assertSee('Pilihanmu');
-        // Jawaban benar ("4") harus tetap tampil di pembahasan meski bukan yang dipilih user.
-        $response->assertSee('4', false);
-        $response->assertSee('5', false);
+        $response->assertDontSee('Pembahasan');
+        $response->assertDontSee('Pilihanmu');
+    }
+
+    public function test_graduation_quiz_below_minimum_score_marks_course_not_passed_and_above_marks_passed(): void
+    {
+        foreach ([['wrong', false], ['correct', true]] as [$pick, $expected]) {
+            $user = User::factory()->create();
+            $course = LmsCourses::create(['code' => 'QP-' . $pick, 'title' => 'Kursus Lulus', 'status' => LsmCourseStatus::Published->value]);
+            $meeting = LmsMeetings::create(['course_id' => $course->id, 'title' => 'Pertemuan 1']);
+            ['meetingQuiz' => $meetingQuiz, 'correctOptionId' => $correctOptionId] = $this->createMultipleChoiceQuiz($meeting);
+            $meetingQuiz->update(['is_graduation_requirement' => true, 'minimum_score' => 70]);
+            $this->approveUserForCourse($user, $course);
+
+            $question = $meetingQuiz->quiz->questions->first();
+            $optionId = $pick === 'correct' ? $correctOptionId : $question->options->firstWhere('is_correct', false)->id;
+
+            \Livewire\Livewire::actingAs($user)
+                ->test(\App\Livewire\Pelatihan\QuizAttempt::class, ['meetingQuiz' => $meetingQuiz])
+                ->call('selectAnswer', $question->id, $optionId)
+                ->call('submit');
+
+            $courseUser = LmsCourseUsers::where('user_id', $user->id)->where('course_id', $course->id)->first();
+            $this->assertNotNull($courseUser->passed_at);
+            $this->assertSame($expected, (bool) $courseUser->is_passed);
+        }
     }
 
     public function test_selected_answer_survives_reload_but_not_new_session(): void

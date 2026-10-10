@@ -88,7 +88,7 @@ class ParticipantCourses extends Page implements HasTable
                         CourseUserStatus::APPROVED => 'primary',
                         CourseUserStatus::IN_PROGRESS => 'warning',
                         CourseUserStatus::COMPLETED => 'success',
-                        CourseUserStatus::CANCELED => 'danger',
+                        CourseUserStatus::NOT_COMPLETED, CourseUserStatus::CANCELED => 'danger',
                     }),
 
                 TextColumn::make('is_mandatory')
@@ -176,12 +176,29 @@ class ParticipantCourses extends Page implements HasTable
                             Notification::make()->title('Pelatihan ditandai selesai')->success()->send();
                         }),
 
+                    Action::make('mark_not_completed')
+                        ->label('Tandai Tidak Selesai')
+                        ->icon('heroicon-o-flag')
+                        ->color('danger')
+                        ->schema([
+                            Textarea::make('reason')
+                                ->label('Alasan')
+                                ->required()
+                                ->maxLength(1000),
+                        ])
+                        ->visible(fn (LmsCourseUsers $record): bool => in_array($record->status, [CourseUserStatus::APPROVED->value, CourseUserStatus::IN_PROGRESS->value], true))
+                        ->action(function (array $data, LmsCourseUsers $record): void {
+                            app(CourseUserService::class)->markNotCompleted($record, auth()->user(), $data['reason']);
+
+                            Notification::make()->title('Peserta ditandai tidak selesai')->success()->send();
+                        }),
+
                     Action::make('unmark_completed')
-                        ->label('Batalkan Selesai')
+                        ->label('Batalkan Selesai / Tidak Selesai')
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('warning')
                         ->requiresConfirmation()
-                        ->visible(fn (LmsCourseUsers $record): bool => $record->status === CourseUserStatus::COMPLETED->value)
+                        ->visible(fn (LmsCourseUsers $record): bool => in_array($record->status, [CourseUserStatus::COMPLETED->value, CourseUserStatus::NOT_COMPLETED->value], true))
                         ->action(function (LmsCourseUsers $record): void {
                             app(CourseUserService::class)->unmarkCompleted($record, auth()->user());
 

@@ -39,17 +39,8 @@
                 </select>
             </div>
 
-            <div>
-                <label class="form-label">Skor Minimum Kelulusan</label>
-                <input type="number" wire:model="minimum_score" class="form-input" min="0">
-                @error('minimum_score') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <label class="form-label">Batas Waktu Penyelesaian (opsional)</label>
-                <input type="date" wire:model="due_date" class="form-input">
-                @error('due_date') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
-            </div>
+            {{-- Skor Minimum Kelulusan sekarang diisi di kuis penentu kelulusan (pertemuan). --}}
+            {{-- Batas Waktu Penyelesaian (due_date) disembunyikan sementara. --}}
 
             <div style="grid-column:1 / -1;">
                 <label class="form-label">Kompetensi Terkait <span style="color:var(--danger-text);">*</span></label>

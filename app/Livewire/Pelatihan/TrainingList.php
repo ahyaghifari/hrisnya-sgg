@@ -33,7 +33,7 @@ class TrainingList extends Component
             // Jadwal sudah lewat (end_date < hari ini) disembunyikan — belum ada jadwal
             // (end_date null) tetap ditampilkan, bukan "sudah lewat".
             ->where(fn ($q) => $q->whereNull('end_date')->orWhereDate('end_date', '>=', now()))
-            ->with('category')
+            ->with(['category', 'meetings.trainer'])
             ->withCount(['courseUsers', 'meetings'])
             ->orderBy('title');
     }
@@ -60,6 +60,15 @@ class TrainingList extends Component
     public function courseUserStatus(LmsCourses $course): ?string
     {
         return app(CourseUserRepository::class)->getByUserIdAndCourseId(Auth::id(), $course->id)?->status;
+    }
+
+    // Sama dengan TrainingDetail::isCourseTrainer; meetings.trainer sudah di-eager-load di baseQuery().
+    public function isTrainer(LmsCourses $course): bool
+    {
+        return $course->meetings->contains(
+            fn ($meeting) => $meeting->trainer_employee_id === Auth::id()
+                || $meeting->trainer?->user_id === Auth::id()
+        );
     }
 
     // Warna aksen per kategori — hash deterministik ke 5 warna brand yang sudah ada

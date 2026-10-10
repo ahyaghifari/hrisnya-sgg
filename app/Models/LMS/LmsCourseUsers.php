@@ -25,6 +25,7 @@ class LmsCourseUsers extends Model
         'ranking',
         'enrolled_at',
         'completed_at',
+        'not_completed_reason',
         'is_passed',
         'passed_at',
         'certificate_url',
@@ -40,6 +41,12 @@ class LmsCourseUsers extends Model
         static::deleting(function (LmsCourseUsers $courseUser): void {
             $courseUser->meetingUsers()->delete();
         });
+    }
+
+    /** Hanya peserta berstatus Completed — dasar angka Laporan Pelatihan. */
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', \App\Enum\CourseUserStatus::COMPLETED->value);
     }
 
     public function user(): BelongsTo
