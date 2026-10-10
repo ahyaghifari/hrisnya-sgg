@@ -275,6 +275,15 @@ class AccessLogScheduleReader
                 $dayScans = $dayScans->slice(1)->values();
             }
 
+            // Scan pertama pagi ini = pulang shift lewat tengah malam KEMARIN yang lupa scan masuk
+            // (kemarin tidak menghasilkan entri) - bukan jam masuk hari ini.
+            if ($dayScans->isNotEmpty() && empty($consumedFirstScan[$date])
+                && ($checkoutOnly = $this->overnightCheckoutOnlyEntry($user, $date, $dayScans->first(), array_column($entries, 'date')))) {
+                $entries[] = $checkoutOnly;
+                $consumedFirstScan[$date] = true;
+                $dayScans = $dayScans->slice(1)->values();
+            }
+
             if ($dayScans->isEmpty()) {
                 continue;
             }
@@ -342,6 +351,76 @@ class AccessLogScheduleReader
         }
 
         return $this->shiftReader->isOvernight($user, $date);
+    }
+
+    /** Config shift lewat tengah malam yang berlaku di tanggal itu (normal, atau extra shift
+     * approved), null kalau tidak ada. Versi bentuk-config dari isOvernightShiftDay(). */
+    private function overnightConfigFor(User $user, string $date): ?ScheduleShiftType
+    {
+        $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
+
+        if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
+            return null;
+        }
+
+        if ($resolved && $resolved['type'] === 'shift' && ! ($resolved['is_off_day'] ?? false) && ($resolved['config']->is_overnight ?? false)) {
+            return $resolved['config'];
+        }
+
+        $extra = $this->shiftReader->find($user, $date)?->shiftType;
+
+        return $extra && $extra->is_overnight ? $extra : null;
+    }
+
+    /**
+     * Shift lewat tengah malam KEMARIN tanpa satu pun scan masuk (lupa absen), dan $scan (scan
+     * pertama tanggal ini) jelas scan pulangnya: lebih dekat ke jam selesai shift itu daripada ke
+     * jam mulainya, dan belum masuk jendela check-in jadwal tanggal ini sendiri. Hasil: entri
+     * KEMARIN dengan check_in kosong + check_out = scan ini (tetap hadir, seperti Fixed). Null
+     * kalau bukan kasus itu - scan tetap dibaca sebagai masuk tanggal ini.
+     *
+     * @param  array<int, string>  $producedDates  tanggal yang sudah punya entri di pairing ini
+     */
+    private function overnightCheckoutOnlyEntry(User $user, string $date, object $scan, array $producedDates): ?array
+    {
+        $prev = Carbon::parse($date)->subDay()->toDateString();
+
+        if (in_array($prev, $producedDates, true)) {
+            return null;
+        }
+
+        $prevConfig = $this->overnightConfigFor($user, $prev);
+
+        if (! $prevConfig || ! $this->shiftReader->isOvernightCheckoutScan($scan->access_time, $prevConfig)) {
+            return null;
+        }
+
+        $today = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
+        $todayConfigs = [
+            ($today && ! ($today['is_off_day'] ?? false)) ? ($today['config'] ?? null) : null,
+            $this->shiftReader->find($user, $date)?->shiftType,
+        ];
+
+        foreach ($todayConfigs as $config) {
+            if ($config && ! $this->shiftReader->isBeforeCheckInWindow($scan->access_time, $config)) {
+                return null;
+            }
+        }
+
+        // Normal + extra sama2 ada kemarin: kalau scan pulang ini milik shift normal, tandai supaya
+        // tidak dibajak routing extra shift (extra_shift_handled).
+        $prevExtra = $this->shiftReader->find($user, $prev);
+        $isNormal = $prevExtra && $prevConfig->getKey() !== $prevExtra->shiftType->getKey();
+
+        return [
+            'employee_id'  => $user->nip,
+            'date'         => $prev,
+            'check_in'     => null,
+            'check_out'    => $scan->access_time,
+            'scan_count'   => 1,
+            'device_names' => array_values(array_filter([$scan->device_name ?? null])),
+            'user'         => $user,
+        ] + ($isNormal ? ['extra_shift_handled' => true] : []);
     }
 
     private function isFixedOrFlexibleDay(User $user, string $date): bool
@@ -514,6 +593,23 @@ class AccessLogScheduleReader
 
                     if ($lookbackEntry) {
                         $entries[] = $lookbackEntry;
+
+                        continue;
+                    }
+
+                    // Kemarin shift lewat tengah malam tanpa scan masuk sama sekali: scan ini pulangnya.
+                    // Scan kemarin yang cuma pulang shift semalamnya (rantai berturut2) tidak dihitung
+                    // sebagai scan kemarin.
+                    $prevOwn = $prevScans;
+                    if ($prevScans && $prevScans->count() === 1
+                        && ($beforePrev = $this->overnightConfigFor($user, Carbon::parse($prevDate)->subDay()->toDateString()))
+                        && $this->shiftReader->isOvernightCheckoutScan($prevScans->first()->access_time, $beforePrev)) {
+                        $prevOwn = null;
+                    }
+
+                    if (! $existingRecord && ! $prevRecord && ! $prevOwn
+                        && ($checkoutOnly = $this->overnightCheckoutOnlyEntry($user, $date, $rowsForDay->first(), []))) {
+                        $entries[] = $checkoutOnly + ['is_new_checkin' => false, 'is_new_checkout' => true];
 
                         continue;
                     }
