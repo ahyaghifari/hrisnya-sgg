@@ -5,7 +5,9 @@ namespace App\Livewire\Presensi;
 use App\Enum\CustomPermissionEnum;
 use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
+use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequestOvertimeDetails;
+use App\Models\Attendance\OvertimeAttendanceRecord;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Master\Companies;
 use App\Services\Attendance\AttendancePeriodResolver;
@@ -74,6 +76,34 @@ class LemburRecapPage extends Component
         $this->selectedUserId = null;
     }
 
+    public function getCanRecheckProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::SYNC_DATA_ABSENSI->value);
+    }
+
+    /** Baca ulang scan access_logs tiap tanggal lembur (1 karyawan, atau semua di rekap kalau
+     *  $userId null) - scan yang masuk sebelum pengajuan disetujui jadi terkoreksi. */
+    public function recheckPresensi(?string $userId = null): void
+    {
+        abort_unless($this->canRecheck, 403);
+
+        $resweep = app(\App\Services\Attendance\AccessLogResweepService::class);
+        $count = 0;
+
+        foreach ($this->recap['rows'] as $row) {
+            if (($userId && $row['user']->id !== $userId) || ! filled($row['user']->nip)) {
+                continue;
+            }
+
+            foreach (collect($row['items'])->pluck('date')->map(fn ($d) => substr((string) $d, 0, 10))->unique() as $date) {
+                $resweep->resweepUserDate($row['user']->nip, $date);
+                $count++;
+            }
+        }
+
+        \Filament\Notifications\Notification::make()->title("Presensi diperiksa ulang ({$count} tanggal)")->success()->send();
+    }
+
     /**
      * @return array{
      *     types: array<string>,
@@ -105,15 +135,27 @@ class LemburRecapPage extends Component
         $types = $details->pluck('overtime_type')->filter()->unique()->sort()->values()->all();
         $emptyCounts = collect($types)->mapWithKeys(fn ($t) => [$t => 0.0])->all();
 
-        $rows = $details->groupBy(fn ($d) => $d->attendanceRequest->user_id)->map(function ($group) use ($emptyCounts) {
+        // Bukti presensi per (user, tanggal): scan lembur hari libur (overtime_attendance_records)
+        // diutamakan, fallback presensi biasa (attendance_records) - null = belum presensi.
+        $userIds = $details->map(fn ($d) => $d->attendanceRequest->user_id)->unique()->all();
+        $range = [$this->date_from, $this->date_to];
+        $presensi = AttendanceRecords::query()->whereIn('user_id', $userIds)->whereBetween('date', $range)->whereNotNull('check_in_time')->get()
+            ->mapWithKeys(fn ($r) => [$r->user_id . '|' . substr((string) $r->date, 0, 10) => [$r->check_in_time, $r->check_out_time]]);
+        $presensi = $presensi->merge(
+            OvertimeAttendanceRecord::query()->whereIn('user_id', $userIds)->whereBetween('date', $range)->get()
+                ->mapWithKeys(fn ($r) => [$r->user_id . '|' . substr((string) $r->date, 0, 10) => [$r->check_in_time, $r->check_out_time]])
+        );
+
+        $rows = $details->groupBy(fn ($d) => $d->attendanceRequest->user_id)->map(function ($group) use ($emptyCounts, $presensi) {
             $user   = $group->first()->attendanceRequest->user;
             $counts = $emptyCounts;
 
-            $items = $group->map(function ($detail) use (&$counts) {
+            $items = $group->map(function ($detail) use (&$counts, $presensi) {
                 $type = $detail->overtime_type ?: 'Lainnya';
                 $counts[$type] = ($counts[$type] ?? 0) + (float) $detail->total_hours;
 
                 return [
+                    'presensi'   => $presensi->get($detail->attendanceRequest->user_id . '|' . substr((string) $detail->date, 0, 10)),
                     'type_name'  => $type,
                     'date'       => $detail->date,
                     'start_time' => $detail->start_time,

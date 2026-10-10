@@ -198,7 +198,7 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
                         $sheet->getStyle("{$letter}2:{$letter}{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     }
 
-                    if ($color = self::HEADER_HIGHLIGHT_COLORS[$column['label']] ?? null) {
+                    if ($color = array_key_exists('color', $column) ? $column['color'] : (self::HEADER_HIGHLIGHT_COLORS[$column['label']] ?? null)) {
                         $sheet->getStyle("{$letter}1")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($color);
                     }
                 }
@@ -272,7 +272,9 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
     private function buildColumns(): array
     {
         $active = $this->activeComponentValues();
-        $isActive = fn (?PayrollComponentEnum $component) => $component === null || in_array($component->value, $active, true);
+        // Banjarbaru & Barabai: kolom export dibuat identik (semua komponen), abaikan toggle per perusahaan.
+        $sameLayout = in_array(\App\Models\Master\Companies::whereKey($this->companyId)->value('code'), \App\Services\Payroll\ManualPayrollExcelImporter::COMPANY_CODES, true);
+        $isActive = fn (?PayrollComponentEnum $component) => $sameLayout || $component === null || in_array($component->value, $active, true);
 
         $itemFor = fn (Payroll $payroll, PayrollComponentEnum $component) => $payroll->items->firstWhere('source_type', $component->value);
         $amountFor = fn (Payroll $payroll, PayrollComponentEnum $component) => (float) ($itemFor($payroll, $component)?->amount ?? 0);
@@ -299,7 +301,68 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
         $gajiPokokBase = fn (Payroll $payroll) => $this->gajiPokokBreakdown($payroll, $breakdownCache)[0];
         $gajiPokokPercent = fn (Payroll $payroll) => $this->gajiPokokBreakdown($payroll, $breakdownCache)[1];
 
-        $definitions = [
+        // Layout Banjarbaru & Barabai: urutan kolom + warna header ikut Excel sumber
+        // (knowledge/gaji-agustus.xlsx & gaji-agustus-barabai.xlsx), gabungan keduanya.
+        $money = self::CURRENCY_FORMAT;
+        $sumOf = fn (Payroll $p, array $types) => (float) $p->items->whereIn('source_type', $types)->sum(fn ($i) => (float) $i->amount);
+        $qtyOf = fn (Payroll $p, array $types) => (float) $p->items->whereIn('source_type', $types)->sum(fn ($i) => (float) $i->quantity);
+        $jasaUnit = fn (Payroll $p, string $name) => (float) $p->items->where('source_type', 'jasa_unit')->where('name', $name)->sum(fn ($i) => (float) $i->amount);
+        $izinCutiTypes = ['izin_cuti_gabung', 'cuti', 'izin_seharian'];
+        $baseTotal = fn (Payroll $p) => $coreEarningTotal($p) + $sumOf($p, ['tunjangan_khusus']);
+        $info = fn (string $label, \Closure $get, ?string $color = null, bool $text = false) => ['component' => null, 'label' => $label, 'format' => null, 'forceText' => $text, 'editable' => false, 'get' => $get, 'color' => $color];
+        $calc = fn (string $label, \Closure $get, ?string $color = null, ?string $format = null) => ['component' => null, 'label' => $label, 'format' => $format ?? $money, 'forceText' => false, 'editable' => false, 'get' => $get, 'color' => $color];
+        $edit = fn (string $label, PayrollComponentEnum $c, ?string $color = null) => ['component' => $c, 'label' => $label, 'format' => $money, 'forceText' => false, 'editable' => true, 'get' => fn ($p) => $amountFor($p, $c), 'color' => $color];
+
+        $rsDefinitions = [
+            $info('NO', fn ($_, $no) => $no),
+            $info('NAMA', fn ($p) => $p->user?->name),
+            $info('PERIODE GAJI', fn ($p) => $p->payrollPeriod?->end_date?->translatedFormat('d/m/Y')),
+            $info('TGL PEMBAYARAN GAJI', fn ($p) => $p->payrollPeriod?->payment_date?->translatedFormat('d/m/Y')),
+            $info('ID', fn ($p) => $p->user?->nip, null, true),
+            $info('NIK', fn ($p) => $profileOf($p)?->no_nik, null, true),
+            $info('STATUS PERKAWINAN', fn ($p) => $profileOf($p)?->marital_status),
+            $info('Tanggal Lahir', fn ($p) => $profileOf($p)?->date_of_birth ? Carbon::parse($profileOf($p)->date_of_birth)->format('d/m/Y') : null),
+            $info('JABATAN', fn ($p) => $p->import_meta['jabatan'] ?? $profileOf($p)?->jobPosition?->name),
+            $info('STATUS KARYAWAN', fn ($p) => $p->import_meta['status_karyawan'] ?? $profileOf($p)?->employeeType?->name),
+            $info('Tanggal Masuk', fn ($p) => $joiningDateOf($p)?->format('d/m/Y')),
+            $info('Bulan Kerja', fn ($p) => $this->bulanKerja($p)),
+            $edit('Tunjangan Masa Kerja', PayrollComponentEnum::TUNJANGAN_MASA_KERJA, 'F20EC1'),
+            $info('KELAS', fn ($p) => $p->import_meta['kelas'] ?? $profileOf($p)?->kelas?->name, 'F20EC1'),
+            $calc('Gaji Dasar', fn ($p) => $gajiPokokBase($p)),
+            $info('% Kenaikan', fn ($p) => ($pc = $gajiPokokPercent($p)) !== null ? rtrim(rtrim(number_format($pc, 2, ',', ''), '0'), ',') . '%' : null),
+            $edit('Gaji Pokok', PayrollComponentEnum::GAJI_POKOK, 'FFFF00'),
+            $edit('Tunj. Jabatan Skema Baru', PayrollComponentEnum::TUNJANGAN_JABATAN, 'F20EC1'),
+            $edit('Insentif', PayrollComponentEnum::INSENTIF, 'F20EC1'),
+            $calc('Tunj. Dokter/Jabatan Khusus', fn ($p) => $sumOf($p, ['tunjangan_khusus'])),
+            $calc('TOTAL GAJI SKEMA BARU', $baseTotal, 'F20EC1'),
+            $edit('Jasa Pelayanan Baru', PayrollComponentEnum::JASA_PELAYANAN, 'F20EC1'),
+            $calc('Jumlah Total Gaji+Jasa Pelayanan (SKEMA GAJI BARU)', fn ($p) => $baseTotal($p) + $sumOf($p, ['jasa_pelayanan']), 'F20EC1'),
+            $calc('Tambahan Jasa', fn ($p) => $jasaUnit($p, 'Tambahan Jasa')),
+            $edit('LEMBUR (Dihitung Stlh 2 Jam)', PayrollComponentEnum::LEMBUR),
+            $edit('EXTRA SHIFT', PayrollComponentEnum::EXTRA_SHIFT),
+            $calc('Jasa Supir Ambulance & Perawat (Rujukan Pasien)', fn ($p) => $jasaUnit($p, 'Ambulans & Rujukan Pasien')),
+            $calc('Jasa Paket Infus', fn ($p) => $jasaUnit($p, 'Paket Infus')),
+            $calc('Jumlah Terima Skema Baru', fn ($p) => (float) $p->gross_salary, 'F20EC1'),
+
+            $edit('POTONGAN BPJS 1%', PayrollComponentEnum::BPJS_KESEHATAN),
+            $edit('POTONGAN BPJSTK (JHT 2%)', PayrollComponentEnum::BPJS_KETENAGAKERJAAN),
+            $calc('JUMLAH TELAT > 5 MENIT/BULAN', fn ($p) => $qtyOf($p, ['keterlambatan']), 'B8CCE4', self::PLAIN_NUMBER_FORMAT),
+            $edit('POTONGAN TELAT >5 MENIT', PayrollComponentEnum::KETERLAMBATAN),
+            $edit('POTONGAN IZIN TERLAMBAT MASUK ATAU PULANG CEPAT', PayrollComponentEnum::IZIN_TERLAMBAT_PULANG_CEPAT, 'B8CCE4'),
+            $calc('JMLH (CUTI, IZIN, SAKIT)', fn ($p) => $qtyOf($p, $izinCutiTypes), 'B8CCE4', 'General'),
+            $calc('POTONGAN IZIN dan CUTI /HARI', fn ($p) => $sumOf($p, $izinCutiTypes)),
+            $edit('POTONGAN KOPERASI', PayrollComponentEnum::KOPERASI, 'B6DDE8'),
+            $edit('POTONGAN BON', PayrollComponentEnum::BON, 'FBD4B4'),
+            $calc('Jumlah Potongan Hari Efektif Kontrak / Cuti Melahirkan', fn ($p) => $sumOf($p, ['potongan_khusus'])),
+            $calc('TOTAL POTONGAN', fn ($p) => (float) $p->total_deductions),
+            $calc('TOTAL GAJI YANG DITERIMA SKEMA BARU', fn ($p) => (float) $p->net_salary, 'F20EC1'),
+
+            $info('NO REKENING', fn ($p) => $profileOf($p)?->bank_account_number, null, true),
+            $info('NAMA REKENING', fn ($p) => $profileOf($p)?->bank_account_name),
+            $info('Alamat Email', fn ($p) => $profileOf($p)?->email_pribadi ?: $p->user?->email),
+        ];
+
+        $definitions = $sameLayout ? $rsDefinitions : [
             ['component' => null, 'label' => 'NO', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($_, $no) => $no],
             ['component' => null, 'label' => 'NAMA', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $payroll->user?->name],
             ['component' => null, 'label' => 'PERIODE GAJI', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $payroll->payrollPeriod?->end_date?->translatedFormat('d/m/Y')],

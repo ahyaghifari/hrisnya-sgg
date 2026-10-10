@@ -66,6 +66,11 @@ class AttendanceResyncService
                 }
             }
 
+            $counts['logs'] += \App\Models\Attendance\OvertimeAttendanceRecord::saveEntries(
+                array_filter($result['buckets']['overtime'], fn ($e) => $e['user']->id === $user->id),
+                'access_logs'
+            );
+
             foreach ($result['buckets']['extra_shift'] as $entry) {
                 if ($entry['user']->id === $user->id) {
                     $this->saveExtraShiftEntry($entry, $calculators, $repo) && $counts['logs']++;

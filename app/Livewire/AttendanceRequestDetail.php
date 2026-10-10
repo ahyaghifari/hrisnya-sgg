@@ -137,6 +137,27 @@ class AttendanceRequestDetail extends Component
         Notification::make()->title('Lampiran berhasil diunggah')->success()->send();
     }
 
+    public function getCanRecheckPresensiProperty(): bool
+    {
+        return $this->record->type === 'overtime'
+            && filled($this->record->user?->nip)
+            && Auth::user()->can(\App\Enum\CustomPermissionEnum::SYNC_DATA_ABSENSI->value);
+    }
+
+    /** Baca ulang scan access_logs untuk tiap tanggal lembur pengajuan ini. */
+    public function recheckPresensi(): void
+    {
+        abort_unless($this->canRecheckPresensi, 403);
+
+        $resweep = app(\App\Services\Attendance\AccessLogResweepService::class);
+
+        foreach ($this->record->overtimeDetails->pluck('date')->map(fn ($d) => substr((string) $d, 0, 10))->unique() as $date) {
+            $resweep->resweepUserDate($this->record->user->nip, $date);
+        }
+
+        Notification::make()->title('Presensi lembur diperiksa ulang')->success()->send();
+    }
+
     public function getCanApproveProperty(): bool
     {
         if (! $this->record->approvalSnapshot) {

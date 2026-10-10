@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Attendance\OvertimeAttendanceRecord;
 use App\Models\Attendance\SyncAccessLog;
 use App\Models\Shift\ExtraShiftAttendanceRecord;
 use App\Notifications\AttendanceCheckedIn;
@@ -107,6 +108,12 @@ class SyncAccessLogsAttendance extends Command
             $log->info("[{$runId}] diproses (shift): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
             $this->notifyCheckInOut($r, $record);
             $shiftCount++;
+        }
+
+        // Scan di hari libur jadwal yang ada pengajuan lembur - bukti lembur, bukan masuk/telat.
+        $overtimeCount = OvertimeAttendanceRecord::saveEntries($result['buckets']['overtime'], 'access_logs');
+        if ($overtimeCount > 0) {
+            $log->info("[{$runId}] diproses (lembur hari libur): {$overtimeCount} scan");
         }
 
         // Hari yang ada extra shift approved - dilewati dari fixed/flexible/shift di atas

@@ -119,6 +119,11 @@
 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
     <div style="padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
         <h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Rincian per Karyawan (jam)</h4>
+        @if ($this->canRecheck)
+            <button type="button" wire:click="recheckPresensi" wire:loading.attr="disabled" wire:target="recheckPresensi" class="btn-ghost" style="font-size:12px;">
+                <i class="fa-solid fa-rotate"></i> Periksa ulang presensi
+            </button>
+        @endif
         <div style="position:relative;min-width:220px;">
             <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:12px;"></i>
             <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Cari nama atau NIP..." style="padding-left:32px;">
@@ -206,7 +211,12 @@
                     <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">{{ $selectedRow['user']->name }}</h3>
                     <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">{{ $formatHours($selectedRow['total']) }} jam lembur dalam periode ini</p>
                 </div>
-                <button type="button" wire:click="closeDetail" class="btn-ghost" style="padding:6px 10px;"><i class="fa-solid fa-xmark"></i></button>
+                <div style="display:flex;gap:6px;">
+                    @if ($this->canRecheck)
+                        <button type="button" wire:click="recheckPresensi('{{ $selectedRow['user']->id }}')" wire:loading.attr="disabled" wire:target="recheckPresensi" class="btn-ghost" style="padding:6px 10px;font-size:12px;"><i class="fa-solid fa-rotate"></i> Periksa ulang</button>
+                    @endif
+                    <button type="button" wire:click="closeDetail" class="btn-ghost" style="padding:6px 10px;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </div>
 
             <div style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;">
@@ -225,6 +235,11 @@
                                 {{ \Illuminate\Support\Carbon::parse($item['date'])->translatedFormat('d M Y') }}
                                 &middot; {{ $item['start_time'] }} - {{ $item['end_time'] }}
                             </p>
+                            @if ($item['presensi'])
+                                <p style="font-size:11px;font-weight:600;color:#047C54;margin:4px 0 0;"><i class="fa-solid fa-fingerprint"></i> Presensi {{ substr($item['presensi'][0], 0, 5) }} - {{ $item['presensi'][1] ? substr($item['presensi'][1], 0, 5) : '?' }}</p>
+                            @else
+                                <p style="font-size:11px;font-weight:600;color:#d97706;margin:4px 0 0;"><i class="fa-solid fa-triangle-exclamation"></i> Belum presensi</p>
+                            @endif
                             @if (filled($item['task']))
                                 <p style="font-size:11.5px;color:var(--text-body, var(--text-heading));margin:6px 0 0;white-space:pre-line;">{{ $item['task'] }}</p>
                             @endif

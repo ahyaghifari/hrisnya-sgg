@@ -52,7 +52,7 @@ class ManualPayrollImportPage extends Component
         abort_unless(Auth::user()->can(CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
-            ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
+            ? ($this->companies->contains('id', Auth::user()->company_id) ? Auth::user()->company_id : $this->companies->first()?->id)
             : Auth::user()->company_id;
     }
 
@@ -74,7 +74,12 @@ class ManualPayrollImportPage extends Component
 
     public function getCompaniesProperty()
     {
-        return Companies::orderBy('code')->get();
+        return Companies::whereIn('code', ManualPayrollExcelImporter::COMPANY_CODES)->orderBy('code')->get();
+    }
+
+    private function assertCompanyAllowed(): void
+    {
+        abort_unless($this->companies->contains('id', $this->companyId), 403, 'Import manual hanya untuk RSU Banjarbaru & Barabai.');
     }
 
     /**
@@ -273,6 +278,7 @@ class ManualPayrollImportPage extends Component
     {
         abort_unless(Auth::user()->can(CustomPermissionEnum::IMPORT_PAYROLL_MANUAL->value), 403);
 
+        $this->assertCompanyAllowed();
         $this->preview = [];
         $this->discardStoredFile();
 
@@ -304,6 +310,7 @@ class ManualPayrollImportPage extends Component
         if (! $this->storedPath || ! $this->periodId) {
             return;
         }
+        $this->assertCompanyAllowed();
 
         $period = $this->periodQuery()->where('company_id', $this->companyId)->findOrFail($this->periodId);
 

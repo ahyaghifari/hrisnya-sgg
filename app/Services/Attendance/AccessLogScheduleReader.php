@@ -3,6 +3,7 @@
 namespace App\Services\Attendance;
 
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Attendance\AttendanceRequestOvertimeDetails;
 use App\Models\Master\Attendance\AttendanceDevice;
 use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
@@ -125,11 +126,12 @@ class AccessLogScheduleReader
      */
     private function groupAndBucket(array $entriesWithUser, array $unmatchedUsers): array
     {
-        $buckets = ['fixed' => [], 'flexible' => [], 'shift' => [], 'off' => [], 'extra_shift' => []];
+        $buckets = ['fixed' => [], 'flexible' => [], 'shift' => [], 'off' => [], 'extra_shift' => [], 'overtime' => []];
         $unresolvedSchedule = [];
         $rejectedDevice = [];
         $devicesByCompany = [];
         $extraShiftsByUserDate = $this->shiftReader->findForEntries($entriesWithUser);
+        $overtimeKeys = $this->overtimeUserDates($entriesWithUser);
 
         foreach ($entriesWithUser as $entry) {
             // Device tidak dikenal/beda company -> blokir total, jangan sampai ikut
@@ -149,6 +151,14 @@ class AccessLogScheduleReader
             $resolved = $this->scheduleResolver->resolveForUserDate($entry['user'], $entry['date'], ignoreEffectiveDate: true);
 
             if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
+                // Hari libur jadwal: ada pengajuan lembur -> bukti lembur, selain itu bucket 'off'
+                // (tidak disimpan) - tidak pernah dihitung masuk/telat.
+                if ($resolved['is_off_day'] ?? false) {
+                    $offBucket = isset($overtimeKeys[$entry['user']->id . '|' . $entry['date']]) ? 'overtime' : 'off';
+                    $buckets[$offBucket][] = array_merge($entry, $resolved);
+                    continue;
+                }
+
                 $buckets[$resolved['type']][] = array_merge($entry, $resolved);
                 continue;
             }
@@ -183,6 +193,29 @@ class AccessLogScheduleReader
             'unresolved_schedule' => $unresolvedSchedule,
             'rejected_device' => $rejectedDevice,
         ];
+    }
+
+    /**
+     * Set "user_id|Y-m-d" yang punya pengajuan lembur aktif (menunggu/disetujui) di tanggal itu.
+     *
+     * @return array<string, true>
+     */
+    private function overtimeUserDates(array $entries): array
+    {
+        if ($entries === []) {
+            return [];
+        }
+
+        $userIds = collect($entries)->map(fn ($e) => $e['user']->id)->unique()->all();
+        $dates = collect($entries)->pluck('date')->unique()->all();
+
+        return AttendanceRequestOvertimeDetails::query()
+            ->whereIn('date', $dates)
+            ->whereHas('attendanceRequest', fn ($q) => $q->whereIn('user_id', $userIds)->whereIn('status', ['in_review', 'approved']))
+            ->with('attendanceRequest:id,user_id')
+            ->get()
+            ->mapWithKeys(fn ($d) => [$d->attendanceRequest->user_id . '|' . substr((string) $d->date, 0, 10) => true])
+            ->all();
     }
 
     /**

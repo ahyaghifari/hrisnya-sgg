@@ -287,6 +287,8 @@ class RekapPresensiPage extends Component
             $shiftCount++;
         }
 
+        \App\Models\Attendance\OvertimeAttendanceRecord::saveEntries($filterCompany($result['buckets']['overtime']), 'access_logs');
+
         $this->syncNewRecords = $newRecords;
         $this->syncResultType = 'success';
         $this->syncResultMessage = "Sync selesai: {$fixedCount} jadwal tetap, {$flexibleCount} jadwal fleksibel, {$shiftCount} jadwal shift diproses, "
