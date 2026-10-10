@@ -867,7 +867,7 @@ class EmployeeStatisticsTest extends TestCase
 
         Livewire::actingAs($manager->fresh())->test(EmployeeStatistics::class, ['record' => $staff])
             ->assertSet('canResync', true)
-            ->call('syncDate', now()->toDateString())
+            ->call('syncMyPeriod')
             ->assertHasNoErrors();
     }
 }

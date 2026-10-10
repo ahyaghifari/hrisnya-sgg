@@ -663,16 +663,6 @@ class EmployeeStatistics extends Component
         $this->resyncOwnRange($this->date_from, $this->date_to, $this->record);
     }
 
-    /** Hitung ulang 1 tanggal (tombol per baris tabel Data Presensi) - harus di dalam periode terpilih. */
-    public function syncDate(string $date): void
-    {
-        abort_unless($this->canResync, 403);
-        abort_unless(preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1, 422);
-        abort_unless($this->date_from && $date >= $this->date_from && $date <= $this->date_to, 422);
-
-        $this->resyncOwnRange($date, $date, $this->record);
-    }
-
     public function getCanViewAuditHistoryProperty(): bool
     {
         if ($this->record->id === Auth::id()) {
