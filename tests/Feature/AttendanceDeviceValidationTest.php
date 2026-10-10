@@ -104,7 +104,8 @@ class AttendanceDeviceValidationTest extends TestCase
         $this->assertSame('08:00:00', $record->check_in_time);
     }
 
-    public function test_device_from_a_different_company_is_blocked(): void
+    /** Beda device boleh: device terdaftar milik company lain tetap diterima (2026-10-10). */
+    public function test_registered_device_of_a_different_company_is_accepted(): void
     {
         $companyA = Companies::create(['code' => 'CPA2', 'name' => 'Company A2', 'location' => 'Test', 'is_active' => true]);
         $companyB = Companies::create(['code' => 'CPB2', 'name' => 'Company B2', 'location' => 'Test', 'is_active' => true]);
@@ -118,7 +119,7 @@ class AttendanceDeviceValidationTest extends TestCase
 
         $this->artisan('attendance:sync-access-logs')->assertSuccessful();
 
-        $this->assertNull(
+        $this->assertNotNull(
             AttendanceRecords::where('nip', $user->nip)->where('date', $date->toDateString())->first()
         );
     }

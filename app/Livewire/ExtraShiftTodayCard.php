@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Shift\ExtraShiftAssignment;
+use App\Models\Shift\ExtraShiftAttendanceRecord;
 use App\Services\Attendance\ScheduleResolver;
 use App\Services\Attendance\ShiftAttendanceReader;
 use Carbon\Carbon;
@@ -62,6 +63,10 @@ class ExtraShiftTodayCard extends Component
             ? ['name' => $extraShift->createdBy?->name, 'at' => $extraShift->created_at]
             : null;
 
+        // Jam scan extra shift hari ini (extra_shift_attendance_records) - ditampilkan kartu Presensi
+        // Hari Ini sebagai blok "Presensi Extra", null kalau belum ada scan.
+        $extraAttendance = ExtraShiftAttendanceRecord::where('extra_shift_assignment_id', $extraShift->id)->first();
+
         if (! $normalConfig) {
             // Hari itu libur/kosong (bukan Oncall - sudah difilter di query) - extra shift-nya
             // berdiri sendiri, tidak ada yang perlu dipecah.
@@ -69,6 +74,7 @@ class ExtraShiftTodayCard extends Component
                 'is_double_shift' => $isDoubleShift,
                 'assigned_by' => $assignedBy,
                 'mode' => 'extra_only',
+                'attendance' => $extraAttendance,
                 'shift' => $extraShift->shiftType,
             ];
         }
@@ -84,6 +90,7 @@ class ExtraShiftTodayCard extends Component
             'is_double_shift' => $isDoubleShift,
             'assigned_by' => $assignedBy,
             'mode' => $isAdjacent ? 'adjacent' : 'skip',
+            'attendance' => $extraAttendance,
             'earlier' => $earlierConfig,
             'later' => $laterConfig,
         ];

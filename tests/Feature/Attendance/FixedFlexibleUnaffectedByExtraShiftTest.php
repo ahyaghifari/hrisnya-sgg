@@ -134,7 +134,15 @@ class FixedFlexibleUnaffectedByExtraShiftTest extends TestCase
 
         $entries = $b[$type];
         $this->assertCount(1, $entries);
-        $this->assertSame($expected, [$this->hm($entries[0]['check_in']), $this->hm($entries[0]['check_out'])]);
+
+        // Scan tunggal: reader hanya menyerahkan jam masuk + scan_count=1, calculator Fixed yang
+        // memutuskan itu sebenarnya pulang (scan >= jam pulang jadwal).
+        $entry = $entries[0];
+        if ($type === 'fixed' && $entry['scan_count'] === 1) {
+            $entry = app(\App\Services\Attendance\Calculators\FixedScheduleCalculator::class)->calculate([$entry])[0];
+        }
+
+        $this->assertSame($expected, [$this->hm($entry['check_in']), $this->hm($entry['check_out'])]);
         $this->assertSame([], $b['extra_shift']);
         $this->assertSame([], $b['shift']);
     }

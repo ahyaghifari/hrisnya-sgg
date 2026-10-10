@@ -127,8 +127,11 @@ class IncrementalMissedEarlierScanTest extends TestCase
 
         $result = app(AccessLogScheduleReader::class)->readAndGroupIncremental('2026-08-07 08:00:00');
 
-        $this->assertCount(1, $result['buckets']['shift']);
-        $this->assertSame('2026-08-07', $result['buckets']['shift'][0]['date']);
-        $this->assertSame('23:10:00', $result['buckets']['shift'][0]['check_in']);
+        // Kemarin ikut dihitung ulang (nilai sama): 07:50 pulang-saja shift 06, bukan masuk 07.
+        $byDate = collect($result['buckets']['shift'])->keyBy('date');
+        $this->assertCount(2, $byDate);
+        $this->assertNull($byDate['2026-08-06']['check_in']);
+        $this->assertSame('07:50:00', $byDate['2026-08-06']['check_out']);
+        $this->assertSame('23:10:00', $byDate['2026-08-07']['check_in']);
     }
 }

@@ -24,7 +24,7 @@ class AttendanceImportService
         ?string $userId = null,
         ?string $companyId = null
     ): array {
-        Log::info("Starting request sync: fromDate={$fromDate}, toDate={$toDate}, userId={$userId}, companyId={$companyId}");
+        Log::channel('attendance_sync')->info("Starting request sync: fromDate={$fromDate}, toDate={$toDate}, userId={$userId}, companyId={$companyId}");
 
         $processed = 0;
         $errors    = 0;
@@ -145,7 +145,7 @@ class AttendanceImportService
             $message = "Sync selesai. {$processed} record berhasil disinkronkan"
                 . ($errors > 0 ? ", {$errors} error" : "");
 
-            Log::info("Request sync completed: processed={$processed}, errors={$errors}");
+            Log::channel('attendance_sync')->info("Request sync completed: processed={$processed}, errors={$errors}");
 
             return [
                 'success'   => true,
@@ -169,7 +169,7 @@ class AttendanceImportService
 
     public function import(AttendanceUploads $upload): array
     {
-        Log::info("Starting import for upload ID: {$upload->id}");
+        Log::channel('attendance_sync')->info("Starting import for upload ID: {$upload->id}");
         
         try {
             // Check file exists using Storage
@@ -195,11 +195,11 @@ class AttendanceImportService
             $headerMapping = null;
             if ($totalRows > 0) {
                 $headerRow = $rows->first()->toArray();
-                Log::info("Header row detected: " . json_encode($headerRow));
+                Log::channel('attendance_sync')->info("Header row detected: " . json_encode($headerRow));
                 $headerMapping = $this->detectHeaderMapping($headerRow);
                 
                 if ($headerMapping) {
-                    Log::info("Header mapping: " . json_encode($headerMapping));
+                    Log::channel('attendance_sync')->info("Header mapping: " . json_encode($headerMapping));
                     $rows = $rows->skip(1);
                     $totalRows--;
                 }
@@ -220,7 +220,7 @@ class AttendanceImportService
                     
                     // Log first 3 rows for debugging
                     if ($index < 3) {
-                        Log::info("Row {$rowNumber} raw data: " . json_encode($row->toArray()));
+                        Log::channel('attendance_sync')->info("Row {$rowNumber} raw data: " . json_encode($row->toArray()));
                     }
                     
                     $rowData = $this->extractRowData($row->toArray(), $headerMapping, $rowNumber);
@@ -260,7 +260,7 @@ class AttendanceImportService
                     $data         = $this->processGroupedData($group, $shiftData, $requestsData);
                     
                     if ($data) {
-                        Log::info(
+                        Log::channel('attendance_sync')->info(
                             "Saving attendance record: NIP={$data['nip']}, Date={$data['date']}, " .
                             "Check-in={$data['check_in_time']}, Check-out={$data['check_out_time']}, " .
                             "Minutes={$data['working_minutes']}, Status={$data['status']}, " .
@@ -293,7 +293,7 @@ class AttendanceImportService
 
             DB::commit();
             
-            Log::info("Import completed for upload ID: {$upload->id}. Processed: {$processedCount}, Errors: {$errorCount}");
+            Log::channel('attendance_sync')->info("Import completed for upload ID: {$upload->id}. Processed: {$processedCount}, Errors: {$errorCount}");
             
             return [
                 'success' => true,
@@ -432,7 +432,7 @@ class AttendanceImportService
 
         $assignment = $this->importRepository->findShiftAssignmentForDate($user->id, $date);
 
-        Log::info(
+        Log::channel('attendance_sync')->info(
             "Shift resolved for NIP={$nip} on {$date}: " .
             ($assignment?->shift?->name ?? 'no shift')
         );
@@ -450,7 +450,7 @@ class AttendanceImportService
         $leaveRequests      = $this->importRepository->findApprovedLeaveRequestsForDate($userId, $date);
         $permissionRequests = $this->importRepository->findApprovedPermissionRequestsForDate($userId, $date);
 
-        Log::info(
+        Log::channel('attendance_sync')->info(
             "Requests resolved for user_id={$userId} on {$date}: " .
             "overtime={$overtimeRequests->count()}, " .
             "leave={$leaveRequests->count()}, " .
@@ -630,7 +630,7 @@ class AttendanceImportService
                     }
                 }
 
-                Log::info("Overtime from request for NIP={$nip} on {$date}: {$calculatedOT} min");
+                Log::channel('attendance_sync')->info("Overtime from request for NIP={$nip} on {$date}: {$calculatedOT} min");
             } catch (\Exception $e) {
                 Log::warning("Overtime request calc error for NIP={$nip} on {$date}: " . $e->getMessage());
             }
@@ -655,7 +655,7 @@ class AttendanceImportService
             $status            = 'leave';
             $lateMinutes       = null;
             $earlyLeaveMinutes = null;
-            Log::info("Leave applied for NIP={$nip} on {$date}");
+            Log::channel('attendance_sync')->info("Leave applied for NIP={$nip} on {$date}");
         }
 
         return [

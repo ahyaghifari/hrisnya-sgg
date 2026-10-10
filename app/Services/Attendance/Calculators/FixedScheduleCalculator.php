@@ -33,10 +33,19 @@ class FixedScheduleCalculator
         /** @var ScheduleFixedDay $config */
         $config = $entry['config'];
 
-        // Scan tunggal yang sudah masuk jam pulang jadwal (lihat AccessLogScheduleReader::
-        // singleScanIsCheckout()) - check_in sengaja dikosongkan sejak tahap pairing, tidak ada
-        // apa-apa buat dihitung telat/lembur-sebelum/jam-kerja, tapi tetap hadir (instruksi user
-        // 2026-08-10) - bukan absen cuma karena kelewatan scan masuk.
+        // Scan tunggal yang waktunya sudah >= jam pulang jadwal: karyawan kemungkinan lupa/lewat
+        // scan masuk paginya, bukan scan masuk yang kebetulan telat sampai jam pulang (instruksi
+        // user 2026-08-10) - diperlakukan sebagai check-out saja. Diputuskan di sini (bukan di
+        // reader) karena hanya calculator yang memegang jam pulang jadwalnya.
+        if (($entry['scan_count'] ?? 0) === 1 && $entry['check_out'] === null
+            && $entry['check_in'] !== null && $entry['check_in'] >= $config->end_time) {
+            $entry['check_out'] = $entry['check_in'];
+            $entry['check_in'] = null;
+        }
+
+        // Tidak ada jam masuk (lupa scan masuk, hanya scan pulang) - tidak ada apa-apa buat
+        // dihitung telat/lembur-sebelum/jam-kerja, tapi tetap hadir (instruksi user 2026-08-10) -
+        // bukan absen cuma karena kelewatan scan masuk.
         if ($entry['check_in'] === null) {
             return $entry + [
                 'late_minutes'        => 0,

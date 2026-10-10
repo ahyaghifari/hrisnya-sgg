@@ -14,12 +14,9 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Regresi (dilaporkan user 2026-09-22): karyawan sempat ditambahkan sbg user tambahan ke device
- * company lain (tap pagi di sana), lalu otorisasinya dicabut lagi sebelum pulang. Sorenya tap di
- * device company sendiri (sah) tetap DITOLAK ("device tidak terdaftar") karena satu entri
- * check-in+check-out sehari menggabungkan device dari kedua scan itu, dan hasUnrecognizedDevice()
- * dulu menolak SELURUH entri kalau ADA satu device saja yang tidak dikenal - lihat
- * AccessLogScheduleReader::hasUnrecognizedDevice().
+ * Aturan device (instruksi user 2026-10-10): scan diterima kalau device-nya TERDAFTAR & aktif di
+ * attendance_devices, siapa pun pemiliknya (company lain boleh). Hanya device yang tidak terdaftar
+ * sama sekali yang ditolak - lihat AccessLogScanReader::splitRejectedDevices().
  */
 class UnrecognizedDeviceScanTest extends TestCase
 {
@@ -47,8 +44,7 @@ class UnrecognizedDeviceScanTest extends TestCase
 
         return $user;
     }
-
-    public function test_own_company_checkout_is_not_blocked_by_a_stray_foreign_device_checkin(): void
+    public function test_scan_from_another_companys_registered_device_is_accepted(): void
     {
         $companyA = Companies::create(['code' => 'CA', 'name' => 'Company A', 'location' => 'Jakarta']);
         $companyB = Companies::create(['code' => 'CB', 'name' => 'Company B', 'location' => 'Jakarta']);
@@ -58,37 +54,37 @@ class UnrecognizedDeviceScanTest extends TestCase
 
         $user = $this->fixedUser($companyA, 'FIXFOR');
 
-        // Pagi: tap di device company lain (mis. sempat diberi akses sbg user tambahan, lalu
-        // dicabut lagi sebelum otorisasinya dicek di sini - tidak relevan buat reader, cukup
-        // device_name-nya bukan milik company sendiri & user tidak (lagi) diotorisasi ke situ).
+        // Pagi tap di device TERDAFTAR milik company lain, sore di device company sendiri - keduanya
+        // sah (instruksi user 2026-10-10: beda device tidak masalah selama device-nya terdaftar).
         $this->scan($user, '2026-08-06 08:00:00', 'Gerbang B');
-        // Sore: tap di device company sendiri - SAH.
         $this->scan($user, '2026-08-06 16:00:00', 'Gerbang A');
 
         $result = app(AccessLogScheduleReader::class)->readAndGroup('2026-08-06', '2026-08-06');
 
-        $this->assertEmpty($result['rejected_device'], 'Entri tidak boleh ditolak - ada device sah (Gerbang A) di hari itu.');
+        $this->assertEmpty($result['rejected_device']);
         $entry = $result['buckets']['fixed'][0];
         $this->assertSame('08:00:00', $entry['check_in']);
         $this->assertSame('16:00:00', $entry['check_out']);
     }
 
-    public function test_entry_is_still_rejected_when_no_device_that_day_is_recognized(): void
+    public function test_scan_from_an_unregistered_device_is_rejected(): void
     {
         $companyA = Companies::create(['code' => 'CA', 'name' => 'Company A', 'location' => 'Jakarta']);
-        $companyB = Companies::create(['code' => 'CB', 'name' => 'Company B', 'location' => 'Jakarta']);
 
         AttendanceDevice::create(['company_id' => $companyA->id, 'name' => 'Gerbang A', 'is_active' => true]);
-        AttendanceDevice::create(['company_id' => $companyB->id, 'name' => 'Gerbang B', 'is_active' => true]);
 
         $user = $this->fixedUser($companyA, 'FIXALL');
 
-        $this->scan($user, '2026-08-06 08:00:00', 'Gerbang B');
-        $this->scan($user, '2026-08-06 16:00:00', 'Gerbang B');
+        // Pagi di device tak terdaftar (ditolak), sore di device terdaftar (diterima).
+        $this->scan($user, '2026-08-06 08:00:00', 'Gerbang Misterius');
+        $this->scan($user, '2026-08-06 16:00:00', 'Gerbang A');
 
         $result = app(AccessLogScheduleReader::class)->readAndGroup('2026-08-06', '2026-08-06');
 
-        $this->assertEmpty($result['buckets']['fixed']);
         $this->assertCount(1, $result['rejected_device']);
+        $this->assertSame(['Gerbang Misterius'], $result['rejected_device'][0]['device_names']);
+        $entry = app(\App\Services\Attendance\Calculators\FixedScheduleCalculator::class)->calculate($result['buckets']['fixed'])[0];
+        $this->assertNull($entry['check_in']);
+        $this->assertSame('16:00:00', $entry['check_out']);
     }
 }
