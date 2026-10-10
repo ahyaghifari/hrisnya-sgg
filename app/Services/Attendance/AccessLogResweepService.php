@@ -55,6 +55,8 @@ class AccessLogResweepService
             }
         }
 
+        $saved += \App\Models\Attendance\OvertimeAttendanceRecord::saveEntries($result['buckets']['overtime'], 'access_logs');
+
         return [$saved, $skippedManual];
     }
 

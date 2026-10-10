@@ -444,11 +444,26 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
     @if ($record->type === 'overtime' && $record->overtimeDetails->isNotEmpty())
         <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
             {!! $sectionHeader('fa-briefcase-clock', 'Detail Lembur') !!}
+            @if ($this->canRecheckPresensi)
+                <button type="button" wire:click="recheckPresensi" wire:loading.attr="disabled" wire:target="recheckPresensi" class="btn-ghost" style="font-size:12px;margin-bottom:6px;">
+                    <i class="fa-solid fa-rotate"></i> Periksa ulang presensi
+                </button>
+            @endif
             @foreach ($record->overtimeDetails as $overtime)
                 {!! $renderField('Tipe Lembur', $overtime->overtime_type) !!}
                 {!! $renderField('Tanggal Lembur', $formatDate($overtime->date)) !!}
                 {!! $renderField('Waktu Mulai', $overtime->start_time) !!}
                 {!! $renderField('Waktu Selesai', $overtime->end_time) !!}
+                @php
+                    // Scan lembur hari libur diutamakan, fallback presensi biasa - kosong = belum presensi.
+                    $otDate = substr((string) $overtime->date, 0, 10);
+                    $otPresensi = \App\Models\Attendance\OvertimeAttendanceRecord::where('user_id', $record->user_id)->where('date', $otDate)->first()
+                        ?? \App\Models\Attendance\AttendanceRecords::where('user_id', $record->user_id)->where('date', $otDate)->whereNotNull('check_in_time')->first();
+                    $otPresensiText = $otPresensi
+                        ? substr($otPresensi->check_in_time, 0, 5) . ' - ' . ($otPresensi->check_out_time ? substr($otPresensi->check_out_time, 0, 5) : '?')
+                        : 'Belum presensi';
+                @endphp
+                {!! $renderField('Presensi', $otPresensiText) !!}
                 {!! $renderField('Deskripsi Tugas', $overtime->task_description, ! $loop->last) !!}
             @endforeach
         </div>
