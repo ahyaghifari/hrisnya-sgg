@@ -35,7 +35,6 @@ class CreateLmsCourse extends Component
     public string $code = '';
     public string $title = '';
     public string $type_nakes = 'all';
-    public int $minimum_score = 0;
     public ?string $due_date = null;
     public array $competencyIds = [];
     public $thumbnail = null;
@@ -78,7 +77,6 @@ class CreateLmsCourse extends Component
             'code' => ['required', 'string', 'max:100', 'unique:lms_courses,code'],
             'title' => ['required', 'string', 'max:255'],
             'type_nakes' => ['required', 'in:nakes,non-nakes,all'],
-            'minimum_score' => ['required', 'integer', 'min:0'],
             'due_date' => ['nullable', 'date'],
             'competencyIds' => ['required', 'array', 'min:1'],
             'competencyIds.*' => ['exists:m_competencies,id'],
@@ -103,7 +101,6 @@ class CreateLmsCourse extends Component
             'title' => $validated['title'],
             'type_nakes' => $validated['type_nakes'],
             'source_type' => 'internal',
-            'minimum_score' => $validated['minimum_score'],
             'due_date' => $validated['due_date'],
             'thumbnail' => $thumbnailPath,
             'type' => 'seasonal',

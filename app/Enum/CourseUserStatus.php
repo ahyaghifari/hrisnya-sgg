@@ -10,6 +10,7 @@ enum CourseUserStatus: string implements HasLabel
     case APPROVED = "approved";
     case IN_PROGRESS = "in_progress";
     case COMPLETED = "completed";
+    case NOT_COMPLETED = "not_completed";
     case CANCELED = "canceled";
 
     public function getLabel(): string
@@ -19,6 +20,7 @@ enum CourseUserStatus: string implements HasLabel
             self::APPROVED => 'Approved',
             self::IN_PROGRESS => 'In Progress',
             self::COMPLETED => 'Completed',
+            self::NOT_COMPLETED => 'Tidak Selesai',
             self::CANCELED => 'Canceled',
         };
     }

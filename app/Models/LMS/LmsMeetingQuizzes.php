@@ -18,6 +18,7 @@ class LmsMeetingQuizzes extends Model
         'duration',
         'public_token',
         'is_graduation_requirement',
+        'minimum_score',
         'is_unlocked',
     ];
 

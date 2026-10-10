@@ -95,11 +95,17 @@
 
         <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
             <label class="custom-checkbox" style="width:20px;height:20px;">
-                <input type="checkbox" wire:model="quizIsGraduationRequirement">
+                <input type="checkbox" wire:model.live="quizIsGraduationRequirement">
                 <span class="box"><i class="fa-solid fa-check"></i></span>
             </label>
             <span style="font-size:12px;color:var(--text-body);">Kuis penentu kelulusan (skor kuis ini ikut menentukan lulus/tidaknya peserta)</span>
         </div>
+
+        @if ($quizIsGraduationRequirement)
+            <label class="form-label" style="margin-top:10px;">Skor Minimum Kelulusan (0-100)</label>
+            <input type="number" wire:model="quizMinimumScore" class="form-input" min="0" max="100">
+            @error('quizMinimumScore') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+        @endif
 
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
             <button type="button" wire:click="closeAddQuizForm" class="btn-ghost" style="padding:6px 12px;font-size:11.5px;">Batal</button>
@@ -113,7 +119,7 @@
         <span>
             <i class="fa-solid fa-circle-question" style="color:var(--text-faint);"></i> {{ $meetingQuiz->quiz?->title ?? '-' }} <span style="color:var(--text-faint);">({{ $meetingQuiz->duration }} menit)</span>
             @if ($meetingQuiz->is_graduation_requirement)
-                <span class="badge" style="background:#fef3c7;color:#92400e;margin-left:6px;">Penentu Kelulusan</span>
+                <span class="badge" style="background:#fef3c7;color:#92400e;margin-left:6px;">Penentu Kelulusan &ge; {{ $meetingQuiz->minimum_score }}</span>
             @endif
             @if (! $meetingQuiz->is_unlocked)
                 <span class="badge" style="background:#f3f4f6;color:#6b7280;margin-left:6px;"><i class="fa-solid fa-lock"></i> Terkunci</span>
@@ -205,7 +211,12 @@
 
 @if ($attendanceMeetingId === $meeting->id)
     <div style="background:var(--surface-alt);border-radius:10px;padding:14px;">
-        <input type="search" wire:model.live.debounce.300ms="attendanceSearch" class="form-input" placeholder="Cari nama peserta..." style="width:100%;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+            <input type="search" wire:model.live.debounce.300ms="attendanceSearch" class="form-input" placeholder="Cari nama peserta..." style="flex:1;">
+            <button type="button" wire:click="toggleAllAttendance" class="btn-ghost" style="padding:8px 14px;font-size:12px;white-space:nowrap;">
+                <i class="fa-solid fa-check-double"></i> Centang / Kosongkan Semua
+            </button>
+        </div>
 
         <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:12.5px;">

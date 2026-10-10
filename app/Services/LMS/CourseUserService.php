@@ -91,9 +91,26 @@ class CourseUserService
         $courseUser->update([
             'status' => CourseUserStatus::COMPLETED->value,
             'completed_at' => now(),
+            'not_completed_reason' => null,
         ]);
     }
 
+    /** Peserta tidak menyelesaikan pelatihan (mis. tidak hadir/tidak mengerjakan kuis) — alasan wajib. */
+    public function markNotCompleted(LmsCourseUsers $courseUser, User $actor, string $reason): void
+    {
+        abort_unless($actor->can(CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value), 403, 'Anda tidak punya izin menandai pelatihan tidak selesai.');
+
+        $reason = trim($reason);
+        abort_if($reason === '', 422, 'Alasan tidak selesai wajib diisi.');
+
+        $courseUser->update([
+            'status' => CourseUserStatus::NOT_COMPLETED->value,
+            'completed_at' => null,
+            'not_completed_reason' => $reason,
+        ]);
+    }
+
+    /** Membatalkan status Selesai maupun Tidak Selesai — kembali ke Approved. */
     public function unmarkCompleted(LmsCourseUsers $courseUser, User $actor): void
     {
         abort_unless($actor->can(CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value), 403, 'Anda tidak punya izin membatalkan status selesai pelatihan.');
@@ -101,6 +118,7 @@ class CourseUserService
         $courseUser->update([
             'status' => CourseUserStatus::APPROVED->value,
             'completed_at' => null,
+            'not_completed_reason' => null,
         ]);
     }
 }

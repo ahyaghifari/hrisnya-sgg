@@ -221,7 +221,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             return new Collection();
         }
 
-        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->whereCompany($baseline->company_id))
+        $courseIds = LmsCourseUsers::completed()->whereHas('user', fn ($q) => $q->whereCompany($baseline->company_id))
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->distinct()
@@ -253,10 +253,10 @@ class TrainingReportPage extends Page implements HasForms, HasTable
         foreach ($courses as $course) {
             $cid = $course->id; // ULID — alphanumeric, safe to embed
             $query->selectRaw(
-                "EXISTS(SELECT 1 FROM lms_course_users WHERE user_id = users.id AND course_id = '{$cid}' AND DATE(enrolled_at) BETWEEN '{$startDate}' AND '{$endDate}') as enrolled_{$cid}"
+                "EXISTS(SELECT 1 FROM lms_course_users WHERE status = 'completed' AND user_id = users.id AND course_id = '{$cid}' AND DATE(enrolled_at) BETWEEN '{$startDate}' AND '{$endDate}') as enrolled_{$cid}"
             );
             $query->selectRaw(
-                "(SELECT DATE(enrolled_at) FROM lms_course_users WHERE user_id = users.id AND course_id = '{$cid}' AND DATE(enrolled_at) BETWEEN '{$startDate}' AND '{$endDate}' LIMIT 1) as enrolled_at_{$cid}"
+                "(SELECT DATE(enrolled_at) FROM lms_course_users WHERE status = 'completed' AND user_id = users.id AND course_id = '{$cid}' AND DATE(enrolled_at) BETWEEN '{$startDate}' AND '{$endDate}' LIMIT 1) as enrolled_at_{$cid}"
             );
         }
 
@@ -287,6 +287,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
                     AND lcmu.course_id IN ({$courseIdList})
                     AND lcmu.absen_masuk = 1
                     AND lcmu.absen_pulang = 1
+                    AND EXISTS(SELECT 1 FROM lms_course_users lcu WHERE lcu.user_id = lcmu.user_id AND lcu.course_id = lcmu.course_id AND lcu.status = 'completed')
                     AND lm.start_time IS NOT NULL
                     AND lm.end_time IS NOT NULL
                 ), 0) + ROUND({$externalJpSql} * {$perJp} / 60.0, 2) as total_training_hours
@@ -418,7 +419,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
         }
 
         // Courses ditentukan dari siapa yang enroll (karyawan company baseline), bukan company_id course itu sendiri
-        $courseIds = LmsCourseUsers::whereHas('user', fn ($q) => $q->whereCompany($baseline->company_id))
+        $courseIds = LmsCourseUsers::completed()->whereHas('user', fn ($q) => $q->whereCompany($baseline->company_id))
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->distinct()
@@ -436,7 +437,7 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             ->get();
 
         // Enrollment lookup: [user_id][course_id] => true
-        $enrollments = LmsCourseUsers::whereIn('course_id', $courseIds)
+        $enrollments = LmsCourseUsers::completed()->whereIn('course_id', $courseIds)
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->get(['user_id', 'course_id'])
@@ -445,13 +446,14 @@ class TrainingReportPage extends Page implements HasForms, HasTable
 
         // Completed meeting users with their meeting data: [user_id] => Collection
         $completedMeetingUsers = LmsCourseMeetingUsers::whereIn('course_id', $courseIds)
-            ->where('is_completed', true)
+            ->where('absen_masuk', true)
+            ->where('absen_pulang', true)
             ->with('meeting:id,start_time,end_time')
             ->get()
             ->groupBy('user_id');
 
         // Total courses count per user: [user_id] => count
-        $totalCoursesByUser = LmsCourseUsers::whereIn('course_id', $courseIds)
+        $totalCoursesByUser = LmsCourseUsers::completed()->whereIn('course_id', $courseIds)
             ->whereDate('enrolled_at', '>=', $baseline->start_date)
             ->whereDate('enrolled_at', '<=', $baseline->end_date)
             ->selectRaw('user_id, COUNT(DISTINCT course_id) as total')
@@ -480,6 +482,11 @@ class TrainingReportPage extends Page implements HasForms, HasTable
             $totalMinutes = 0;
             if (isset($completedMeetingUsers[$user->id])) {
                 foreach ($completedMeetingUsers[$user->id] as $mu) {
+                    // Hanya kursus yang peserta ini berstatus Completed (lihat $enrollments).
+                    if (! ($enrollments[$user->id] ?? collect())->has($mu->course_id)) {
+                        continue;
+                    }
+
                     if ($mu->meeting && $mu->meeting->start_time && $mu->meeting->end_time) {
                         $start = Carbon::parse($mu->meeting->start_time);
                         $end   = Carbon::parse($mu->meeting->end_time);

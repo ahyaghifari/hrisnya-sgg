@@ -119,6 +119,9 @@ class CourseFeedback extends Component
             ->title('Umpan balik berhasil dikirim')
             ->success()
             ->send();
+
+        // View: 5 detik kemudian balik ke detail pelatihan.
+        $this->dispatch('feedback-submitted', url: route('pelatihan.show', ['course' => $this->course->id]));
     }
 
     public function render()

@@ -95,6 +95,12 @@
                 </button>
             @endif
 
+            @if ($this->canEditDetail)
+                <button type="button" wire:click="openEditCourse" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;">
+                    <i class="fa-solid fa-pen"></i> Edit
+                </button>
+            @endif
+
             @if ($statusCase === LsmCourseStatus::Draft && $this->canPublish && $this->canEditDetail)
                 <button type="button" wire:click="publishCourse" wire:confirm="Publish pelatihan ini? Setelah dipublish, pelatihan akan tampil ke peserta." class="btn-primary" style="padding:9px 18px;font-size:12.5px;">
                     <i class="fa-solid fa-paper-plane"></i> Publish
@@ -108,6 +114,59 @@
             @endif
         </div>
     </div>
+
+    @if ($notCompletedParticipantId)
+        <div class="modal-overlay" wire:click.self="$set('notCompletedParticipantId', null)">
+            <div style="background:var(--surface);border-radius:14px;padding:24px;max-width:480px;width:100%;margin-top:8vh;">
+                <p style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0 0 16px;">Tandai Tidak Selesai</p>
+
+                <label class="form-label">Alasan <span style="color:var(--danger-text);">*</span></label>
+                <textarea wire:model="notCompletedReason" class="form-input" rows="3" placeholder="mis. tidak hadir pada pertemuan, tidak mengerjakan kuis..."></textarea>
+                @error('notCompletedReason') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:22px;">
+                    <button type="button" wire:click="$set('notCompletedParticipantId', null)" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;">Batal</button>
+                    <button type="button" wire:click="saveNotCompleted" class="btn-primary" wire:loading.attr="disabled" wire:target="saveNotCompleted" style="padding:9px 18px;font-size:12.5px;">
+                        <i class="fa-solid fa-check"></i> Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showEditCourseModal)
+        <div class="modal-overlay" wire:click.self="$set('showEditCourseModal', false)">
+            <div style="background:var(--surface);border-radius:14px;padding:24px;max-width:480px;width:100%;margin-top:8vh;">
+                <p style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0 0 16px;">Edit Info Pelatihan</p>
+
+                <div style="display:flex;flex-direction:column;gap:14px;">
+                    <div>
+                        <label class="form-label">Judul Pelatihan <span style="color:var(--danger-text);">*</span></label>
+                        <input type="text" wire:model="editTitle" class="form-input">
+                        @error('editTitle') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label">Tipe Peserta</label>
+                        <select wire:model="editTypeNakes" class="form-input">
+                            <option value="all">Nakes & Non-Nakes</option>
+                            <option value="nakes">Nakes</option>
+                            <option value="non-nakes">Non-Nakes</option>
+                        </select>
+                        @error('editTypeNakes') <p style="color:var(--danger-text);font-size:12px;margin-top:5px;">{{ $message }}</p> @enderror
+                    </div>
+
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:22px;">
+                    <button type="button" wire:click="$set('showEditCourseModal', false)" class="btn-ghost" style="padding:9px 18px;font-size:12.5px;">Batal</button>
+                    <button type="button" wire:click="saveCourseInfo" class="btn-primary" wire:loading.attr="disabled" wire:target="saveCourseInfo" style="padding:9px 18px;font-size:12.5px;">
+                        <i class="fa-solid fa-check"></i> Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @if ($qrModalUrl)
         <div class="modal-overlay" wire:click.self="closeQrModal">
@@ -278,6 +337,11 @@
                         @endif
                         <th style="text-align:left;padding:10px 14px;white-space:nowrap;">Nama Peserta</th>
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Status</th>
+                        <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Kehadiran</th>
+                        <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Kuis Dikerjakan</th>
+                        @if ($this->hasGraduationQuiz)
+                            <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Lulus</th>
+                        @endif
                         <th style="text-align:center;padding:10px 14px;white-space:nowrap;">Aksi</th>
                     </tr>
                 </thead>
@@ -297,7 +361,30 @@
                             <td style="padding:9px 14px;font-weight:600;">{{ $participant->user?->name ?? '-' }}</td>
                             <td style="padding:9px 14px;text-align:center;">
                                 <span class="badge" style="background:var(--surface-muted);color:var(--text-muted);">{{ CourseUserStatus::tryFrom($participant->status)?->getLabel() ?? $participant->status }}</span>
+                                @if ($participant->status === CourseUserStatus::NOT_COMPLETED->value && $participant->not_completed_reason)
+                                    <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">Alasan: {{ $participant->not_completed_reason }}</p>
+                                @endif
                             </td>
+                            @php $stat = $this->participantStats[$participant->user_id] ?? ['attendance' => 0, 'quiz' => 0, 'quizDone' => 0, 'quizTotal' => 0]; @endphp
+                            <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $stat['attendance'] }}%</td>
+                            <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
+                                @if ($stat['quizTotal'] > 0)
+                                    {{ $stat['quiz'] }}% <span style="color:var(--text-faint);">({{ $stat['quizDone'] }}/{{ $stat['quizTotal'] }})</span>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            @if ($this->hasGraduationQuiz)
+                                <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
+                                    @if (is_null($participant->passed_at))
+                                        <span class="badge" style="background:var(--surface-muted);color:var(--text-muted);">Belum</span>
+                                    @elseif ($participant->is_passed)
+                                        <span class="badge" style="background:#dcfce7;color:#15803d;">Lulus</span>
+                                    @else
+                                        <span class="badge" style="background:#fee2e2;color:#b91c1c;">Tidak Lulus</span>
+                                    @endif
+                                </td>
+                            @endif
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                 <div style="display:inline-flex;gap:6px;">
                                     @if ($this->canEditDetail || $this->canApproveEnrollment)
@@ -317,8 +404,11 @@
                                             <button type="button" wire:click="markParticipantCompleted('{{ $participant->id }}')" wire:confirm="Tandai peserta ini selesai pelatihan?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:var(--brand-success);" title="Tandai Selesai">
                                                 <i class="fa-solid fa-flag-checkered"></i>
                                             </button>
-                                        @elseif ($participant->status === CourseUserStatus::COMPLETED->value)
-                                            <button type="button" wire:click="unmarkParticipantCompleted('{{ $participant->id }}')" wire:confirm="Batalkan status selesai peserta ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#d97706;" title="Batalkan Selesai">
+                                            <button type="button" wire:click="openNotCompleted('{{ $participant->id }}')" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#dc2626;" title="Tandai Tidak Selesai">
+                                                <i class="fa-solid fa-flag"></i>
+                                            </button>
+                                        @elseif (in_array($participant->status, [CourseUserStatus::COMPLETED->value, CourseUserStatus::NOT_COMPLETED->value], true))
+                                            <button type="button" wire:click="unmarkParticipantCompleted('{{ $participant->id }}')" wire:confirm="Batalkan status selesai/tidak selesai peserta ini?" class="btn-ghost" style="padding:5px 10px;font-size:11px;color:#d97706;" title="Batalkan Selesai">
                                                 <i class="fa-solid fa-rotate-left"></i>
                                             </button>
                                         @endif
@@ -333,7 +423,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" style="padding:24px;text-align:center;color:var(--text-faint);">{{ trim($participantSearch) !== '' ? 'Tidak ada peserta yang cocok untuk pencarian ini.' : 'Belum ada peserta.' }}</td>
+                            <td colspan="7" style="padding:24px;text-align:center;color:var(--text-faint);">{{ trim($participantSearch) !== '' ? 'Tidak ada peserta yang cocok untuk pencarian ini.' : 'Belum ada peserta.' }}</td>
                         </tr>
                     @endforelse
                 </tbody>

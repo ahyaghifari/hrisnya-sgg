@@ -107,6 +107,7 @@ class LmsCourseDetailPage extends Component
     public ?string $quizId = null;
     public ?int $quizDuration = null;
     public bool $quizIsGraduationRequirement = false;
+    public int $quizMinimumScore = 0;
 
     // Tab "Penilaian dan Gaji Pemateri" — pola picker sama seperti Pertemuan: course 1 hari
     // langsung preload satu-satunya pertemuan, course multi-pertemuan pilih dulu.
@@ -173,6 +174,40 @@ class LmsCourseDetailPage extends Component
         abort_unless(Auth::user()->can(CustomPermissionEnum::EDIT_DETAIL_KURSUS_LMS->value), 403);
     }
 
+    // Edit info dasar (judul, tipe peserta) - field lain tetap lewat admin.
+    public bool $showEditCourseModal = false;
+    public string $editTitle = '';
+    public string $editTypeNakes = 'all';
+
+    public function openEditCourse(): void
+    {
+        $this->assertCanEdit();
+
+        $this->editTitle = $this->course->title;
+        $this->editTypeNakes = $this->course->type_nakes ?? 'all';
+        $this->resetErrorBag();
+        $this->showEditCourseModal = true;
+    }
+
+    public function saveCourseInfo(): void
+    {
+        $this->assertCanEdit();
+
+        $validated = $this->validate([
+            'editTitle' => ['required', 'string', 'max:255'],
+            'editTypeNakes' => ['required', 'in:nakes,non-nakes,all'],
+        ]);
+
+        $this->course->update([
+            'title' => $validated['editTitle'],
+            'type_nakes' => $validated['editTypeNakes'],
+        ]);
+
+        $this->showEditCourseModal = false;
+
+        Notification::make()->title('Info pelatihan diperbarui')->success()->send();
+    }
+
     /** Approve/tolak pendaftaran peserta - permission approval sendiri (sama dipakai
      * PendingApprovalsCard di portal), bukan cuma yang boleh edit detail pelatihan - HC yang
      * cuma pegang izin approve tetap bisa approve dari halaman ini. */
@@ -208,6 +243,60 @@ class LmsCourseDetailPage extends Component
             ->with('user')
             ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q) => $q->searchName($search)))
             ->get();
+    }
+
+    /** Ada kuis penentu kelulusan di pelatihan ini — kolom "Lulus" di tab Peserta hanya bermakna kalau ya. */
+    public function getHasGraduationQuizProperty(): bool
+    {
+        return LmsMeetingQuizzes::where('is_graduation_requirement', true)
+            ->whereHas('meeting', fn ($q) => $q->where('course_id', $this->course->id))
+            ->exists();
+    }
+
+    /**
+     * Statistik per peserta untuk tab Peserta, keyed by user_id:
+     * - attendance: % pertemuan dengan absen masuk DAN pulang terisi, dari seluruh pertemuan.
+     * - quiz: % kuis (seluruh pertemuan) yang sudah dikerjakan peserta.
+     *
+     * @return array<string, array{attendance: int, quiz: int, quizDone: int, quizTotal: int}>
+     */
+    public function getParticipantStatsProperty(): array
+    {
+        $meetingIds = $this->course->meetings()->pluck('id');
+        $meetingTotal = $meetingIds->count();
+
+        $attended = LmsCourseMeetingUsers::where('course_id', $this->course->id)
+            ->where('absen_masuk', true)
+            ->where('absen_pulang', true)
+            ->whereIn('meeting_id', $meetingIds)
+            ->get(['user_id', 'meeting_id'])
+            ->groupBy('user_id')
+            ->map(fn ($rows) => $rows->pluck('meeting_id')->unique()->count());
+
+        $quizIds = LmsMeetingQuizzes::whereIn('meeting_id', $meetingIds)->pluck('id');
+        $quizTotal = $quizIds->count();
+
+        $done = LmsQuizResults::whereIn('meeting_quiz_id', $quizIds)
+            ->with('respondent:id,user_id')
+            ->get(['meeting_quiz_id', 'respondent_id'])
+            ->groupBy(fn ($result) => $result->respondent?->user_id)
+            ->map(fn ($rows) => $rows->pluck('meeting_quiz_id')->unique()->count());
+
+        $stats = [];
+
+        foreach ($this->allParticipants as $participant) {
+            $attendedCount = (int) ($attended[$participant->user_id] ?? 0);
+            $doneCount = (int) ($done[$participant->user_id] ?? 0);
+
+            $stats[$participant->user_id] = [
+                'attendance' => $meetingTotal > 0 ? (int) round($attendedCount / $meetingTotal * 100) : 0,
+                'quiz' => $quizTotal > 0 ? (int) round($doneCount / $quizTotal * 100) : 0,
+                'quizDone' => $doneCount,
+                'quizTotal' => $quizTotal,
+            ];
+        }
+
+        return $stats;
     }
 
     /** Sengaja tidak ikut $participantSearch — dipakai Mode Absensi supaya daftar peserta yang
@@ -332,6 +421,32 @@ class LmsCourseDetailPage extends Component
         app(CourseUserService::class)->markCompleted($participant, Auth::user());
 
         Notification::make()->title('Peserta ditandai selesai')->success()->send();
+    }
+
+    public ?string $notCompletedParticipantId = null;
+    public string $notCompletedReason = '';
+
+    public function openNotCompleted(string $id): void
+    {
+        $this->assertCanEdit();
+
+        $this->notCompletedParticipantId = $id;
+        $this->notCompletedReason = '';
+        $this->resetErrorBag();
+    }
+
+    public function saveNotCompleted(): void
+    {
+        $this->assertCanEdit();
+
+        $this->validate(['notCompletedReason' => ['required', 'string', 'max:1000']]);
+
+        $participant = LmsCourseUsers::where('course_id', $this->course->id)->findOrFail($this->notCompletedParticipantId);
+        app(CourseUserService::class)->markNotCompleted($participant, Auth::user(), $this->notCompletedReason);
+
+        $this->notCompletedParticipantId = null;
+
+        Notification::make()->title('Peserta ditandai tidak selesai')->success()->send();
     }
 
     public function unmarkParticipantCompleted(string $id): void
@@ -820,6 +935,7 @@ class LmsCourseDetailPage extends Component
         $this->quizId = null;
         $this->quizDuration = null;
         $this->quizIsGraduationRequirement = false;
+        $this->quizMinimumScore = 0;
         $this->resetErrorBag();
     }
 
@@ -851,6 +967,7 @@ class LmsCourseDetailPage extends Component
         $validated = $this->validate([
             'quizId' => ['required', 'exists:lms_quizzes,id'],
             'quizDuration' => ['required', 'integer', 'min:1'],
+            'quizMinimumScore' => [$this->quizIsGraduationRequirement ? 'required' : 'nullable', 'integer', 'min:0', 'max:100'],
         ]);
 
         $meeting = $this->course->meetings()->findOrFail($this->addingQuizForMeetingId);
@@ -859,6 +976,7 @@ class LmsCourseDetailPage extends Component
             'quiz_id' => $validated['quizId'],
             'duration' => $validated['quizDuration'],
             'is_graduation_requirement' => $this->quizIsGraduationRequirement,
+            'minimum_score' => $this->quizIsGraduationRequirement ? (int) $validated['quizMinimumScore'] : 0,
         ]);
 
         // Quiz bisa ditambah setelah publish (tidak wajib bareng) - generate token QR-nya
@@ -970,18 +1088,48 @@ class LmsCourseDetailPage extends Component
             ->get()
             ->keyBy('user_id');
 
-        $this->attendanceForm = $this->allParticipants->mapWithKeys(function ($participant) use ($existing) {
+        // Belum ada data absensi sama sekali di pertemuan ini -> semua peserta tercentang
+        // masuk & pulang dulu, L&D tinggal meng-uncentang yang tidak hadir.
+        $defaultChecked = $existing->isEmpty();
+
+        $this->attendanceForm = $this->allParticipants->mapWithKeys(function ($participant) use ($existing, $defaultChecked) {
             $row = $existing->get($participant->user_id);
+            $default = $defaultChecked && $this->canBeMarkedPresent($participant);
 
             return [$participant->user_id => [
-                'masuk' => (bool) $row?->absen_masuk,
-                'pulang' => (bool) $row?->absen_pulang,
+                'masuk' => $row ? (bool) $row->absen_masuk : $default,
+                'pulang' => $row ? (bool) $row->absen_pulang : $default,
                 'keterangan' => (string) ($row?->keterangan_kehadiran ?? ''),
             ]];
         })->all();
 
         $this->attendanceMeetingId = $meetingId;
         $this->attendanceSearch = '';
+    }
+
+    /** Peserta yang masih menunggu persetujuan / sudah dibatalkan tidak ikut dicentang otomatis. */
+    private function canBeMarkedPresent(LmsCourseUsers $participant): bool
+    {
+        return ! in_array($participant->status, [CourseUserStatus::REQUESTED->value, CourseUserStatus::CANCELED->value], true);
+    }
+
+    /** Centang semua masuk & pulang; kalau sudah tercentang semua, kosongkan semuanya. */
+    public function toggleAllAttendance(): void
+    {
+        abort_unless($this->canFillAttendance, 403);
+
+        $userIds = $this->allParticipants
+            ->filter(fn ($participant) => $this->canBeMarkedPresent($participant))
+            ->pluck('user_id');
+
+        $allChecked = $userIds->every(
+            fn ($id) => ($this->attendanceForm[$id]['masuk'] ?? false) && ($this->attendanceForm[$id]['pulang'] ?? false)
+        );
+
+        foreach ($userIds as $id) {
+            $this->attendanceForm[$id]['masuk'] = ! $allChecked;
+            $this->attendanceForm[$id]['pulang'] = ! $allChecked;
+        }
     }
 
     public function closeAttendanceMode(): void

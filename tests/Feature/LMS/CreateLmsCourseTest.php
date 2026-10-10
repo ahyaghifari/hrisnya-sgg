@@ -50,7 +50,6 @@ class CreateLmsCourseTest extends TestCase
             'code' => 'TRN-001',
             'title' => 'Pelatihan Uji',
             'type_nakes' => 'all',
-            'minimum_score' => 80,
             'competencyIds' => [$competency->id],
         ];
     }

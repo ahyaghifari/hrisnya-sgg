@@ -116,16 +116,7 @@ class LmsCoursesForm
                                 ->default('internal')
                                 ->required(),
 
-                            TextInput::make('minimum_score')
-                                ->label('Skor Minimum Kelulusan')
-                                ->numeric()
-                                ->default(0)
-                                ->required()
-                                ->helperText('Masukkan skor minimum yang harus dicapai peserta untuk lulus pelatihan.'),
-
-                            DatePicker::make('due_date')
-                                ->label('Batas Waktu Penyelesaian')
-                                ->helperText('Opsional. Peserta yang lewat tanggal ini belum selesai akan ditandai "Terlambat" — tidak diblokir, cuma penanda.'),
+                            // ponytail: due_date disembunyikan sementara (tampil lagi = kembalikan DatePicker 'due_date').
 
                             Select::make('competencies')
                                 ->label('Kompetensi Terkait')

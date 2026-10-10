@@ -4,7 +4,6 @@ namespace App\Livewire\Pelatihan;
 
 use App\Enum\CourseUserStatus;
 use App\Models\LMS\LmsMeetingQuizzes;
-use App\Models\LMS\LmsQuizAnswers;
 use App\Models\LMS\LmsQuizResults;
 use App\Models\LMS\LmsRespondent;
 use App\Repositories\LMS\CourseUserRepository;
@@ -38,9 +37,6 @@ class QuizAttempt extends Component
     /** @var array<string, string> question_id => option_id */
     public array $answers = [];
 
-    /** @var array<int, array{question_text: string, is_correct: bool, selected_option_id: ?string, options: array}> */
-    public array $review = [];
-
     public function mount(LmsMeetingQuizzes $meetingQuiz): void
     {
         $meetingQuiz->load('meeting.course.category', 'meeting.trainer', 'quiz');
@@ -66,7 +62,6 @@ class QuizAttempt extends Component
 
         if ($existingResult) {
             $this->result = $existingResult;
-            $this->review = $this->buildReview($meetingQuiz->id);
 
             return;
         }
@@ -129,28 +124,6 @@ class QuizAttempt extends Component
         return $palette[crc32($categoryName) % count($palette)];
     }
 
-    // Detail per soal buat halaman hasil: pilihan user, benar/salah, dan opsi mana yang benar.
-    protected function buildReview(string $meetingQuizId): array
-    {
-        return LmsQuizAnswers::where('meeting_quiz_id', $meetingQuizId)
-            ->where('respondent_id', $this->respondentId)
-            ->with('question.options')
-            ->get()
-            ->filter(fn ($answer) => $answer->question && $answer->question->type !== 'essay')
-            ->map(fn ($answer) => [
-                'question_text' => $answer->question->question,
-                'is_correct' => (bool) $answer->is_correct,
-                'selected_option_id' => $answer->user_answer,
-                'options' => $answer->question->options->map(fn ($option) => [
-                    'id' => $option->id,
-                    'text' => $option->option_text,
-                    'is_correct' => (bool) $option->is_correct,
-                ])->values()->all(),
-            ])
-            ->values()
-            ->all();
-    }
-
     public function selectAnswer(string $questionId, string $optionId): void
     {
         $this->answers[$questionId] = $optionId;
@@ -181,7 +154,6 @@ class QuizAttempt extends Component
         app(QuizService::class)->submitQuiz($this->meetingQuiz->id, $payload, $this->respondentId, Auth::id());
 
         $this->result = app(QuizRepository::class)->findUserResultByMeetingQuizId($this->meetingQuiz->id, $this->respondentId);
-        $this->review = $this->buildReview($this->meetingQuiz->id);
         $this->questions = [];
         Session::forget($this->sessionKey());
 
@@ -189,6 +161,9 @@ class QuizAttempt extends Component
             ->title('Kuis berhasil dikirim')
             ->success()
             ->send();
+
+        // View: scroll ke hasil di atas, lalu 5 detik kemudian balik ke detail pelatihan.
+        $this->dispatch('quiz-submitted', url: route('pelatihan.show', ['course' => $this->meetingQuiz->meeting->course_id]));
     }
 
     public function render()
