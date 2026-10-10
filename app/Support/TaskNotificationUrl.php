@@ -31,6 +31,11 @@ class TaskNotificationUrl
             return route('documents.sign', $data['document_sign_id']);
         }
 
+        // Undangan (klarifikasi, coaching, dst.) -> halaman baca-saja undangan.
+        if (! empty($data['invitation_url'])) {
+            return $data['invitation_url'];
+        }
+
         // Perkembangan Berita Acara (non-tanda-tangan) -> URL halaman BA yang relevan untuk penerimanya.
         if (! empty($data['sp_report_url'])) {
             return $data['sp_report_url'];

@@ -1,4 +1,4 @@
-﻿<div>
+<div>
     <x-page-header title="Notifikasi" subtitle="{{ $this->unreadCount > 0 ? $this->unreadCount . ' belum dibaca' : 'Semua sudah dibaca' }}" />
 
     @if ($this->unreadCount > 0)
@@ -14,11 +14,12 @@
             <div
                 wire:click="markAsRead('{{ $notification->id }}')"
                 class="pwa-list-row"
-                style="align-items:flex-start;cursor:pointer;{{ ($notification->data['request_type'] ?? null) === 'task' ? 'border-left:3px solid var(--brand);' : '' }}{{ $notification->read_at ? '' : 'background:var(--surface-alt, rgba(4,44,108,0.04));' }}"
+                style="align-items:flex-start;cursor:pointer;{{ ($notification->data['request_type'] ?? null) === 'task' ? 'border-left:3px solid var(--brand);' : (($notification->data['request_type'] ?? null) === 'invitation' ? 'border-left:3px solid #8B5CF6;' : '') }}{{ $notification->read_at ? '' : 'background:var(--surface-alt, rgba(4,44,108,0.04));' }}"
             >
                 <div style="width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;background:{{ $notification->read_at ? 'transparent' : '#ef4444' }};"></div>
                 <div style="flex:1;min-width:0;">
                     <x-notification-task-badge :data="$notification->data" />
+                            <x-notification-invitation-badge :data="$notification->data" />
                     <div style="font-size:13.5px;font-weight:700;color:var(--text-body);">{{ $notification->data['title'] ?? 'Notifikasi' }}</div>
                     <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">{{ $notification->data['body'] ?? '' }}</div>
                     @if (! empty($notification->data['context']))<div style="font-size:11.5px;color:var(--brand);font-weight:600;margin-top:2px;">{{ $notification->data['context'] }}</div>@endif
