@@ -32,10 +32,10 @@ class AttendanceRecordRepository
             'meets_target'        => $data['meets_target'] ?? null,
             'out_of_window'       => $data['out_of_window'] ?? false,
         ];
-        
-        // Log the data being saved
-        \Illuminate\Support\Facades\Log::info("Repository saving: NIP={$data['nip']}, Date={$data['date']}", $recordData);
-        
+
+        // Sengaja TIDAK ada log per-simpan di sini: dipanggil tiap scan oleh cron presensi dan
+        // memenuhi laravel.log. Jejak presensi ada di channel `attendance_sync`
+        // (SyncAccessLogsAttendance / SweepMissedAccessLogs).
         return AttendanceRecords::updateOrCreate(
             [
                 'nip'  => $data['nip'],

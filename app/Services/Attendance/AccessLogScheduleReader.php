@@ -4,18 +4,27 @@ namespace App\Services\Attendance;
 
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequestOvertimeDetails;
-use App\Models\Master\Attendance\AttendanceDevice;
-use App\Models\Shift\ScheduleShiftType;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Tahap 1-4 pipeline access_logs -> jadwal: baca access_logs, cari user (batch), pasangkan
- * check-in/check-out per (user, tanggal shift) lewat pairScansForEmployee(), cari jadwal per
- * (user, tanggal) lewat ScheduleResolver, lalu kelompokkan per tipe jadwal (fixed/flexible/shift)
- * supaya masing2 diserahkan ke calculator-nya sendiri (lihat App\Services\Attendance\Calculators\*).
+ * Pintu masuk pipeline access_logs -> jadwal. Tugasnya HANYA: ambil, rapikan, cocokkan NIP,
+ * cek device, ketahui tipe jadwal, lalu kelompokkan ke calculator-nya.
+ *
+ *   1. ambil baris access_logs                      (watermark untuk cron, rentang tanggal untuk hitung ulang)
+ *   2. buang tap ganda                              (AccessLogScanReader)
+ *   3. cocokkan NIP -> user
+ *   4. cek device per user & per scan               (AccessLogScanReader)
+ *   5. tipe jadwal user per tanggal                 (ScheduleResolver)
+ *        - Fixed/Flexible: scan pertama/terakhir hari itu langsung ke calculator-nya
+ *          (tidak ada shift lewat tengah malam; masuk-tanpa-pulang / pulang-tanpa-masuk
+ *          diputuskan calculator, bukan di sini)
+ *        - Shift (atau roster kosong): SELURUHNYA ShiftAttendanceReader - termasuk extra shift,
+ *          shift menyambung/terpisah, dan scan konteks kemarin/besok.
+ *
+ * Reader ini TIDAK memvalidasi shift. Cron (readAndGroupIncremental) hanya memakai scan baru
+ * (> watermark) buat menentukan (nip, tanggal) mana yang perlu dihitung; hari itu dibaca penuh.
  *
  * ponytail: effective_from/effective_until pada ScheduleAssignment sengaja DIABAIKAN di sini
  * (lihat parameter $ignoreEffectiveDate di ScheduleResolver) - keputusan eksplisit user untuk
@@ -24,59 +33,19 @@ use Illuminate\Support\Facades\DB;
  */
 class AccessLogScheduleReader
 {
-    /**
-     * Dua scan (nip, tanggal) yang jaraknya <= sekian DETIK dianggap SATU tap fisik - device
-     * fingerprint/kartu sering mencatat 1 tap jadi 2-3 baris berselang 1-2 detik. Tanpa ini, tap
-     * ganda pas jam masuk langsung jadi pasangan check-in + check-out berdurasi ~0 (dilaporkan
-     * user 2026-09-22: jadwal Shift masih kena, karena ScheduleShiftType tidak punya
-     * min_work_minutes seperti Fixed/Flexible - jadi pagarnya harus di level scan mentah).
-     *
-     * 60 detik: jauh di atas pantulan device (1-2 detik), tapi masih jauh DI BAWAH jarak scan sah
-     * paling rapat yang mungkin (check-in vs check-out, atau pulang shift normal lalu masuk extra
-     * shift - menit-an, bukan detik).
-     */
-    private const DUPLICATE_SCAN_SECONDS = 60;
-
     public function __construct(
         private ScheduleResolver $scheduleResolver,
         private ShiftAttendanceReader $shiftReader,
+        private AccessLogScanReader $scans,
     ) {}
 
     /**
-     * Buang scan yang cuma pantulan tap sebelumnya (lihat DUPLICATE_SCAN_SECONDS). Baris PERTAMA
-     * tiap rentetan yang dipertahankan - itu waktu tap sebenarnya; sisanya dibuang.
+     * Baca ulang [fromDate, toDate] (opsional 1 NIP) - aman diulang berapa kali pun. $fromTime
+     * (format "H:i:s") - dipakai sync manual RekapPresensiPage buat abaikan scan sebelum jam
+     * tertentu (mis. scan test/salah sebelum device benar2 online), BUKAN dipakai cron.
      *
-     * @param  Collection  $rows  baris access_logs mentah, HARUS sudah urut access_datetime
-     */
-    private function dropRepeatedTaps(Collection $rows): Collection
-    {
-        return $rows
-            ->groupBy(fn ($row) => $row->employee_id . '|' . $row->access_date)
-            ->map(function (Collection $rowsForDay) {
-                $kept = collect();
-                $lastKeptAt = null;
-
-                foreach ($rowsForDay as $row) {
-                    $at = Carbon::parse($row->access_date . ' ' . $row->access_time);
-
-                    if ($lastKeptAt !== null && $lastKeptAt->diffInSeconds($at) <= self::DUPLICATE_SCAN_SECONDS) {
-                        continue;
-                    }
-
-                    $kept->push($row);
-                    $lastKeptAt = $at;
-                }
-
-                return $kept;
-            })
-            ->flatten(1)
-            ->sortBy(fn ($row) => $row->access_date . ' ' . $row->access_time)
-            ->values();
-    }
-
-    /**
      * @return array{
-     *     buckets: array{fixed: array, flexible: array, shift: array, off: array, extra_shift: array},
+     *     buckets: array{fixed: array, flexible: array, shift: array, off: array, extra_shift: array, overtime: array},
      *     unmatched_users: array<string,int>,
      *     unresolved_schedule: array,
      *     rejected_device: array,
@@ -84,21 +53,29 @@ class AccessLogScheduleReader
      */
     public function readAndGroup(string $fromDate, string $toDate, ?string $nip = null, ?string $fromTime = null): array
     {
-        [$entries, $unmatchedUsers] = $this->readAndGroupScans($fromDate, $toDate, $nip, $fromTime);
+        $query = DB::table('access_logs')->whereBetween('access_date', [$fromDate, $toDate]);
+        if ($nip) {
+            $query->where('employee_id', $nip);
+        }
+        if ($fromTime) {
+            $query->where('access_time', '>=', $fromTime);
+        }
 
-        return $this->groupAndBucket($entries, $unmatchedUsers);
+        return $this->process($query->orderBy('access_datetime')->get());
     }
 
     /**
-     * Versi incremental - cuma baca access_logs yang access_datetime-nya lebih baru dari
-     * $sinceDatetime (dipakai App\Console\Commands\SyncAccessLogsAttendance tiap menit, lihat
-     * App\Models\Attendance\SyncAccessLog buat watermark-nya), bukan scan ulang seluruh hari
-     * setiap kali dipanggil. Baris check_in/check_out yang sudah tercatat di attendance_records
-     * dari batch sebelumnya di-merge (min buat check_in, max buat check_out) supaya scan baru
-     * yang notabene check-out tidak menimpa check_in yang sudah benar dari batch sebelumnya.
+     * Versi cron: scan baru (access_datetime > $sinceDatetime) hanya dipakai buat MENENTUKAN
+     * (nip, tanggal) yang perlu dihitung ulang - tiap scan baru selalu diperiksa, tidak ada yang
+     * ditolak kecuali tap ganda. Hari itu dibaca PENUH dari access_logs (scan lama hari yang sama
+     * ikut), lalu lewat alur yang sama persis dengan readAndGroup().
+     *
+     * Entri fixed/flexible/shift membawa is_new_checkin/is_new_checkout (dibanding baris
+     * tersimpan) buat notifikasi sekali per event. Baris yang sudah dikoreksi manual
+     * (is_auto_calculated=false) dilengkapi, bukan ditimpa.
      *
      * @return array{
-     *     buckets: array{fixed: array, flexible: array, shift: array, off: array, extra_shift: array},
+     *     buckets: array{fixed: array, flexible: array, shift: array, off: array, extra_shift: array, overtime: array},
      *     unmatched_users: array<string,int>,
      *     unresolved_schedule: array,
      *     rejected_device: array,
@@ -107,92 +84,147 @@ class AccessLogScheduleReader
      */
     public function readAndGroupIncremental(?string $sinceDatetime): array
     {
-        [$rawEntries, $unmatchedUsers, $maxSyncedAt] = $this->readAndGroupScansIncremental($sinceDatetime);
+        $query = DB::table('access_logs');
+        if ($sinceDatetime) {
+            $query->where('access_datetime', '>', $sinceDatetime);
+        }
 
-        return $this->groupAndBucket($rawEntries, $unmatchedUsers) + ['max_synced_at' => $maxSyncedAt];
+        $newRows = $query->orderBy('access_datetime')->get(['employee_id', 'access_date', 'access_datetime']);
+
+        if ($newRows->isEmpty()) {
+            return $this->emptyResult() + ['max_synced_at' => null];
+        }
+
+        // Watermark dihitung dari baris MENTAH (sebelum tap ganda dibuang) - kalau dihitung dari
+        // hasil dedup, baris yang dibuang akan kebaca ulang terus tiap run berikutnya.
+        $maxSyncedAt = $newRows->max('access_datetime');
+
+        $touchedKeys = [];
+        foreach ($newRows as $row) {
+            $touchedKeys[$row->employee_id . '|' . $row->access_date] = true;
+        }
+
+        // Semua scan hari (nip, tanggal) yang tersentuh - bukan cuma yang baru.
+        $rows = DB::table('access_logs')
+            ->whereIn('employee_id', $newRows->pluck('employee_id')->unique()->values())
+            ->whereIn('access_date', $newRows->pluck('access_date')->unique()->values())
+            ->orderBy('access_datetime')
+            ->get()
+            ->filter(fn ($row) => isset($touchedKeys[$row->employee_id . '|' . $row->access_date]))
+            ->values();
+
+        $result = $this->process($rows);
+
+        // Jadwal tak ketemu cuma dikabari untuk hari yang BENAR2 kena scan baru, bukan tiap kali
+        // hari kemarin ikut dihitung ulang oleh ShiftAttendanceReader.
+        $result['unresolved_schedule'] = array_values(array_filter(
+            $result['unresolved_schedule'],
+            fn (array $e) => isset($touchedKeys[$e['employee_id'] . '|' . $e['date']]),
+        ));
+
+        $result['buckets'] = $this->completeWithStoredRecords($result['buckets']);
+
+        return $result + ['max_synced_at' => $maxSyncedAt];
     }
 
-    /**
-     * Tahap 3-4: cek device + resolusi jadwal per entri (yang sudah dipasangkan check-in/
-     * check-out-nya, sudah bawa 'user'), lalu kelompokkan ke bucket per tipe jadwal.
-     *
-     * Hari yang punya extra shift approved DILEWATI dari resolusi jadwal normal sama sekali,
-     * langsung masuk bucket 'extra_shift' (config-nya shift_type dari ExtraShiftAssignment) -
-     * reader di sini cuma nentuin ADA/TIDAKNYA extra shift, bukan tempatnya validasi jam. Cek
-     * "pasangan check-in/check-out ini beneran extra shift atau ternyata cuma shift normal
-     * (belum lewat jam mulai extra)" ada di sisi konsumen bucket ini, lihat
-     * SyncAccessLogsAttendance::isGenuineExtraShiftScan() - kalau ternyata tidak valid, boleh
-     * saja dicek ulang ke ScheduleResolver dari sana, tidak masalah.
-     */
-    private function groupAndBucket(array $entriesWithUser, array $unmatchedUsers): array
+    /** Alur inti: dari baris access_logs mentah (urut access_datetime) sampai bucket. */
+    private function process(Collection $rawRows): array
     {
-        $buckets = ['fixed' => [], 'flexible' => [], 'shift' => [], 'off' => [], 'extra_shift' => [], 'overtime' => []];
-        $unresolvedSchedule = [];
-        $rejectedDevice = [];
-        $devicesByCompany = [];
-        $extraShiftsByUserDate = $this->shiftReader->findForEntries($entriesWithUser);
-        $overtimeKeys = $this->overtimeUserDates($entriesWithUser);
+        $rows = $this->scans->dropRepeatedTaps($rawRows);
 
-        foreach ($entriesWithUser as $entry) {
-            // Device tidak dikenal/beda company -> blokir total, jangan sampai ikut
-            // dihitung/disimpan ke attendance_records (pola sama dengan unresolved_schedule).
-            if ($this->hasUnrecognizedDevice($entry, $devicesByCompany)) {
-                $rejectedDevice[] = $entry;
-                continue;
-            }
+        [$withUser, $unmatchedUsers] = $this->resolveUsersForRows($rows);
+        [$withUser, $rejectedDevice] = $this->scans->splitRejectedDevices($withUser);
 
-            // Tipe jadwal DULU, baru extra shift - bukan sebaliknya (instruksi user 2026-09-13).
-            // Fixed/Flexible TIDAK PERNAH punya konsep extra shift (lihat
-            // ResolvesExtraShiftOptions::resolveNormalShift() - basisnya cuma jadwal tipe Shift,
-            // atau 'libur' buat member Shift yang roster-nya kosong), jadi begitu ketahuan
-            // tipenya Fixed/Flexible, langsung ke calculator masing2 tanpa pernah mampir cek
-            // extra shift sama sekali - biar tidak ada celah baris ExtraShiftAssignment nyasar
-            // (mis. diinput manual/salah) ikut membajak routing user Fixed/Flexible.
-            $resolved = $this->scheduleResolver->resolveForUserDate($entry['user'], $entry['date'], ignoreEffectiveDate: true);
+        $entries = [];
 
-            if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
-                // Hari libur jadwal: ada pengajuan lembur -> bukti lembur, selain itu bucket 'off'
-                // (tidak disimpan) - tidak pernah dihitung masuk/telat.
-                if ($resolved['is_off_day'] ?? false) {
-                    $offBucket = isset($overtimeKeys[$entry['user']->id . '|' . $entry['date']]) ? 'overtime' : 'off';
-                    $buckets[$offBucket][] = array_merge($entry, $resolved);
+        foreach ($withUser->groupBy('employee_id') as $userRows) {
+            $user = $userRows->first()->user;
+            $shiftDates = [];
+
+            foreach ($userRows->groupBy('access_date') as $date => $dayScans) {
+                $resolved = $this->scheduleResolver->resolveForUserDate($user, (string) $date, ignoreEffectiveDate: true);
+
+                if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
+                    $entries[] = $this->pairPlain($user, (string) $date, $dayScans, $resolved);
+
                     continue;
                 }
 
-                $buckets[$resolved['type']][] = array_merge($entry, $resolved);
-                continue;
+                // Shift, atau jadwal kosong/gagal ('libur' - tetap boleh extra shift).
+                $shiftDates[] = (string) $date;
             }
 
-            // Sampai sini: tipe Shift, ATAU resolusi gagal (unresolved - termasuk kasus roster
-            // kosong yang tetap boleh extra shift, basis kategori 'libur') - extra shift baru
-            // relevan diperiksa di sini.
-            $extraShift = $extraShiftsByUserDate->get($entry['user']->id . '|' . $entry['date']);
-
-            // extra_shift_handled - pairScansForEmployee() sudah misahin pasangan normal dari
-            // pasangan extra shift-nya sendiri (kasus overnight/nempel, lihat komentar di sana),
-            // entry ini murni pasangan normal, jangan dianggap extra shift lagi di sini.
-            if ($extraShift && empty($entry['extra_shift_handled'])) {
-                $entry['config'] = $extraShift->shiftType;
-                $entry['extra_shift_assignment_id'] = $extraShift->id;
-                $buckets['extra_shift'][] = $entry;
-                continue;
+            if ($shiftDates !== []) {
+                $entries = array_merge($entries, $this->shiftReader->read($user, $shiftDates));
             }
-
-            if (! $resolved) {
-                $unresolvedSchedule[] = $entry;
-                continue;
-            }
-
-            $entry = array_merge($entry, $resolved);
-            $buckets[$resolved['is_off_day'] ? 'off' : $resolved['type']][] = $entry;
         }
 
+        return $this->bucket($entries, $unmatchedUsers, $rejectedDevice);
+    }
+
+    /**
+     * Fixed/Flexible: scan pertama = masuk, scan terakhir = pulang (kalau >1 scan). Scan tunggal
+     * dibiarkan jadi jam masuk saja - calculator yang memutuskan apakah itu sebenarnya pulang
+     * (FixedScheduleCalculator, scan tunggal setelah jam pulang). Hari libur jadwal: bukti lembur
+     * kalau ada pengajuan (diputuskan di bucket()), selain itu 'off' (tidak disimpan).
+     */
+    private function pairPlain(User $user, string $date, Collection $dayScans, array $resolved): array
+    {
+        $off = (bool) ($resolved['is_off_day'] ?? false);
+
+        return array_merge([
+            'employee_id'  => $user->nip,
+            'date'         => $date,
+            'check_in'     => $dayScans->first()->access_time,
+            'check_out'    => $dayScans->count() > 1 ? $dayScans->last()->access_time : null,
+            'scan_count'   => $dayScans->count(),
+            'device_names' => $dayScans->pluck('device_name')->filter()->unique()->values()->all(),
+            'user'         => $user,
+        ], $resolved, [
+            'bucket'             => $off ? 'off' : $resolved['type'],
+            'overtime_candidate' => $off,
+        ]);
+    }
+
+    private function emptyResult(): array
+    {
         return [
-            'buckets' => $buckets,
-            'unmatched_users' => $unmatchedUsers,
-            'unresolved_schedule' => $unresolvedSchedule,
-            'rejected_device' => $rejectedDevice,
+            'buckets' => ['fixed' => [], 'flexible' => [], 'shift' => [], 'off' => [], 'extra_shift' => [], 'overtime' => []],
+            'unmatched_users' => [],
+            'unresolved_schedule' => [],
+            'rejected_device' => [],
         ];
+    }
+
+    /**
+     * Tahap terakhir: entri sudah membawa 'bucket' (diputuskan saat pairing). Satu-satunya yang
+     * ditambahkan di sini: hari libur jadwal Fixed/Flexible yang punya pengajuan lembur aktif
+     * (menunggu/disetujui) jadi bukti lembur, bukan 'off'.
+     */
+    private function bucket(array $entries, array $unmatchedUsers, array $rejectedDevice): array
+    {
+        $result = $this->emptyResult();
+        $overtimeKeys = $this->overtimeUserDates(array_filter($entries, fn ($e) => ! empty($e['overtime_candidate'])));
+
+        foreach ($entries as $entry) {
+            $bucket = $entry['bucket'];
+
+            if ($bucket === 'unresolved_schedule') {
+                $result['unresolved_schedule'][] = $entry;
+                continue;
+            }
+
+            if (! empty($entry['overtime_candidate']) && isset($overtimeKeys[$entry['user']->id . '|' . $entry['date']])) {
+                $bucket = 'overtime';
+            }
+
+            $result['buckets'][$bucket][] = $entry;
+        }
+
+        $result['unmatched_users'] = $unmatchedUsers;
+        $result['rejected_device'] = $rejectedDevice;
+
+        return $result;
     }
 
     /**
@@ -219,576 +251,65 @@ class AccessLogScheduleReader
     }
 
     /**
-     * Tahap 1-2: ambil access_logs, cari User per employee_id, lalu pasangkan check-in/check-out
-     * per (user, tanggal shift) lewat pairScansForEmployee() - lihat docblock method itu untuk
-     * kenapa tidak bisa sekadar "scan pertama/terakhir per access_date". $fromTime (format
-     * "H:i:s") - dipakai sync manual RekapPresensiPage buat abaikan scan sebelum jam tertentu
-     * (mis. scan test/salah sebelum device benar2 online), BUKAN dipakai pipeline otomatis
-     * (SyncAccessLogsAttendance selalu null di sini).
+     * Pelengkap khusus cron: bawa is_new_checkin/is_new_checkout (dibanding baris attendance_records
+     * yang sudah tersimpan) buat notifikasi sekali per event, dan - kalau baris itu hasil koreksi
+     * manual/impor (is_auto_calculated=false) - pertahankan jam masuk yang lebih awal & jam pulang
+     * yang lebih akhir.
      *
-     * @return array{0: array, 1: array<string,int>} [entries (bawa 'user'), unmatched_users]
+     * @param  array<string, array<int, array>>  $buckets
+     * @return array<string, array<int, array>>
      */
-    private function readAndGroupScans(string $fromDate, string $toDate, ?string $nip, ?string $fromTime = null): array
+    private function completeWithStoredRecords(array $buckets): array
     {
-        $query = DB::table('access_logs')->whereBetween('access_date', [$fromDate, $toDate]);
-        if ($nip) {
-            $query->where('employee_id', $nip);
-        }
-        if ($fromTime) {
-            $query->where('access_time', '>=', $fromTime);
-        }
+        $types = ['fixed', 'flexible', 'shift'];
+        $entries = collect($types)->flatMap(fn ($type) => $buckets[$type]);
 
-        $rows = $this->dropRepeatedTaps($query->orderBy('access_datetime')->get());
-
-        [$withUser, $unmatchedUsers] = $this->resolveUsersForRows($rows);
-
-        $entries = [];
-        foreach ($withUser->groupBy('employee_id') as $rowsForEmployee) {
-            $entries = array_merge($entries, $this->pairScansForEmployee($rowsForEmployee->first()->user, $rowsForEmployee));
+        if ($entries->isEmpty()) {
+            return $buckets;
         }
 
-        return [$entries, $unmatchedUsers];
-    }
-
-    /**
-     * Pasangkan scan check-in/check-out 1 karyawan per tanggal SHIFT (bukan per tanggal kalender
-     * scan-nya) - shift yang melewati tengah malam (mis. 23:00-08:00) bikin scan check-out jatuh
-     * di access_date BESOK, bukan hari yang sama dengan check-in-nya. Kalau cuma dikelompokkan
-     * per access_date mentah (cara lama), scan check-out itu jadi entri terpisah dan salah dibaca
-     * sebagai check-in untuk tanggal besok. Di sini: kalau tanggal itu cuma py 1 scan DAN jadwal
-     * shift-nya is_overnight=true, scan pertama tanggal besoknya "dipinjam" jadi check-out hari
-     * ini (dan tidak dipakai lagi buat entri tanggal besok itu sendiri).
-     *
-     * @return array<int, array{employee_id: string, date: string, check_in: string, check_out: ?string, scan_count: int, device_names: array, user: User}>
-     */
-    private function pairScansForEmployee(User $user, Collection $rows): array
-    {
-        $byDate = $rows->groupBy('access_date');
-        $dates  = $byDate->keys()->sort()->values();
-
-        $consumedFirstScan = [];
-        $entries = [];
-
-        foreach ($dates as $date) {
-            $dayScans = $byDate->get($date);
-            if (! empty($consumedFirstScan[$date]) && ! $this->borrowedScanIsAlsoCheckIn($user, $date, $dayScans)) {
-                $dayScans = $dayScans->slice(1)->values();
-            }
-
-            // Scan pertama pagi ini = pulang shift lewat tengah malam KEMARIN yang lupa scan masuk
-            // (kemarin tidak menghasilkan entri) - bukan jam masuk hari ini.
-            if ($dayScans->isNotEmpty() && empty($consumedFirstScan[$date])
-                && ($checkoutOnly = $this->overnightCheckoutOnlyEntry($user, $date, $dayScans->first(), array_column($entries, 'date')))) {
-                $entries[] = $checkoutOnly;
-                $consumedFirstScan[$date] = true;
-                $dayScans = $dayScans->slice(1)->values();
-            }
-
-            if ($dayScans->isEmpty()) {
-                continue;
-            }
-
-            // Tipe jadwal DULU (instruksi user 2026-09-13, sama pola dengan groupAndBucket()) -
-            // Fixed/Flexible dipasangkan polos di sini (tidak ada extra shift/overnight sama
-            // sekali buat 2 tipe itu). Shift (ATAU resolusi kosong/gagal - basis 'libur', tetap
-            // boleh extra shift) LANGSUNG diserahkan sepenuhnya ke ShiftAttendanceReader -
-            // reader di sini tidak pegang aturan bisnis shift apa pun lagi.
-            $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
-
-            if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
-                $checkIn     = $dayScans->first()->access_time;
-                $deviceNames = $dayScans->pluck('device_name')->filter()->unique()->values();
-                $checkOut    = null;
-
-                if ($dayScans->count() > 1) {
-                    $checkOut = $dayScans->last()->access_time;
-                } elseif ($this->singleScanIsCheckout($user, $date, $checkIn)) {
-                    // Scan tunggal ini waktunya sudah masuk jam pulang jadwal Fixed - karyawan
-                    // kemungkinan lupa/lewat scan masuk paginya, bukan berarti dia scan masuk pas
-                    // jam pulang. Diperlakukan sebagai check-out saja (check_in tetap kosong),
-                    // tetap dihitung hadir - lihat FixedScheduleCalculator untuk kelanjutannya.
-                    $checkOut = $checkIn;
-                    $checkIn  = null;
-                }
-
-                $entries[] = [
-                    'employee_id'  => $user->nip,
-                    'date'         => $date,
-                    'check_in'     => $checkIn,
-                    'check_out'    => $checkOut,
-                    'scan_count'   => $dayScans->count(),
-                    'device_names' => $deviceNames->all(),
-                    'user'         => $user,
-                ];
-
-                continue;
-            }
-
-            $normalConfig = ($resolved && $resolved['type'] === 'shift' && ! ($resolved['is_off_day'] ?? false))
-                ? $resolved['config']
-                : null;
-
-            $entries = array_merge($entries, $this->shiftReader->pairDay($user, $date, $dayScans, $normalConfig, $byDate, $consumedFirstScan));
-        }
-
-        return $entries;
-    }
-
-    /**
-     * Scan pertama hari ini yang sudah "dipinjam" jadi pulang shift lewat tengah malam kemarin
-     * TETAP jam masuk hari ini kalau jatuh di jendela masuk shift hari ini (normal/extra) dan hari
-     * ini masih ada scan lain (bukti dia memang kerja) - mis. malam kemarin selesai 08:00, pagi ini
-     * masuk Pagi 08:00 + extra Siang: 1 scan 08:00 dipakai dua kali, cuma 2 scan (08:00 & 20:00).
-     * Hari ini cuma punya scan itu saja = tetap murni pulang shift semalam (bukan masuk).
-     */
-    private function borrowedScanIsAlsoCheckIn(User $user, string $date, Collection $dayScans): bool
-    {
-        if ($dayScans->count() < 2) {
-            return false;
-        }
-
-        $scanTime = $dayScans->first()->access_time;
-        $configs = [$this->normalShiftConfigFor($user, $date), $this->shiftReader->find($user, $date)?->shiftType];
-
-        foreach ($configs as $config) {
-            if ($config && ! $config->is_overnight
-                && ! $this->shiftReader->isBeforeCheckInWindow($scanTime, $config)
-                && $scanTime < $config->end_time) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /** Termasuk overnight kalau jadwal NORMAL hari itu overnight, ATAU extra shift approved
-     * hari itu overnight - dua-duanya berhak "minjem" scan pertama besok jadi check-out. Dipakai
-     * jalur incremental (lookback checkout shift semalam) - jalur batch sudah lewat
-     * ShiftAttendanceReader::pairDay() sepenuhnya, tidak butuh method ini lagi. */
-    public function isOvernightShiftDay(User $user, string $date): bool
-    {
-        $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
-
-        if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
-            return false;
-        }
-
-        if ($resolved && $resolved['type'] === 'shift' && ! ($resolved['is_off_day'] ?? false) && ($resolved['config']->is_overnight ?? false)) {
-            return true;
-        }
-
-        return $this->shiftReader->isOvernight($user, $date);
-    }
-
-    /** Config shift lewat tengah malam yang berlaku di tanggal itu (normal, atau extra shift
-     * approved), null kalau tidak ada. Versi bentuk-config dari isOvernightShiftDay(). */
-    private function overnightConfigFor(User $user, string $date): ?ScheduleShiftType
-    {
-        $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
-
-        if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
-            return null;
-        }
-
-        if ($resolved && $resolved['type'] === 'shift' && ! ($resolved['is_off_day'] ?? false) && ($resolved['config']->is_overnight ?? false)) {
-            return $resolved['config'];
-        }
-
-        $extra = $this->shiftReader->find($user, $date)?->shiftType;
-
-        return $extra && $extra->is_overnight ? $extra : null;
-    }
-
-    /**
-     * Shift lewat tengah malam KEMARIN tanpa satu pun scan masuk (lupa absen), dan $scan (scan
-     * pertama tanggal ini) jelas scan pulangnya: lebih dekat ke jam selesai shift itu daripada ke
-     * jam mulainya, dan belum masuk jendela check-in jadwal tanggal ini sendiri. Hasil: entri
-     * KEMARIN dengan check_in kosong + check_out = scan ini (tetap hadir, seperti Fixed). Null
-     * kalau bukan kasus itu - scan tetap dibaca sebagai masuk tanggal ini.
-     *
-     * @param  array<int, string>  $producedDates  tanggal yang sudah punya entri di pairing ini
-     */
-    private function overnightCheckoutOnlyEntry(User $user, string $date, object $scan, array $producedDates): ?array
-    {
-        $prev = Carbon::parse($date)->subDay()->toDateString();
-
-        if (in_array($prev, $producedDates, true)) {
-            return null;
-        }
-
-        $prevConfig = $this->overnightConfigFor($user, $prev);
-
-        if (! $prevConfig || ! $this->shiftReader->isOvernightCheckoutScan($scan->access_time, $prevConfig)) {
-            return null;
-        }
-
-        $today = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
-        $todayConfigs = [
-            ($today && ! ($today['is_off_day'] ?? false)) ? ($today['config'] ?? null) : null,
-            $this->shiftReader->find($user, $date)?->shiftType,
-        ];
-
-        foreach ($todayConfigs as $config) {
-            if ($config && ! $this->shiftReader->isBeforeCheckInWindow($scan->access_time, $config)) {
-                return null;
-            }
-        }
-
-        // Normal + extra sama2 ada kemarin: kalau scan pulang ini milik shift normal, tandai supaya
-        // tidak dibajak routing extra shift (extra_shift_handled).
-        $prevExtra = $this->shiftReader->find($user, $prev);
-        $isNormal = $prevExtra && $prevConfig->getKey() !== $prevExtra->shiftType->getKey();
-
-        return [
-            'employee_id'  => $user->nip,
-            'date'         => $prev,
-            'check_in'     => null,
-            'check_out'    => $scan->access_time,
-            'scan_count'   => 1,
-            'device_names' => array_values(array_filter([$scan->device_name ?? null])),
-            'user'         => $user,
-        ] + ($isNormal ? ['extra_shift_handled' => true] : []);
-    }
-
-    private function isFixedOrFlexibleDay(User $user, string $date): bool
-    {
-        $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
-
-        return $resolved && in_array($resolved['type'], ['fixed', 'flexible'], true);
-    }
-
-    /** Jadwal SHIFT normal (bukan off_day, bukan fixed/flexible) user di tanggal itu - dipakai
-     * jalur incremental buat split kontak pertama (ShiftAttendanceReader::splitIncrementalScans()).
-     * Null kalau hari itu libur/kosong atau jadwal user bukan tipe shift. */
-    private function normalShiftConfigFor(User $user, string $date): ?ScheduleShiftType
-    {
-        $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
-
-        if ($resolved && $resolved['type'] === 'shift' && ! ($resolved['is_off_day'] ?? false)) {
-            return $resolved['config'] ?? null;
-        }
-
-        return null;
-    }
-
-    /** Scan tunggal di hari jadwal Fixed, waktunya >= jam pulang (end_time) jadwal itu ->
-     * kemungkinan besar itu scan pulang (karyawan lupa/lewat scan masuk), bukan scan masuk yang
-     * kebetulan telat sampai jam pulang (instruksi user 2026-08-10). */
-    private function singleScanIsCheckout(User $user, string $date, string $scanTime): bool
-    {
-        $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
-
-        if (! $resolved || ($resolved['is_off_day'] ?? false)) {
-            return false;
-        }
-
-        if ($resolved['type'] === 'shift') {
-            return $this->shiftReader->isCheckoutOnlyScan($scanTime, $resolved['config'] ?? null);
-        }
-
-        return $resolved['type'] === 'fixed' && $scanTime >= $resolved['config']->end_time;
-    }
-
-    /**
-     * Versi incremental Tahap 1-2 - cuma ambil baris access_logs baru (access_datetime > since),
-     * lalu merge check_in/check_out-nya dengan attendance_records yang sudah ada (kalau ada)
-     * biar check_in dari batch sebelumnya tidak hilang cuma karena batch ini cuma bawa scan
-     * check-out. Shift is_overnight yang checkout-nya jatuh di access_date besok ditangani lewat
-     * lookback ke attendance_records tanggal SEBELUMNYA (lihat blok "lookback checkout shift
-     * semalam" di bawah) - pola sama dengan pairScansForEmployee() versi batch, tapi di sini
-     * "hari sebelumnya" bisa saja sudah tersimpan dari sync run yang lalu (bukan dalam batch
-     * baris baru yang sama), jadi harus dicek ke DB, bukan cuma ke sesama baris baru.
-     *
-     * ponytail: kalau cron sempat mati beberapa jam PAS lagi ada shift overnight (check-in DAN
-     * check-out-nya sama2 baru dalam 1 batch, keduanya belum pernah tersimpan), lookback ini
-     * tidak nyambung (belum ada attendance_records buat hari check-in-nya). Kasusnya sangat
-     * jarang (butuh downtime cron berjam-jam persis pas ada shift semalam) - tambahkan pairing
-     * batch-internal kalau ternyata kejadian.
-     *
-     * @return array{0: array, 1: array<string,int>, 2: ?string} [entries (bawa 'user'), unmatched_users, max_synced_at]
-     */
-    private function readAndGroupScansIncremental(?string $sinceDatetime): array
-    {
-        $query = DB::table('access_logs');
-        if ($sinceDatetime) {
-            $query->where('access_datetime', '>', $sinceDatetime);
-        }
-
-        $rows = $query->orderBy('access_datetime')->get();
-
-        if ($rows->isEmpty()) {
-            return [[], [], null];
-        }
-
-        // Watermark dihitung dari baris MENTAH (sebelum tap ganda dibuang) - kalau dihitung dari
-        // hasil dedup, baris yang dibuang akan kebaca ulang terus tiap run berikutnya.
-        $maxSyncedAt = $rows->max('access_datetime');
-
-        $rows = $this->dropRepeatedTaps($rows);
-
-        [$withUser, $unmatchedUsers] = $this->resolveUsersForRows($rows);
-
-        $scanGroups = $withUser->groupBy(fn ($row) => $row->employee_id . '|' . $row->access_date);
-
-        $dates = $scanGroups->keys()->map(fn ($key) => explode('|', $key, 2)[1]);
-        $lookbackDates = $dates->map(fn ($date) => Carbon::parse($date)->subDay()->toDateString());
-        $employeeIds = $scanGroups->keys()->map(fn ($key) => explode('|', $key, 2)[0]);
-        $allDates = $dates->merge($lookbackDates)->unique()->values();
-
-        $existing = AttendanceRecords::query()
-            ->whereIn('nip', $employeeIds->unique()->values())
-            ->whereIn('date', $allDates)
+        $stored = AttendanceRecords::query()
+            ->whereIn('nip', $entries->pluck('employee_id')->unique()->values())
+            ->whereIn('date', $entries->pluck('date')->unique()->values())
             ->get()
             ->keyBy(fn ($r) => $r->nip . '|' . $r->date);
 
-        // Extra shift approved buat kombinasi (nip,date) yang relevan batch ini, bawa serta
-        // attendanceRecord-nya sendiri (kalau sudah ada scan sebelumnya) - dipakai
-        // ShiftAttendanceReader::resolveIncrementalSlot() mutusin scan baru ini nyambung ke
-        // pairing NORMAL atau EXTRA, biar scan extra shift tidak nimpa check_out shift normal
-        // yang sudah benar.
-        $extraShifts = $this->shiftReader->findForIncrementalDates($allDates, $employeeIds->unique()->values());
+        foreach ($types as $type) {
+            $buckets[$type] = array_map(function (array $entry) use ($stored) {
+                $record = $stored->get($entry['employee_id'] . '|' . $entry['date']);
 
-        // SEMUA scan mentah hari itu (bukan cuma yang baru sejak watermark) buat (nip,tanggal) yang
-        // disentuh batch ini - dipakai melengkapi jam masuk/pulang kalau scan sebelumnya tidak ikut
-        // terbaca batch-batch incremental (mis. masuk ke access_logs terlambat sesudah watermark lewat,
-        // atau saat itu jadwal/roster belum siap), lihat blok "Scan hari itu" di bawah.
-        $dayScans = $this->dropRepeatedTaps(
-            DB::table('access_logs')
-                ->whereIn('employee_id', $employeeIds->unique()->values())
-                ->whereIn('access_date', $allDates)
-                ->orderBy('access_datetime')
-                ->get(['employee_id', 'access_date', 'access_time', 'device_name'])
-        )->groupBy(fn ($r) => $r->employee_id . '|' . $r->access_date);
-
-        $entries = [];
-        foreach ($scanGroups as $key => $rowsForDay) {
-            [$employeeId, $date] = explode('|', $key, 2);
-            $user = $rowsForDay->first()->user;
-
-            $newFirst = $rowsForDay->first()->access_time;
-            $newLast  = $rowsForDay->last()->access_time;
-
-            $existingRecord = $existing->get($employeeId . '|' . $date);
-            $extraShift = $extraShifts->get($employeeId . '|' . $date);
-
-            // Fixed/Flexible tidak pernah punya extra shift (sama seperti groupAndBucket()) - baris
-            // ExtraShiftAssignment yang nyasar ke user Fixed/Flexible diabaikan, jangan membelokkan
-            // pairing mereka.
-            if ($extraShift && $this->isFixedOrFlexibleDay($user, $date)) {
-                $extraShift = null;
-            }
-
-            // Lookback checkout shift semalam - scan tunggal ini bisa jadi bukan check-in hari
-            // ini, tapi check-out shift overnight yang check-in-nya kemarin (masih terbuka).
-            if ($rowsForDay->count() === 1) {
-                $prevDate = Carbon::parse($date)->subDay()->toDateString();
-                $prevExtraShift = $extraShifts->get($employeeId . '|' . $prevDate);
-                if ($prevExtraShift && $this->isFixedOrFlexibleDay($user, $prevDate)) {
-                    $prevExtraShift = null;
-                }
-                $prevRecord = $existing->get($employeeId . '|' . $prevDate);
-                $prevScans = $dayScans->get($employeeId . '|' . $prevDate);
-
-                if ($prevExtraShift) {
-                    // Kemarin ada extra shift: hitung ulang kemarin dari SEMUA scan-nya, dengan scan
-                    // ini sebagai kandidat pinjaman (pulang shift overnight) - aturan pairing sama
-                    // persis dengan batch. Kalau scan ini tidak dipinjam (kemarin sudah lengkap),
-                    // lanjut jadi scan hari ini seperti biasa.
-                    if ($prevScans && $this->isOvernightShiftDay($user, $prevDate)) {
-                        $consumed = [];
-                        $prevEntries = $this->shiftReader->pairDay($user, $prevDate, $prevScans, $this->normalShiftConfigFor($user, $prevDate), collect([$date => $rowsForDay]), $consumed);
-
-                        if (! empty($consumed[$date])) {
-                            foreach ($prevEntries as $prevEntry) {
-                                $entries[] = $this->withNotifyFlags($prevEntry, $prevRecord);
-                            }
-
-                            continue;
-                        }
-                    }
-                } else {
-                    $lookbackEntry = $this->shiftReader->resolveOvernightLookbackEntry(
-                        $employeeId,
-                        $prevDate,
-                        $user,
-                        $rowsForDay,
-                        $newFirst,
-                        $existingRecord,
-                        $prevRecord,
-                        $this->isOvernightShiftDay($user, $prevDate),
-                    );
-
-                    if ($lookbackEntry) {
-                        $entries[] = $lookbackEntry;
-
-                        continue;
-                    }
-
-                    // Kemarin shift lewat tengah malam tanpa scan masuk sama sekali: scan ini pulangnya.
-                    // Scan kemarin yang cuma pulang shift semalamnya (rantai berturut2) tidak dihitung
-                    // sebagai scan kemarin.
-                    $prevOwn = $prevScans;
-                    if ($prevScans && $prevScans->count() === 1
-                        && ($beforePrev = $this->overnightConfigFor($user, Carbon::parse($prevDate)->subDay()->toDateString()))
-                        && $this->shiftReader->isOvernightCheckoutScan($prevScans->first()->access_time, $beforePrev)) {
-                        $prevOwn = null;
-                    }
-
-                    if (! $existingRecord && ! $prevRecord && ! $prevOwn
-                        && ($checkoutOnly = $this->overnightCheckoutOnlyEntry($user, $date, $rowsForDay->first(), []))) {
-                        $entries[] = $checkoutOnly + ['is_new_checkin' => false, 'is_new_checkout' => true];
-
-                        continue;
+                if ($record && ! $record->is_auto_calculated) {
+                    if ($entry['config']->is_overnight ?? false) {
+                        // Shift lewat tengah malam: jam pulang < jam masuk, min/max tidak berlaku.
+                        $entry['check_in'] = $record->check_in_time && $entry['check_in']
+                            ? min($record->check_in_time, $entry['check_in'])
+                            : ($record->check_in_time ?: $entry['check_in']);
+                        $entry['check_out'] = $entry['check_out'] ?: $record->check_out_time;
+                    } else {
+                        // Semua jam yang diketahui (tersimpan + scan): paling awal = masuk, paling
+                        // akhir = pulang. Scan pulang tunggal tidak menghapus jam masuk manual.
+                        $times = array_values(array_unique(array_filter([
+                            $record->check_in_time, $record->check_out_time, $entry['check_in'], $entry['check_out'],
+                        ])));
+                        sort($times);
+                        $entry['check_in'] = $times[0] ?? null;
+                        $entry['check_out'] = count($times) > 1 ? end($times) : null;
                     }
                 }
-            }
 
-            // Hari ini ada extra shift: hitung ulang dari SEMUA scan hari ini (bukan menebak dari
-            // record yang sudah tersimpan) - aturan sama persis dengan batch, lihat
-            // ShiftAttendanceReader::pairDay(). Tanpa extra shift, lanjut pairing normal di bawah.
-            if ($extraShift) {
-                $consumed = [];
-                $todayEntries = $this->shiftReader->pairDay($user, $date, $dayScans->get($key) ?? $rowsForDay, $this->normalShiftConfigFor($user, $date), collect(), $consumed);
-
-                foreach ($todayEntries as $todayEntry) {
-                    $entries[] = $this->withNotifyFlags($todayEntry, $existingRecord);
-                }
-
-                continue;
-            }
-
-            // Scan hari itu: kalau (nip,tanggal) ini punya scan LAIN di access_logs yang tidak ikut batch
-            // ini (mis. scan masuk pagi yang telat masuk ke access_logs sesudah watermark lewat), jam
-            // masuk/pulang dihitung dari SEMUA scan hari itu - bukan cuma 1-2 scan baru. Tanpa ini baris
-            // yang belum punya record bisa terbentuk cuma dari 2 scan pulang yang berdekatan (masuk =
-            // pulang, dianggap terlambat berjam-jam). Hanya untuk hari TANPA extra shift (pairing extra
-            // punya aturan sendiri) dan bukan shift overnight (scan dini hari di tanggal itu bisa
-            // milik shift semalam, bukan hari ini) - sisanya tetap perilaku lama.
-            $daySpanCount = $rowsForDay->count();
-            $deviceNames = $rowsForDay->pluck('device_name')->filter()->unique()->values()->all();
-            if (! $this->isOvernightShiftDay($user, $date)
-                && ! $this->isOvernightShiftDay($user, Carbon::parse($date)->subDay()->toDateString())) {
-                $allDayScans = $dayScans->get($key);
-
-                if ($allDayScans && $allDayScans->count() > $rowsForDay->count()) {
-                    $newFirst = min($newFirst, $allDayScans->first()->access_time);
-                    $newLast = max($newLast, $allDayScans->last()->access_time);
-                    $daySpanCount = $allDayScans->count();
-                    // Device semua scan hari itu ikut dicek (sama seperti pembacaan batch) - scan dari alat
-                    // yang tidak dikenal tidak boleh lolos cuma karena ikut "dilengkapi" dari access_logs.
-                    $deviceNames = $allDayScans->pluck('device_name')->filter()->unique()->values()->all();
-                }
-            }
-
-            if ($existingRecord) {
-                // Sudah ada scan sebelumnya buat (nip,date) ini -> check_in dianggap sudah benar
-                // (min buat jaga-jaga clock skew), dan sekarang pasti ada >=2 scan total, jadi
-                // check_out selalu terisi.
-                $checkIn = $existingRecord->check_in_time ? min($existingRecord->check_in_time, $newFirst) : $newFirst;
-                $hadCheckOutBefore = filled($existingRecord->check_out_time);
-                $priorCheckOut = $existingRecord->check_out_time ?: $existingRecord->check_in_time;
-                $checkOut = $priorCheckOut ? max($priorCheckOut, $newLast) : $newLast;
-                $isNewCheckIn = false;
-                $isNewCheckOut = ! $hadCheckOutBefore && filled($checkOut);
-            } elseif ($daySpanCount === 1 && $this->singleScanIsCheckout($user, $date, $newFirst)) {
-                // Sama pola dengan pairScansForEmployee() versi batch - scan tunggal ini
-                // waktunya sudah masuk jam pulang jadwal Fixed, diperlakukan sebagai check-out
-                // saja (check_in kosong), bukan check-in yang kebetulan telat sampai jam pulang.
-                $checkIn = null;
-                $checkOut = $newFirst;
-                $isNewCheckIn = false;
-                $isNewCheckOut = true;
-            } else {
-                // Belum pernah ada record -> scan baru INI satu-satunya sumber info hari itu.
-                $checkIn = $newFirst;
-                $checkOut = $daySpanCount > 1 ? $newLast : null;
-                $isNewCheckIn = true;
-                $isNewCheckOut = filled($checkOut);
-            }
-
-            $entries[] = [
-                'employee_id' => $employeeId,
-                'date' => $date,
-                'check_in' => $checkIn,
-                'check_out' => $checkOut,
-                // Dipakai SyncAccessLogsAttendance buat kirim notifikasi check-in/check-out cuma
-                // sekali per event (bukan tiap batch incremental yang cuma numpang lewat) - lihat
-                // App\Notifications\AttendanceCheckedIn/AttendanceCheckedOut.
-                'is_new_checkin' => $isNewCheckIn,
-                'is_new_checkout' => $isNewCheckOut,
-                'device_names' => $deviceNames,
-                'user' => $user,
-            ];
+                return $entry + [
+                    'is_new_checkin' => filled($entry['check_in']) && blank($record?->check_in_time),
+                    'is_new_checkout' => filled($entry['check_out']) && blank($record?->check_out_time),
+                ];
+            }, $buckets[$type]);
         }
 
-        return [$entries, $unmatchedUsers, $maxSyncedAt];
-    }
-
-    /** Entri hasil ShiftAttendanceReader::pairDay() tidak bawa flag is_new_checkin/is_new_checkout
-     * (bentuk entri jalur batch) - dihitung dari record normal yang sudah tersimpan, dipakai
-     * SyncAccessLogsAttendance buat kirim notifikasi cuma sekali per event. */
-    private function withNotifyFlags(array $entry, ?AttendanceRecords $existingRecord): array
-    {
-        return $entry + [
-            'is_new_checkin' => filled($entry['check_in']) && blank($existingRecord?->check_in_time),
-            'is_new_checkout' => filled($entry['check_out']) && blank($existingRecord?->check_out_time),
-        ];
+        return $buckets;
     }
 
     /**
-     * Cek device_name yang muncul di scan hari itu ($entry['device_names']) terhadap
-     * attendance_devices aktif milik company user, DITAMBAH device yang di-assign khusus ke
-     * user itu lewat attendance_device_users (buat user company holding yang ditempatkan di
-     * unit usaha dengan device beda - lihat AttendanceDevice::users(), dilaporkan user
-     * 2026-09-17). device_names kosong (baris lama tanpa device_name) atau semuanya cocok =
-     * lolos. $devicesByCompany dipakai sebagai cache per-request supaya company yang sama
-     * tidak query attendance_devices berulang; per-user assignment sengaja tidak dicache
-     * (jarang dipakai, jumlah user per batch kecil).
-     */
-    private function hasUnrecognizedDevice(array $entry, array &$devicesByCompany): bool
-    {
-        if (empty($entry['device_names'])) {
-            return false;
-        }
-
-        $companyId = $entry['user']->company_id;
-
-        if (! array_key_exists($companyId, $devicesByCompany)) {
-            $devicesByCompany[$companyId] = AttendanceDevice::query()
-                ->where('company_id', $companyId)
-                ->where('is_active', true)
-                ->pluck('name')
-                ->all();
-        }
-
-        $knownNames = $devicesByCompany[$companyId];
-
-        // Lolos kalau MINIMAL SATU device hari itu dikenal (device company sendiri) - bukan
-        // mengharuskan SEMUA device di hari itu dikenal. Tanpa ini, satu entri check-in+check-out
-        // sehari yang gabung dari 2 scan beda device (mis. sempat ditambahkan sbg user tambahan
-        // ke device company lain pagi harinya, lalu dicabut lagi sebelum pulang) ikut memblokir
-        // scan SAH di device sendiri sore harinya - dilaporkan user 2026-09-22.
-        if (! empty(array_intersect($entry['device_names'], $knownNames))) {
-            return false;
-        }
-
-        $userDeviceNames = AttendanceDevice::query()
-            ->where('is_active', true)
-            ->whereHas('users', fn ($q) => $q->where('users.id', $entry['user']->id))
-            ->pluck('name')
-            ->all();
-
-        // Sampai sini: tidak ada device company sendiri sama sekali di entri ini. Masih lolos
-        // kalau minimal satu device-nya diotorisasi eksplisit ke user (attendance_device_users) -
-        // baru dianggap "device tidak dikenal" kalau BENAR-BENAR tidak ada satu pun device hari
-        // itu yang sah buat user ini.
-        return empty(array_intersect($entry['device_names'], $userDeviceNames));
-    }
-
-    /**
-     * Tahap 2: cari User untuk semua employee_id sekaligus (1 query, bukan per-baris), attach
-     * ke tiap baris raw (bukan ke entri yang sudah dikelompokkan - dibutuhkan lebih awal sekarang
-     * karena pairScansForEmployee() perlu User buat resolveForUserDate()).
+     * Cari User untuk semua employee_id sekaligus (1 query, bukan per-baris), attach ke tiap baris
+     * raw - dibutuhkan lebih awal karena device dan jadwal diperiksa per user.
      *
      * @return array{0: Collection, 1: array<string,int>} [rows yang usernya ketemu (ada ->user), unmatched_users]
      */

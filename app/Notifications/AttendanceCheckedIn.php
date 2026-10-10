@@ -4,6 +4,8 @@ namespace App\Notifications;
 
 use App\Enum\NotificationTypeEnum;
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Shift\ExtraShiftAttendanceRecord;
+use App\Services\Attendance\AttendanceMessageComposer;
 use App\Services\Notification\NotificationPreferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,12 +17,19 @@ use NotificationChannels\WebPush\WebPushMessage;
  * Ke karyawan sendiri, saat mesin absensi (access_logs) mencatat scan check-in pertamanya hari
  * itu. Dikirim dari App\Console\Commands\SyncAccessLogsAttendance, cuma saat entry ditandai
  * `is_new_checkin` (bukan tiap batch incremental yang cuma numpang lewat).
+ *
+ * Isi pesan menyesuaikan keadaan (tepat waktu, terlambat, lebih awal, fleksibel, shift extra) -
+ * lihat AttendanceMessageComposer. $context kosong (mis. dari Rekap) = pesan netral dari record.
  */
 class AttendanceCheckedIn extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(protected AttendanceRecords $record) {}
+    /** @param array<string, mixed> $context */
+    public function __construct(
+        protected AttendanceRecords|ExtraShiftAttendanceRecord $record,
+        protected array $context = [],
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -31,17 +40,26 @@ class AttendanceCheckedIn extends Notification implements ShouldQueue
         return ['database', WebPushChannel::class];
     }
 
+    /** @return array{0: string, 1: string} */
+    protected function message(): array
+    {
+        $context = $this->context + [
+            'kind' => $this->record instanceof AttendanceRecords ? 'fixed' : 'extra',
+            'date' => $this->record->date ?? now()->toDateString(),
+            'late_minutes' => (int) ($this->record->late_minutes ?? 0),
+        ];
+
+        return AttendanceMessageComposer::checkIn((string) $this->record->check_in_time, $context);
+    }
+
     protected function title(): string
     {
-        return 'Absensi Masuk Tercatat';
+        return $this->message()[0];
     }
 
     protected function body(): string
     {
-        $time = substr((string) $this->record->check_in_time, 0, 5);
-        $date = \Illuminate\Support\Carbon::parse($this->record->date)->translatedFormat('d M Y');
-
-        return "Check-in Anda tercatat pukul {$time} pada {$date}.";
+        return $this->message()[1];
     }
 
     public function toDatabase(object $notifiable): array

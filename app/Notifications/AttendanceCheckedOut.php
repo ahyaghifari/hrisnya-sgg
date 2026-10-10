@@ -4,6 +4,8 @@ namespace App\Notifications;
 
 use App\Enum\NotificationTypeEnum;
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Shift\ExtraShiftAttendanceRecord;
+use App\Services\Attendance\AttendanceMessageComposer;
 use App\Services\Notification\NotificationPreferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,12 +17,19 @@ use NotificationChannels\WebPush\WebPushMessage;
  * Ke karyawan sendiri, saat mesin absensi (access_logs) mencatat scan check-out-nya hari itu.
  * Dikirim dari App\Console\Commands\SyncAccessLogsAttendance, cuma saat entry ditandai
  * `is_new_checkout` (transisi dari belum-ada-checkout ke ada-checkout, bukan tiap batch).
+ *
+ * Isi pesan menyesuaikan keadaan (normal, pulang lebih awal dengan/tanpa izin, fleksibel, shift
+ * extra) - lihat AttendanceMessageComposer. $context kosong = pesan netral dari record.
  */
 class AttendanceCheckedOut extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(protected AttendanceRecords $record) {}
+    /** @param array<string, mixed> $context */
+    public function __construct(
+        protected AttendanceRecords|ExtraShiftAttendanceRecord $record,
+        protected array $context = [],
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -31,25 +40,30 @@ class AttendanceCheckedOut extends Notification implements ShouldQueue
         return ['database', WebPushChannel::class];
     }
 
+    /** @return array{0: string, 1: string} */
+    protected function message(): array
+    {
+        $context = $this->context + [
+            'kind' => $this->record instanceof AttendanceRecords ? 'fixed' : 'extra',
+            'date' => $this->record->date ?? now()->toDateString(),
+            'early_leave_minutes' => (int) ($this->record->early_leave_minutes ?? 0),
+        ];
+
+        return AttendanceMessageComposer::checkOut(
+            (string) $this->record->check_out_time,
+            $this->record->working_minutes !== null ? (int) $this->record->working_minutes : null,
+            $context,
+        );
+    }
+
     protected function title(): string
     {
-        return 'Absensi Pulang Tercatat';
+        return $this->message()[0];
     }
 
     protected function body(): string
     {
-        $time = substr((string) $this->record->check_out_time, 0, 5);
-        $date = \Illuminate\Support\Carbon::parse($this->record->date)->translatedFormat('d M Y');
-
-        $summary = "Check-out Anda tercatat pukul {$time} pada {$date}.";
-
-        if ($this->record->working_minutes !== null) {
-            $hours = intdiv((int) $this->record->working_minutes, 60);
-            $minutes = (int) $this->record->working_minutes % 60;
-            $summary .= " Total jam kerja: {$hours} jam {$minutes} menit.";
-        }
-
-        return $summary;
+        return $this->message()[1];
     }
 
     public function toDatabase(object $notifiable): array

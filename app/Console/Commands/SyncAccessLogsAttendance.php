@@ -3,19 +3,19 @@
 namespace App\Console\Commands;
 
 use App\Models\Attendance\AttendanceRecords;
+use App\Models\Attendance\AttendanceRequestPermissionDetails;
 use App\Models\Attendance\OvertimeAttendanceRecord;
 use App\Models\Attendance\SyncAccessLog;
+use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ExtraShiftAttendanceRecord;
 use App\Notifications\AttendanceCheckedIn;
 use App\Notifications\AttendanceCheckedOut;
 use App\Notifications\AttendanceScanRejected;
 use App\Repositories\Attendance\AttendanceRecordRepository;
 use App\Services\Attendance\AccessLogScheduleReader;
-use App\Services\Attendance\AttendanceResyncService;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
 use App\Services\Attendance\Calculators\ShiftScheduleCalculator;
-use App\Services\Attendance\ScheduleResolver;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -38,18 +38,15 @@ class SyncAccessLogsAttendance extends Command
     protected $description = 'Sinkron incremental access_logs -> attendance_records berdasarkan watermark terakhir';
 
     /**
-     * JANGAN baca mundur dari watermark (mis. "watermark - 15 menit") buat nangkap scan yang telat
-     * masuk access_logs - sempat dicoba 2026-09-22 dan dibatalkan: pembaca incremental mengambil
-     * keputusan (slot normal vs extra shift, split 2/3 scan, lookback overnight) berdasarkan scan
-     * mana yang BARU di batch itu. Scan lama yang ikut kebaca ulang dianggap baru, dan di hari
-     * extra shift overnight scan masuk extra (mis. 22:10) jadi nimpa jam pulang shift normal
-     * (OvernightExtraShiftIncrementalTest). Scan telat / jadwal yang baru siap belakangan harus
-     * ditangani lewat baca ulang PENUH per tanggal (readAndGroup, seperti tombol Sync Presensi),
-     * bukan lewat jalur incremental ini.
+     * Watermark cuma menentukan (nip, tanggal) mana yang tersentuh scan baru; hari itu dihitung
+     * ulang PENUH dari semua scan-nya lewat jalur pairing yang sama dengan tombol Sync Presensi
+     * (lihat AccessLogScheduleReader::readAndGroupIncremental) - tidak ada keputusan yang
+     * bergantung pada "scan mana yang baru", jadi aman dibaca ulang. Scan yang telat masuk
+     * access_logs (jamnya lebih tua dari watermark) tetap tidak terbaca di sini - itu tugas
+     * SweepMissedAccessLogs.
      */
     public function handle(
         AccessLogScheduleReader $reader,
-        ScheduleResolver $scheduleResolver,
         FixedScheduleCalculator $fixedCalculator,
         FlexibleScheduleCalculator $flexibleCalculator,
         ShiftScheduleCalculator $shiftCalculator,
@@ -84,7 +81,7 @@ class SyncAccessLogsAttendance extends Command
                 $log->info("[{$runId}] diproses (fixed): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
             }
 
-            $this->notifyCheckInOut($r, $record);
+            $this->notifyCheckInOut($r, $record, 'fixed');
             $fixedCount++;
         }
 
@@ -98,7 +95,7 @@ class SyncAccessLogsAttendance extends Command
                 $log->info("[{$runId}] diproses (flexible): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
             }
 
-            $this->notifyCheckInOut($r, $record);
+            $this->notifyCheckInOut($r, $record, 'flexible');
             $flexibleCount++;
         }
 
@@ -106,7 +103,7 @@ class SyncAccessLogsAttendance extends Command
         foreach ($shiftCalculator->calculate($result['buckets']['shift']) as $r) {
             $record = $repo->saveCalculatedResult($r, 'access_logs_shift');
             $log->info("[{$runId}] diproses (shift): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
-            $this->notifyCheckInOut($r, $record);
+            $this->notifyCheckInOut($r, $record, 'shift');
             $shiftCount++;
         }
 
@@ -116,27 +113,25 @@ class SyncAccessLogsAttendance extends Command
             $log->info("[{$runId}] diproses (lembur hari libur): {$overtimeCount} scan");
         }
 
-        // Hari yang ada extra shift approved - dilewati dari fixed/flexible/shift di atas
-        // (lihat AccessLogScheduleReader::groupAndBucket), config-nya shift_type extra shift.
-        // Divalidasi dulu (isGenuineExtraShiftScan()) sebelum dihitung: reader cuma tau ADA
-        // extra shift hari itu, belum tau apakah pasangan check-in/check-out yang kepasangkan
-        // beneran waktu extra shift-nya atau ternyata masih sisa scan shift normal (mis. scan
-        // 4x sehari - masuk normal, pulang normal, masuk extra, pulang extra - tapi
-        // pairScansForEmployee() cuma nyisain scan pertama & terakhir, jadi check_in yang
-        // kebawa ke sini bisa jadi jam masuk shift NORMAL, bukan extra). Kalau tidak valid,
-        // dicek ulang lewat ScheduleResolver dan diproses sebagai jadwal normal biasa -
-        // nggak masalah, itu justru fallback yang benar.
+        // Pasangan extra shift - sudah diputuskan pemiliknya oleh ShiftAttendanceReader (scan yang
+        // ternyata shift normal tidak sampai sini, sudah masuk bucket normal), langsung dihitung.
         $extraShiftCount = 0;
         foreach ($result['buckets']['extra_shift'] as $entry) {
-            if (! $this->isGenuineExtraShiftScan($entry)) {
-                $this->reprocessAsNormalSchedule($entry, $scheduleResolver, $fixedCalculator, $flexibleCalculator, $shiftCalculator, $repo, $log, $runId);
-
-                continue;
-            }
-
             $r = $shiftCalculator->calculate([$entry])[0];
-            ExtraShiftAttendanceRecord::saveCalculatedResult($r, $r['extra_shift_assignment_id'], 'access_logs_shift');
+            $existing = ExtraShiftAttendanceRecord::where('extra_shift_assignment_id', $r['extra_shift_assignment_id'])->first();
+            $saved = ExtraShiftAttendanceRecord::saveCalculatedResult($r, $r['extra_shift_assignment_id'], 'access_logs_shift');
             $log->info("[{$runId}] diproses (extra_shift): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
+
+            // Notifikasi sekali per event, sama seperti shift normal (dibanding baris extra yang sudah ada).
+            $context = $this->messageContext($r, 'extra') + [
+                'category' => ExtraShiftAssignment::find($r['extra_shift_assignment_id'])?->category,
+            ];
+            if (filled($r['check_in']) && blank($existing?->check_in_time)) {
+                $r['user']->notify(new AttendanceCheckedIn($saved, $context));
+            }
+            if (filled($r['check_out']) && blank($existing?->check_out_time)) {
+                $r['user']->notify(new AttendanceCheckedOut($saved, $context));
+            }
             $extraShiftCount++;
         }
 
@@ -151,8 +146,8 @@ class SyncAccessLogsAttendance extends Command
             ));
         }
 
-        // Scan dari device yang tidak terdaftar (atau terdaftar tapi beda company) - diblokir
-        // total, tidak ikut dihitung/disimpan (lihat AccessLogScheduleReader::groupAndBucket).
+        // Scan dari device yang tidak terdaftar sama sekali - diblokir total, tidak ikut
+        // dihitung/disimpan (lihat AccessLogScanReader::splitRejectedDevices).
         foreach ($result['rejected_device'] as $entry) {
             $devices = implode(', ', $entry['device_names']);
             $log->warning("[{$runId}] ditolak (device tidak dikenal): nip={$entry['employee_id']} tanggal={$entry['date']} device={$devices}");
@@ -168,8 +163,8 @@ class SyncAccessLogsAttendance extends Command
             $log->warning("[{$runId}] dilewati (NIP tidak dikenal di sistem): employee_id={$employeeId} jumlah_scan={$scanCount}");
         }
 
-        // Watermark cuma boleh MAJU (pengaman - watermark mundur bikin run berikutnya baca ulang
-        // scan yang sudah diproses, dan pembaca incremental tidak aman terhadap itu, lihat docblock handle()).
+        // Watermark cuma boleh MAJU (pengaman - watermark mundur bikin run berikutnya menghitung
+        // ulang hari yang sama dan mengirim ulang notifikasi).
         $newWatermark = max($result['max_synced_at'], $previousWatermark ?? $result['max_synced_at']);
         $watermark->update(['last_synced_at' => $newWatermark]);
 
@@ -187,13 +182,16 @@ class SyncAccessLogsAttendance extends Command
 
     /**
      * @param  array{user: \App\Models\User, is_new_checkin: bool, is_new_checkout: bool}  $r
+     * @param  string  $kind  fixed | flexible | shift (menentukan gaya pesan)
      */
-    private function notifyCheckInOut(array $r, AttendanceRecords $record): void
+    private function notifyCheckInOut(array $r, AttendanceRecords $record, string $kind): void
     {
-        // Pakai $r['user'] (sudah di-load AccessLogScheduleReader::resolveUsers()) bukan
+        $context = $this->messageContext($r, $kind);
+
+        // Pakai $r['user'] (sudah di-load AccessLogScheduleReader::resolveUsersForRows()) bukan
         // $record->user, supaya tidak query ulang lewat relasi cuma buat notify.
         if ($r['is_new_checkin']) {
-            $r['user']->notify(new AttendanceCheckedIn($record));
+            $r['user']->notify(new AttendanceCheckedIn($record, $context));
         }
 
         // checkout_rejected (FixedScheduleCalculator) => check_out_time TIDAK ikut tersimpan
@@ -201,7 +199,7 @@ class SyncAccessLogsAttendance extends Command
         // kirim notifikasi checkout yang datanya sendiri tidak benar-benar tersimpan, kabari
         // pakai AttendanceScanRejected supaya karyawan tahu kenapa checkout-nya tidak tercatat.
         if ($r['is_new_checkout'] && empty($r['checkout_rejected'])) {
-            $r['user']->notify(new AttendanceCheckedOut($record));
+            $r['user']->notify(new AttendanceCheckedOut($record, $context));
         } elseif ($r['is_new_checkout'] && ! empty($r['checkout_rejected'])) {
             $r['user']->notify(new AttendanceScanRejected(
                 $r['date'],
@@ -211,52 +209,63 @@ class SyncAccessLogsAttendance extends Command
     }
 
     /**
-     * check_in entry bucket 'extra_shift' beneran waktu shift extra-nya (>= jam mulai shift
-     * extra dikurangi buffer check-in-nya sendiri) - kalau enggak, itu tandanya check_in yang
-     * kebawa ke sini sebenarnya jam masuk shift NORMAL (lihat komentar di handle()).
+     * Bahan pesan notifikasi (lihat AttendanceMessageComposer). Izin hanya dicari kalau memang
+     * relevan (terlambat / pulang lebih awal), supaya hari normal tidak menambah query.
+     *
+     * @return array<string, mixed>
      */
-    private function isGenuineExtraShiftScan(array $entry): bool
+    private function messageContext(array $r, string $kind): array
     {
-        return AttendanceResyncService::isGenuineExtraShiftScan($entry);
-    }
+        $config = $r['config'];
+        $late = (int) ($r['late_minutes'] ?? 0);
+        $earlyLeave = (int) ($r['early_leave_minutes'] ?? 0);
 
-    /**
-     * Fallback buat entry bucket 'extra_shift' yang ternyata tidak valid (isGenuineExtraShiftScan
-     * gagal) - cek ulang jadwal NORMAL-nya lewat ScheduleResolver dan proses seperti hari tanpa
-     * extra shift sama sekali (fixed/flexible/shift, tersimpan ke attendance_records biasa).
-     */
-    private function reprocessAsNormalSchedule(
-        array $entry,
-        ScheduleResolver $scheduleResolver,
-        FixedScheduleCalculator $fixedCalculator,
-        FlexibleScheduleCalculator $flexibleCalculator,
-        ShiftScheduleCalculator $shiftCalculator,
-        AttendanceRecordRepository $repo,
-        $log,
-        string $runId,
-    ): void {
-        $resolved = $scheduleResolver->resolveForUserDate($entry['user'], $entry['date'], ignoreEffectiveDate: true);
+        $context = [
+            'kind' => $kind,
+            'date' => $r['date'],
+            'late_minutes' => $late,
+            'early_leave_minutes' => $earlyLeave,
+        ];
 
-        if (! $resolved || ($resolved['is_off_day'] ?? false)) {
-            $log->warning("[{$runId}] ditolak (jadwal tidak ditemukan setelah extra shift tidak valid): nip={$entry['employee_id']} tanggal={$entry['date']}");
-            $entry['user']->notify(new AttendanceScanRejected(
-                $entry['date'],
-                'jadwal Anda tidak ditemukan untuk tanggal ini, hubungi HR/atasan Anda.'
-            ));
-
-            return;
+        if (in_array($kind, ['shift', 'extra'], true)) {
+            $context['shift_label'] = $config->name ?? null;
         }
 
-        $entry = array_merge($entry, $resolved);
-        $calculator = match ($resolved['type']) {
-            'fixed' => $fixedCalculator,
-            'flexible' => $flexibleCalculator,
-            'shift' => $shiftCalculator,
-        };
+        // Pengingat Corporate Value: karyawan holding, masuk hari Senin (composer menambahkannya
+        // hanya kalau masuknya tidak terlambat).
+        $context['corporate_value_reminder'] = $kind !== 'extra'
+            && Carbon::parse($r['date'])->isMonday()
+            && $r['user']->isFromHoldingCompany();
 
-        $r = $calculator->calculate([$entry])[0];
-        $record = $repo->saveCalculatedResult($r, "access_logs_{$resolved['type']}");
-        $log->info("[{$runId}] diproses ({$resolved['type']}, fallback dari extra_shift tidak valid): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} status={$r['status']} checkin={$r['check_in']} checkout=" . ($r['check_out'] ?? '-'));
-        $this->notifyCheckInOut($r, $record);
+        if (in_array($kind, ['fixed', 'shift'], true) && ! empty($r['check_in']) && ! empty($config->start_time)) {
+            $checkIn = Carbon::createFromFormat('H:i:s', $r['check_in']);
+            $start = Carbon::createFromFormat('H:i:s', $config->start_time);
+            $context['early_arrival_minutes'] = max(0, (int) $checkIn->diffInMinutes($start));
+        }
+
+        if ($kind === 'flexible') {
+            $context['meets_target'] = $r['meets_target'] ?? null;
+            $context['target_minutes'] = (int) ($config->max_work_minutes ?: $config->min_work_minutes ?: 0);
+        }
+
+        if ($kind !== 'extra' && $kind !== 'flexible') {
+            $context['permitted_late'] = $late > 0 ? $this->hasApprovedPermission($r, ['terlambat']) : null;
+            $context['permitted_early_leave'] = $earlyLeave > 0 ? $this->hasApprovedPermission($r, ['pulang_cepat', 'meninggalkan_jam_kerja']) : null;
+        }
+
+        return $context;
+    }
+
+    /** @param  array<int, string>  $types  permission_type yang dianggap izin untuk keadaan itu */
+    private function hasApprovedPermission(array $r, array $types): bool
+    {
+        return AttendanceRequestPermissionDetails::query()
+            ->whereDate('date', $r['date'])
+            ->whereIn('permission_type', $types)
+            ->whereHas('attendanceRequest', fn ($q) => $q
+                ->where('user_id', $r['user']->id)
+                ->where('type', 'permission')
+                ->where('status', 'approved'))
+            ->exists();
     }
 }

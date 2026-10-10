@@ -252,15 +252,22 @@
             <p style="font-size:16px;font-weight:800;color:{{ $cStrong }};">{{ $status['note'] }}</p>
         </div>
     @elseif ($attendance)
-        <div style="position:relative;z-index:1;display:flex;gap:28px;">
-            <div>
-                <p style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:2px;">Jam Masuk</p>
-                <p style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">{{ $formatJam($attendance->check_in_time) }}</p>
+        {{-- Jam masuk/keluar presensi normal; kalau hari ini ada Extra/Double Shift, blok "Presensi
+        Extra" (masuk di atas, keluar di bawah) ditaruh di sisi kanannya. --}}
+        <div style="position:relative;z-index:1;display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;gap:28px;">
+                <div>
+                    <p style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:2px;">Jam Masuk</p>
+                    <p style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">{{ $formatJam($attendance->check_in_time) }}</p>
+                </div>
+                <div>
+                    <p style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:2px;">Jam Keluar</p>
+                    <p style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">{{ $formatJam($attendance->check_out_time) }}</p>
+                </div>
             </div>
-            <div>
-                <p style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:2px;">Jam Keluar</p>
-                <p style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">{{ $formatJam($attendance->check_out_time) }}</p>
-            </div>
+            @if ($extra)
+                <x-extra-presensi-block :extra="$extra" />
+            @endif
         </div>
         @if ($status['flexible_min_work_label'])
             <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,0.85);">
@@ -283,11 +290,17 @@
             @endif
         </div>
     @else
-        <div style="position:relative;z-index:1;">
-            <p style="font-size:14px;font-weight:600;color:#fff;">Belum ada data presensi</p>
-            <p style="font-size:11.5px;color:rgba(255,255,255,0.65);margin-top:4px;">Karyawan belum melakukan presensi hari ini.</p>
-            @if ($status['note'])
-                <p style="font-size:12.5px;color:rgba(255,255,255,0.95);font-weight:700;margin-top:6px;">{{ $status['note'] }}</p>
+        <div style="position:relative;z-index:1;display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+            <div>
+                <p style="font-size:14px;font-weight:600;color:#fff;">Belum ada data presensi</p>
+                <p style="font-size:11.5px;color:rgba(255,255,255,0.65);margin-top:4px;">Karyawan belum melakukan presensi hari ini.</p>
+                @if ($status['note'])
+                    <p style="font-size:12.5px;color:rgba(255,255,255,0.95);font-weight:700;margin-top:6px;">{{ $status['note'] }}</p>
+                @endif
+            </div>
+            {{-- Presensi normal belum ada, tapi Extra/Double Shift bisa saja sudah (mis. jadwal normal libur). --}}
+            @if ($extra)
+                <x-extra-presensi-block :extra="$extra" />
             @endif
         </div>
     @endif

@@ -127,8 +127,8 @@ class TwoScanExtraShiftSplitTest extends TestCase
         $this->assertSame('23:00:00', $result['buckets']['extra_shift'][0]['check_out']);
     }
 
-    /** Pagi + scan 15:00 saja setelah masuk: scan transisi ditolak, shift masih terbuka. */
-    public function test_batch_only_transition_scan_after_checkin_leaves_open(): void
+    /** Pagi + scan 15:00 saja setelah masuk: scan transisi = pulang Pagi (jam selesai shift), extra tidak dikerjakan. */
+    public function test_batch_only_transition_scan_after_checkin_closes_earlier_shift(): void
     {
         [$user, $company, $pagi, $siang] = $this->makeUser('TWO006');
 
@@ -141,7 +141,8 @@ class TwoScanExtraShiftSplitTest extends TestCase
         $result = app(\App\Services\Attendance\AccessLogScheduleReader::class)->readAndGroup('2026-08-10', '2026-08-10');
 
         $this->assertSame('07:00:00', $result['buckets']['shift'][0]['check_in']);
-        $this->assertNull($result['buckets']['shift'][0]['check_out']);
+        $this->assertSame('15:00:00', $result['buckets']['shift'][0]['check_out']);
+        $this->assertCount(0, $result['buckets']['extra_shift']);
     }
 
     public function test_adjacent_ignores_time_format_difference(): void

@@ -31,20 +31,9 @@ class AttendanceResyncService
         $counts = ['logs' => 0, 'recalculated' => 0, 'skipped' => 0, 'no_nip' => ! filled($user->nip)];
 
         if (! $counts['no_nip']) {
-            $reader = app(AccessLogScheduleReader::class);
-
-            // Pairing overnight berantai (scan pertama hari ini "dipinjam" jadi pulang shift semalam),
-            // jadi rentang baca harus mulai dari awal rantai & lebihi 1 hari ke depan - kalau tidak,
-            // jadwal lewat tengah malam berturut2 salah pasang / pulang kosong. Hasil di luar
-            // [$from, $to] dibuang.
-            // ponytail: mundur maks 31 hari, cukup untuk rantai overnight realistis.
-            $readFrom = Carbon::parse($from);
-            for ($i = 0; $i < 31 && $reader->isOvernightShiftDay($user, $readFrom->copy()->subDay()->toDateString()); $i++) {
-                $readFrom->subDay();
-            }
-            $readTo = Carbon::parse($to)->addDay()->toDateString();
-
-            $result = $reader->readAndGroup($readFrom->toDateString(), $readTo, $user->nip);
+            // Rantai shift lewat tengah malam (scan konteks kemarin/besok) diambil sendiri oleh
+            // ShiftAttendanceReader - di sini cukup rentang yang diminta.
+            $result = app(AccessLogScheduleReader::class)->readAndGroup($from, $to, $user->nip);
 
             $producedByDate = [];
             foreach ($result['buckets'] as $entries) {
@@ -84,7 +73,9 @@ class AttendanceResyncService
 
             foreach ($result['buckets']['extra_shift'] as $entry) {
                 if ($entry['user']->id === $user->id) {
-                    $this->saveExtraShiftEntry($entry, $calculators, $repo) && $counts['logs']++;
+                    $r = $calculators['shift']->calculate([$entry])[0];
+                    ExtraShiftAttendanceRecord::saveCalculatedResult($r, $r['extra_shift_assignment_id'], 'access_logs_shift');
+                    $counts['logs']++;
                 }
             }
 
@@ -138,54 +129,6 @@ class AttendanceResyncService
                     }
                 }
             });
-    }
-
-    /**
-     * check_in entry bucket 'extra_shift' beneran waktu shift extra-nya (>= jam mulai shift extra
-     * dikurangi buffer check-in-nya sendiri) - kalau tidak, check_in yang kebawa sebenarnya jam
-     * masuk shift NORMAL. Dipakai bareng SyncAccessLogsAttendance (cron) - satu aturan.
-     */
-    public static function isGenuineExtraShiftScan(array $entry): bool
-    {
-        // Pulang saja (check_in kosong, lupa scan masuk): pairDay() sudah memutuskan pemiliknya
-        // extra shift - entri milik shift normal membawa extra_shift_handled dan tidak sampai sini.
-        if (! $entry['check_in']) {
-            return filled($entry['check_out'] ?? null);
-        }
-
-        $earliestCheckIn = Carbon::createFromFormat('H:i:s', $entry['config']->start_time)
-            ->subMinutes($entry['config']->checkin_buffer_minutes);
-
-        return Carbon::createFromFormat('H:i:s', $entry['check_in'])->gte($earliestCheckIn);
-    }
-
-    /**
-     * Simpan 1 entry bucket 'extra_shift' - sama dengan SyncAccessLogsAttendance: valid = simpan ke
-     * ExtraShiftAttendanceRecord; tidak valid = fallback diproses sebagai jadwal normal hari itu
-     * (attendance_records). Tanpa notifikasi (koreksi manual). False = tidak ada yang tersimpan
-     * (jadwal normal tidak ketemu/libur).
-     *
-     * @param  array<string, object>  $calculators  keyed fixed/flexible/shift
-     */
-    private function saveExtraShiftEntry(array $entry, array $calculators, AttendanceRecordRepository $repo): bool
-    {
-        if (self::isGenuineExtraShiftScan($entry)) {
-            $r = $calculators['shift']->calculate([$entry])[0];
-            ExtraShiftAttendanceRecord::saveCalculatedResult($r, $r['extra_shift_assignment_id'], 'access_logs_shift');
-
-            return true;
-        }
-
-        $resolved = app(ScheduleResolver::class)->resolveForUserDate($entry['user'], $entry['date'], ignoreEffectiveDate: true);
-
-        if (! $resolved || ($resolved['is_off_day'] ?? false)) {
-            return false;
-        }
-
-        $r = $calculators[$resolved['type']]->calculate([array_merge($entry, $resolved)])[0];
-        $repo->saveCalculatedResult($r, "access_logs_{$resolved['type']}");
-
-        return true;
     }
 
     /** Hitung ulang 1 baris pakai rumus jadwal aslinya; false = dilewati (jadwal tak ketemu/libur/di bawah minimum). */
