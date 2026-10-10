@@ -7,6 +7,7 @@ use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -131,16 +132,27 @@ class TrainersPage extends Component
         $subject = $this->editingId ? Trainers::findOrFail($this->editingId) : Trainers::class;
         abort_unless(Auth::user()->can($ability, $subject), 403);
 
+        // Satu karyawan = satu pemateri (aktif maupun nonaktif). Baris yang sedang diedit
+        // dikecualikan, dan data lama yang sudah ganda tidak diblokir selama karyawannya tidak diganti.
+        $originalUserId = $this->editingId ? Trainers::whereKey($this->editingId)->value('user_id') : null;
+        $userIdRules = ['nullable', 'exists:users,id'];
+
+        if ($this->formUserId && $this->formUserId !== $originalUserId) {
+            $userIdRules[] = Rule::unique('trainers', 'user_id');
+        }
+
         $validated = $this->validate([
             'formName' => 'required|string|max:255',
             'formType' => 'required|in:internal,external',
-            'formUserId' => 'nullable|exists:users,id',
+            'formUserId' => $userIdRules,
             'formExpertise' => 'nullable|string|max:255',
             'formEmail' => 'nullable|email|max:255',
             'formPhone' => 'nullable|string|max:255',
             'formCompany' => 'nullable|string|max:255',
             'formAddress' => 'nullable|string',
-        ], [], [
+        ], [
+            'formUserId.unique' => 'Karyawan ini sudah terdaftar sebagai pemateri. Aktifkan kembali pemateri yang sudah ada kalau perlu.',
+        ], [
             'formName' => 'nama',
             'formType' => 'tipe',
             'formUserId' => 'karyawan',

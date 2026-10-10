@@ -82,6 +82,26 @@ class TrainersPageTest extends TestCase
         ]);
     }
 
+    public function test_cannot_register_same_employee_as_trainer_twice(): void
+    {
+        $admin = $this->actingAsLmsAdmin();
+        \Illuminate\Support\Facades\Gate::before(fn () => true);
+        $employee = User::factory()->create(['name' => 'Siti']);
+
+        $component = Livewire::actingAs($admin)->test(TrainersPage::class);
+
+        $component->set('formName', 'Siti')->set('formType', 'internal')->set('formUserId', $employee->id)->call('saveForm');
+
+        $component->call('openCreateModal')
+            ->set('formName', 'Siti Dua')
+            ->set('formType', 'internal')
+            ->set('formUserId', $employee->id)
+            ->call('saveForm')
+            ->assertHasErrors(['formUserId' => 'unique']);
+
+        $this->assertDatabaseCount('trainers', 1);
+    }
+
     public function test_updates_trainer(): void
     {
         $admin = $this->actingAsLmsAdmin();
