@@ -5,7 +5,7 @@ namespace App\Services\Sp;
 use App\Enum\CustomPermissionEnum;
 use App\Models\Invitation;
 use App\Models\User;
-use App\Notifications\SpReportUpdated;
+use App\Notifications\InvitationUpdated;
 use App\Services\SikartapReviewerResolver;
 use Illuminate\Validation\ValidationException;
 
@@ -82,8 +82,8 @@ class SpInvitationService
         // always: undangan resmi, tidak boleh hilang karena pengaturan notifikasi penerima.
         $url = route('undangan.show', $invitation);
 
-        $invitation->user?->notify(new SpReportUpdated($title, "Anda {$what}: {$when}, di {$invitation->location}.{$topic}", $url, always: true));
-        $invitation->supervisor?->notify(new SpReportUpdated($title, "{$invitation->user?->name} dan Anda {$what}: {$when}, di {$invitation->location}.{$topic}", $url, always: true));
+        $invitation->user?->notify(new InvitationUpdated($title, "Anda {$what}: {$when}, di {$invitation->location}.{$topic}", $url, $invitation->type));
+        $invitation->supervisor?->notify(new InvitationUpdated($title, "{$invitation->user?->name} dan Anda {$what}: {$when}, di {$invitation->location}.{$topic}", $url, $invitation->type));
     }
 
     private function assertCanManage(User $actor, ?string $companyId = null): void

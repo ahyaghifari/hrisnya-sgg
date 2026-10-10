@@ -6,7 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\InvitationType;
 use App\Models\Invitation;
 use App\Models\User;
-use App\Notifications\SpReportUpdated;
+use App\Notifications\InvitationUpdated;
 use App\Services\OrgHierarchyService;
 use App\Services\SikartapReviewerResolver;
 use Illuminate\Validation\ValidationException;
@@ -136,19 +136,9 @@ class CoachingInvitationService
         // always: undangan resmi, tidak boleh hilang karena pengaturan notifikasi penerima.
         $url = route('undangan.show', $invitation);
 
-        $invitation->user?->notify(new SpReportUpdated(
-            $title,
-            "Anda {$what} oleh {$invitation->createdBy?->name}: {$when}, di {$invitation->location}.{$topic}",
-            $url,
-            always: true,
-        ));
+        $invitation->user?->notify(new InvitationUpdated($title, "Anda {$what} oleh {$invitation->createdBy?->name}: {$when}, di {$invitation->location}.{$topic}", $url, $invitation->type));
 
-        $invitation->supervisor?->notify(new SpReportUpdated(
-            $title,
-            "{$invitation->user?->name} dan Anda {$what} oleh {$invitation->createdBy?->name}: {$when}, di {$invitation->location}.{$topic}",
-            $url,
-            always: true,
-        ));
+        $invitation->supervisor?->notify(new InvitationUpdated($title, "{$invitation->user?->name} dan Anda {$what} oleh {$invitation->createdBy?->name}: {$when}, di {$invitation->location}.{$topic}", $url, $invitation->type));
     }
 
     private function requireFilled(mixed $value, string $field): void

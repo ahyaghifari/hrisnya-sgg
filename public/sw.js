@@ -62,6 +62,7 @@ self.addEventListener('notificationclick', (event) => {
 
     const documentSignId = event.notification.data?.document_sign_id;
     const spReportUrl = event.notification.data?.sp_report_url;
+    const invitationUrl = event.notification.data?.invitation_url;
 
     const announcementId = event.notification.data?.announcement_id;
 
@@ -70,6 +71,9 @@ self.addEventListener('notificationclick', (event) => {
         url = `/pengumuman/${announcementId}`;
     } else if (documentSignId) {
         url = `/dokumen/tandatangani/${documentSignId}`;
+    } else if (invitationUrl) {
+        // Undangan (klarifikasi, coaching, dst.) -> halaman baca-saja undangan.
+        url = invitationUrl;
     } else if (spReportUrl) {
         url = spReportUrl;
     } else if (employeeSpId) {

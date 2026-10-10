@@ -271,7 +271,7 @@ class AccessLogScheduleReader
 
         foreach ($dates as $date) {
             $dayScans = $byDate->get($date);
-            if (! empty($consumedFirstScan[$date])) {
+            if (! empty($consumedFirstScan[$date]) && ! $this->borrowedScanIsAlsoCheckIn($user, $date, $dayScans)) {
                 $dayScans = $dayScans->slice(1)->values();
             }
 
@@ -332,6 +332,33 @@ class AccessLogScheduleReader
         }
 
         return $entries;
+    }
+
+    /**
+     * Scan pertama hari ini yang sudah "dipinjam" jadi pulang shift lewat tengah malam kemarin
+     * TETAP jam masuk hari ini kalau jatuh di jendela masuk shift hari ini (normal/extra) dan hari
+     * ini masih ada scan lain (bukti dia memang kerja) - mis. malam kemarin selesai 08:00, pagi ini
+     * masuk Pagi 08:00 + extra Siang: 1 scan 08:00 dipakai dua kali, cuma 2 scan (08:00 & 20:00).
+     * Hari ini cuma punya scan itu saja = tetap murni pulang shift semalam (bukan masuk).
+     */
+    private function borrowedScanIsAlsoCheckIn(User $user, string $date, Collection $dayScans): bool
+    {
+        if ($dayScans->count() < 2) {
+            return false;
+        }
+
+        $scanTime = $dayScans->first()->access_time;
+        $configs = [$this->normalShiftConfigFor($user, $date), $this->shiftReader->find($user, $date)?->shiftType];
+
+        foreach ($configs as $config) {
+            if ($config && ! $config->is_overnight
+                && ! $this->shiftReader->isBeforeCheckInWindow($scanTime, $config)
+                && $scanTime < $config->end_time) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Termasuk overnight kalau jadwal NORMAL hari itu overnight, ATAU extra shift approved

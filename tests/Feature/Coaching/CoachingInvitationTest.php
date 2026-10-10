@@ -10,7 +10,7 @@ use App\Livewire\InvitationViewPage;
 use App\Models\Invitation;
 use App\Models\Master\Companies;
 use App\Models\User;
-use App\Notifications\SpReportUpdated;
+use App\Notifications\InvitationUpdated;
 use App\Services\Coaching\CoachingInvitationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -58,7 +58,7 @@ class CoachingInvitationTest extends TestCase
 
         $this->assertSame(InvitationType::COACHING, $invitation->type);
         $this->assertNull($invitation->supervisor_id);
-        Notification::assertSentTo($this->coachee, SpReportUpdated::class);
+        Notification::assertSentTo($this->coachee, InvitationUpdated::class);
 
         Livewire::actingAs($this->coachee)->test(InvitationsCard::class)
             ->assertSee('Undangan Coaching')->assertSee('Ruang Meeting')->assertSee('2 hari lagi');
@@ -66,6 +66,20 @@ class CoachingInvitationTest extends TestCase
             ->assertOk()->assertSee('Evaluasi ketepatan waktu')->assertSee('Terjadwal');
     }
 
+    public function test_invitation_notification_is_purple_tagged_and_links_to_the_invitation(): void
+    {
+        $invitation = $this->invite();
+
+        $notification = $this->coachee->notifications()->latest()->firstOrFail();
+        $this->assertSame('invitation', $notification->data['request_type']);
+        $this->assertSame('Undangan Coaching', $notification->data['invitation_label']);
+        $this->assertSame(route('undangan.show', $invitation), \App\Support\TaskNotificationUrl::for($notification->data));
+
+        // Lonceng: garis kiri + badge ungu khusus undangan.
+        Livewire::actingAs($this->coachee)->test(\App\Livewire\NotificationBell::class)
+            ->assertSee('Undangan Coaching')
+            ->assertSeeHtml('border-left:3px solid #8B5CF6');
+    }
     public function test_supervisor_is_invited_only_when_chosen(): void
     {
         Notification::fake();
@@ -78,11 +92,11 @@ class CoachingInvitationTest extends TestCase
 
         $without = $service->create($this->coach, $data);
         $this->assertNull($without->supervisor_id);
-        Notification::assertNotSentTo($supervisor, SpReportUpdated::class);
+        Notification::assertNotSentTo($supervisor, InvitationUpdated::class);
 
         $with = $service->create($this->coach, $data + ['with_supervisor' => true]);
         $this->assertSame($supervisor->id, $with->supervisor_id);
-        Notification::assertSentTo($supervisor, SpReportUpdated::class);
+        Notification::assertSentTo($supervisor, InvitationUpdated::class);
 
         Livewire::actingAs($supervisor)->test(InvitationsCard::class)
             ->assertSee('Undangan Coaching')->assertSee($this->coachee->name);
