@@ -154,6 +154,35 @@ class ShiftAttendanceReader
         return Carbon::createFromFormat('H:i:s', $config->start_time)->subMinutes($config->checkin_buffer_minutes)->format('H:i:s');
     }
 
+    /** Scan sebelum jendela check-in config (jadi belum bisa jadi jam masuk shift itu). Config
+     * tanpa start_time dianggap bentrok (false) - scan tidak diambil alih. */
+    public function isBeforeCheckInWindow(string $scanTime, object $config): bool
+    {
+        if (! isset($config->start_time)) {
+            return false;
+        }
+
+        return $scanTime < Carbon::createFromFormat('H:i:s', $config->start_time)
+            ->subMinutes((int) ($config->checkin_buffer_minutes ?? 0))->format('H:i:s');
+    }
+
+    /** Scan pagi pasca shift lewat tengah malam: lebih dekat ke jam selesai daripada ke jam
+     * mulai shift (titik tengah). Scan telat beberapa menit dari jam selesai tetap termasuk -
+     * tidak bergantung checkout_buffer_minutes. */
+    public function isOvernightCheckoutScan(string $scanTime, ScheduleShiftType $config): bool
+    {
+        $end = Carbon::createFromFormat('H:i:s', $config->end_time);
+        $start = Carbon::createFromFormat('H:i:s', $config->start_time);
+
+        if ($end->gte($start)) {
+            return false;
+        }
+
+        $mid = $end->copy()->addSeconds((int) ($end->diffInSeconds($start) / 2))->format('H:i:s');
+
+        return $scanTime <= $mid;
+    }
+
     private function checkOutWindowEnd(ScheduleShiftType $config): string
     {
         return Carbon::createFromFormat('H:i:s', $config->end_time)->addMinutes($config->checkout_buffer_minutes)->format('H:i:s');

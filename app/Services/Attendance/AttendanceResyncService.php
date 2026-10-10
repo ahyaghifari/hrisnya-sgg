@@ -53,8 +53,11 @@ class AttendanceResyncService
                 }
             }
 
+            // Pulang saja kemarin (lupa scan masuk) hasil scan pertama $from milik $from-1 - ikut disimpan.
+            $prevOfFrom = Carbon::parse($from)->subDay()->toDateString();
             foreach ($result['buckets'] as $type => $entries) {
-                $result['buckets'][$type] = array_filter($entries, fn ($e) => $e['date'] >= $from && $e['date'] <= $to);
+                $result['buckets'][$type] = array_filter($entries, fn ($e) => ($e['date'] >= $from && $e['date'] <= $to)
+                    || ($e['date'] === $prevOfFrom && array_key_exists('check_in', $e) && $e['check_in'] === null));
             }
             $repo = app(AttendanceRecordRepository::class);
             $calculators = [
