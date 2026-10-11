@@ -112,6 +112,24 @@ class AnnouncementResource extends BaseResource
             ->action(fn (Announcement $record) => static::publish($record));
     }
 
+    /** Pratinjau isi form saat ini (belum perlu disimpan) persis seperti halaman detail yang dilihat penerima. */
+    public static function previewAction(): Action
+    {
+        return Action::make('preview')
+            ->label('Pratinjau')
+            ->icon(Heroicon::OutlinedEye)
+            ->color('gray')
+            ->modalHeading('Pratinjau Pengumuman')
+            ->modalWidth('4xl')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Tutup')
+            ->modalContent(fn ($livewire) => view('filament.announcement-preview', [
+                'title' => $livewire->data['title'] ?? '',
+                'body' => $livewire->data['body'] ?? null,
+                'by' => auth()->user()->name,
+            ]));
+    }
+
     public static function publish(Announcement $announcement): void
     {
         if ($announcement->isPublished()) {
