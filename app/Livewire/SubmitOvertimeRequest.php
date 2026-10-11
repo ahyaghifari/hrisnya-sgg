@@ -57,12 +57,21 @@ class SubmitOvertimeRequest extends Component
         return [
             'overtime_type' => ['required', \Illuminate\Validation\Rule::enum(OvertimeTypeEnum::class)],
             'date' => ['required', 'date'],
-            'tasks' => ['nullable', 'array'],
-            'tasks.*.task_description' => ['nullable', 'string', 'max:500'],
-            'tasks.*.start_time' => ['nullable', 'date_format:H:i'],
-            'tasks.*.end_time' => ['nullable', 'date_format:H:i', 'after:tasks.*.start_time'],
+            'tasks' => ['required', 'array', 'min:1'],
+            'tasks.*.task_description' => ['required', 'string', 'max:500'],
+            'tasks.*.start_time' => ['required', 'date_format:H:i'],
+            'tasks.*.end_time' => ['required', 'date_format:H:i', 'after:tasks.*.start_time'],
             'attachments' => ['nullable', 'array', 'max:' . \App\Models\Attendance\AttendanceRequestAttachments::MAX_OVERTIME],
             'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+        ];
+    }
+
+    protected function validationAttributes(): array
+    {
+        return [
+            'tasks.*.task_description' => 'deskripsi tugas',
+            'tasks.*.start_time' => 'jam mulai',
+            'tasks.*.end_time' => 'jam selesai',
         ];
     }
 

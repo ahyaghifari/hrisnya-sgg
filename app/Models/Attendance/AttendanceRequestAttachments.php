@@ -35,13 +35,23 @@ class AttendanceRequestAttachments extends Model
         return self::create(['request_id' => $requestId, 'file_path' => $path]);
     }
 
+    /** Lampiran berupa link: file_path berisi URL http(s) utuh, bukan path di disk (tanpa kolom/migrasi tambahan). */
+    public function getIsLinkAttribute(): bool
+    {
+        return (bool) preg_match('#^https?://#i', $this->file_path ?? '');
+    }
+
     public function getFileUrlAttribute(): ?string
     {
+        if ($this->is_link) {
+            return $this->file_path;
+        }
+
         return $this->file_path ? Storage::disk('public')->url($this->file_path) : null;
     }
 
     public function getIsImageAttribute(): bool
     {
-        return (bool) preg_match('/\.(jpe?g|png|gif|webp)$/i', $this->file_path ?? '');
+        return ! $this->is_link && (bool) preg_match('/\.(jpe?g|png|gif|webp)$/i', $this->file_path ?? '');
     }
 }

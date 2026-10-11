@@ -213,7 +213,11 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
                     </div>
                 @else
                     <a href="{{ $attachment->file_url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid var(--border-soft);font-size:12.5px;color:#1a56c4;text-decoration:none;">
-                        <i class="fa-solid fa-file"></i> {{ basename($attachment->file_path) }}
+                        @if ($attachment->is_link)
+                            <i class="fa-solid fa-link"></i> {{ preg_replace('/^www\./', '', parse_url($attachment->file_path, PHP_URL_HOST) ?: 'Link') }}
+                        @else
+                            <i class="fa-solid fa-file"></i> {{ basename($attachment->file_path) }}
+                        @endif
                     </a>
                 @endif
             @endforeach
@@ -357,7 +361,11 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
                             </div>
                         @else
                             <a href="{{ $attachment->file_url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;border:1px solid var(--border-soft);font-size:11.5px;color:#1a56c4;text-decoration:none;">
-                                <i class="fa-solid fa-file"></i> {{ basename($attachment->file_path) }}
+                                @if ($attachment->is_link)
+                                    <i class="fa-solid fa-link"></i> {{ preg_replace('/^www\./', '', parse_url($attachment->file_path, PHP_URL_HOST) ?: 'Link') }}
+                                @else
+                                    <i class="fa-solid fa-file"></i> {{ basename($attachment->file_path) }}
+                                @endif
                             </a>
                         @endif
                     @endforeach
@@ -385,6 +393,41 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
                 @else
                     <button type="button" class="btn-primary" style="margin-top:10px;" wire:click="askUpload" wire:loading.attr="disabled" wire:target="lampiran,askUpload">Unggah Lampiran</button>
                 @endif
+            </div>
+        @endif
+
+        {{-- Lembur: pengaju boleh tambah file/link selama masih dalam periode absensi, maks MAX_OVERTIME. --}}
+        @if ($this->canAddOvertimeAttachment)
+            @php $slots = $this->overtimeAttachmentSlots; @endphp
+            <div style="padding:12px 0 0;" x-data="{ linkOpen: false }" x-on:overtime-link-saved.window="linkOpen = false">
+                <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 6px;">
+                    Tambah Lampiran / Bukti
+                    <span style="color:var(--text-faint);">({{ $record->attachments->count() }}/{{ \App\Models\Attendance\AttendanceRequestAttachments::MAX_OVERTIME }})</span>
+                </p>
+                @if ($slots > 0)
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                        <label style="display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 16px;border:2px dashed var(--border);border-radius:10px;color:var(--text-heading);font-size:12.5px;font-weight:700;cursor:pointer;">
+                            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none;" wire:model="overtimeFiles"
+                                   x-on:livewire-upload-finish="$wire.addOvertimeAttachments(); $el.value = ''">
+                            <span wire:loading.remove wire:target="overtimeFiles,addOvertimeAttachments"><i class="fa-solid fa-plus"></i> Tambah file</span>
+                            <span wire:loading wire:target="overtimeFiles,addOvertimeAttachments"><i class="fa-solid fa-spinner fa-spin"></i> Mengunggah...</span>
+                        </label>
+                        <button type="button" x-on:click="linkOpen = !linkOpen"
+                                style="display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 16px;border:2px dashed var(--border);border-radius:10px;background:none;color:var(--text-heading);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;">
+                            <i class="fa-solid fa-link"></i> Tambah link
+                        </button>
+                    </div>
+                    <div x-show="linkOpen" x-cloak style="margin-top:8px;display:flex;gap:8px;">
+                        <input type="url" inputmode="url" class="form-input" placeholder="https://..." wire:model="overtimeLink" wire:keydown.enter="addOvertimeLink" style="flex:1;min-width:0;">
+                        <button type="button" class="btn-primary" wire:click="addOvertimeLink" wire:loading.attr="disabled" wire:target="addOvertimeLink">Simpan</button>
+                    </div>
+                    <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">PDF/JPG/PNG maks 10 MB per file; gambar dikompres otomatis. Sisa slot: {{ $slots }}.</p>
+                @else
+                    <p style="font-size:11.5px;color:var(--text-muted);margin:0;">Batas lampiran sudah tercapai.</p>
+                @endif
+                @error('overtimeFiles') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                @error('overtimeFiles.*') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                @error('overtimeLink') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
         @endif
     </div>

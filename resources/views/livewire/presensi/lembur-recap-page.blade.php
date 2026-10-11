@@ -205,7 +205,19 @@
 @php $selectedRow = collect($recap['rows'] ?? [])->firstWhere('user.id', $selectedUserId); @endphp
 @if ($selectedRow)
     <div class="modal-overlay" wire:click="closeDetail">
-        <div class="modal-box" onclick="event.stopPropagation()">
+        {{-- Modal dilebarkan (720px, bawaan 420px) supaya rincian + pratinjau lampiran lega. lb = lightbox gambar lampiran. --}}
+        <div class="modal-box" style="max-width:720px;" onclick="event.stopPropagation()" x-data="{ lb: null }" x-on:keydown.escape.window="lb = null">
+            <template x-teleport="body">
+                <div x-show="lb" x-cloak x-on:click="lb = null" style="position:fixed;inset:0;z-index:10000;background:rgba(2,6,23,0.85);">
+                    <button type="button" x-on:click.stop="lb = null" aria-label="Tutup"
+                            style="position:absolute;top:14px;right:14px;z-index:1;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,0.18);color:#fff;font-size:18px;cursor:pointer;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                    <div style="width:100%;height:100%;box-sizing:border-box;padding:16px;display:flex;align-items:center;justify-content:center;">
+                        <img :src="lb" alt="Lampiran" x-on:click.stop style="max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;">
+                    </div>
+                </div>
+            </template>
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">
                 <div>
                     <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0;">{{ $selectedRow['user']->name }}</h3>
@@ -219,10 +231,14 @@
                 </div>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;">
+            @php $attachmentShown = []; @endphp
+            <div style="display:flex;flex-direction:column;gap:8px;max-height:480px;overflow-y:auto;">
                 @foreach ($selectedRow['items'] as $item)
                     @php $itemStyle = $typeStyle($item['type_name']); @endphp
-                    <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:var(--surface-alt);">
+                    <div style="padding:10px 12px;border-radius:10px;background:var(--surface-alt);">
+                    {{-- Klik rincian = buka halaman detail pengajuan. Lampiran di bawahnya terpisah (bukan di dalam link). --}}
+                    <a href="{{ route('my-attendance-requests.show', $item['request_id']) }}" wire:navigate title="Buka detail pengajuan"
+                       style="display:flex;align-items:flex-start;gap:12px;text-decoration:none;color:inherit;">
                         <div style="flex-shrink:0;width:30px;height:30px;border-radius:9px;background:{{ $itemStyle['bg'] }};display:flex;align-items:center;justify-content:center;margin-top:1px;">
                             <i class="fa-solid fa-clock" style="color:{{ $itemStyle['color'] }};font-size:12px;"></i>
                         </div>
@@ -244,6 +260,28 @@
                                 <p style="font-size:11.5px;color:var(--text-body, var(--text-heading));margin:6px 0 0;white-space:pre-line;">{{ $item['task'] }}</p>
                             @endif
                         </div>
+                        <i class="fa-solid fa-chevron-right" style="flex-shrink:0;align-self:center;font-size:11px;color:var(--text-faint);"></i>
+                    </a>
+
+                    {{-- Pratinjau lampiran (baca-saja, tanpa hapus/tambah): satu pengajuan bisa punya beberapa baris tanggal,
+                    jadi ditampilkan sekali saja di baris pertama pengajuan itu. Gambar = lightbox, PDF/link = tab baru. --}}
+                    @if (! empty($item['attachments']) && ! in_array($item['request_id'], $attachmentShown, true))
+                        @php $attachmentShown[] = $item['request_id']; @endphp
+                        <div style="display:flex;flex-wrap:nowrap;gap:8px;margin-top:10px;padding-left:42px;overflow-x:auto;">
+                            @foreach ($item['attachments'] as $att)
+                                <a href="{{ $att['url'] }}" target="_blank" rel="noopener" title="Lampiran {{ $loop->iteration }}"
+                                   @if ($att['is_image']) x-on:click.prevent="lb = @js($att['url'])" @endif
+                                   style="flex:0 0 64px;width:64px;aspect-ratio:1/1;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;font-size:10px;font-weight:700;color:var(--text-heading);background:var(--surface);border:1px solid var(--border-soft);">
+                                    @if ($att['is_image'])
+                                        <img src="{{ $att['url'] }}" alt="Lampiran {{ $loop->iteration }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">
+                                    @else
+                                        <i class="fa-solid {{ $att['is_link'] ? 'fa-link' : 'fa-file-pdf' }}" style="font-size:18px;"></i>
+                                        <span style="max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $att['label'] }}</span>
+                                    @endif
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
                     </div>
                 @endforeach
             </div>

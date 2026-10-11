@@ -29,6 +29,10 @@ class AttendanceRequestDetail extends Component
     public array $lampiran = [];
     public bool $confirmingUpload = false;
 
+    /** Tambah lampiran/bukti Lembur (lihat getCanAddOvertimeAttachmentProperty()). */
+    public array $overtimeFiles = [];
+    public ?string $overtimeLink = null;
+
     public ?string $pendingAction = null;
     public ?string $note = null;
 
@@ -89,6 +93,15 @@ class AttendanceRequestDetail extends Component
             return true;
         }
 
+        // Rekap Lembur (modal rincian) menautkan ke halaman ini: pemegang akses laporan absensi boleh buka detail
+        // pengajuan LEMBUR, dibatasi perusahaan yang sama (kecuali yang memang boleh lintas perusahaan di Sistem Absensi).
+        if ($record->type === 'overtime'
+            && $user->can(\App\Enum\CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value)
+            && ($record->user?->company_id === $user->company_id
+                || $user->canFilterByCompanyForSystem(\App\Enum\CustomPermissionEnum::SISTEM_ABSENSI))) {
+            return true;
+        }
+
         return app(OrgHierarchyService::class)
             ->subordinates($user)
             ->whereKey($record->user_id)
@@ -135,6 +148,87 @@ class AttendanceRequestDetail extends Component
         unset($this->canUploadAttachment);
 
         Notification::make()->title('Lampiran berhasil diunggah')->success()->send();
+    }
+
+    /** Tambah lampiran/bukti lembur oleh pengaju: selama pengajuan masih hidup (in_review/approved) dan hari ini
+     *  belum melewati akhir PERIODE ABSENSI yang memuat tanggal lemburnya (AttendancePeriodResolver, sama dengan
+     *  pengaturan Tanggal Awal/Akhir Periode Absensi). Maksimal MAX_OVERTIME lampiran (file + link). */
+    public function getCanAddOvertimeAttachmentProperty(): bool
+    {
+        if ($this->record->user_id !== Auth::id()
+            || $this->record->type !== 'overtime'
+            || ! in_array($this->record->status, ['in_review', 'approved'], true)) {
+            return false;
+        }
+
+        $date = $this->record->overtimeDetails->min('date');
+        if (! $date) {
+            return false;
+        }
+
+        [, $periodEnd] = \App\Services\Attendance\AttendancePeriodResolver::resolve(
+            \Illuminate\Support\Carbon::parse($date),
+            $this->record->user?->company_id,
+        );
+
+        return now()->startOfDay()->lte($periodEnd->copy()->startOfDay());
+    }
+
+    public function getOvertimeAttachmentSlotsProperty(): int
+    {
+        return max(0, AttendanceRequestAttachments::MAX_OVERTIME - $this->record->attachments()->count());
+    }
+
+    public function addOvertimeAttachments(): void
+    {
+        abort_unless($this->canAddOvertimeAttachment, 403);
+
+        $slots = $this->overtimeAttachmentSlots;
+
+        $this->validate([
+            'overtimeFiles' => ['required', 'array', "max:{$slots}"],
+            'overtimeFiles.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+        ], [
+            'overtimeFiles.max' => 'Maksimal ' . AttendanceRequestAttachments::MAX_OVERTIME . " lampiran per lembur (sisa slot: {$slots}).",
+            'overtimeFiles.required' => 'Pilih file lampiran dulu.',
+        ], ['overtimeFiles.*' => 'Lampiran']);
+
+        foreach ($this->overtimeFiles as $file) {
+            AttendanceRequestAttachments::storeUploaded($this->record->id, $file, 'overtime');
+        }
+
+        $this->overtimeFiles = [];
+        $this->refreshAttachments();
+
+        Notification::make()->title('Lampiran lembur ditambahkan')->success()->send();
+    }
+
+    public function addOvertimeLink(): void
+    {
+        abort_unless($this->canAddOvertimeAttachment, 403);
+
+        if ($this->overtimeAttachmentSlots < 1) {
+            $this->addError('overtimeLink', 'Maksimal ' . AttendanceRequestAttachments::MAX_OVERTIME . ' lampiran per lembur.');
+
+            return;
+        }
+
+        // http/https saja: URL ini dirender sebagai href.
+        $this->validate(['overtimeLink' => ['required', 'url:http,https', 'max:255']], [], ['overtimeLink' => 'link']);
+
+        AttendanceRequestAttachments::create(['request_id' => $this->record->id, 'file_path' => trim($this->overtimeLink)]);
+
+        $this->overtimeLink = null;
+        $this->refreshAttachments();
+        $this->dispatch('overtime-link-saved');
+
+        Notification::make()->title('Link lampiran ditambahkan')->success()->send();
+    }
+
+    private function refreshAttachments(): void
+    {
+        $this->record->load('attachments');
+        unset($this->overtimeAttachmentSlots);
     }
 
     public function getCanRecheckPresensiProperty(): bool
