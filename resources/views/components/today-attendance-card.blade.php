@@ -368,4 +368,10 @@
             @endif
         </div>
     @endif
+
+    {{-- Lembur hari ini (in_review/approved) + tambah lampiran/bukti - digabung ke kartu ini supaya Beranda
+    tidak penuh widget. Hanya di profil sendiri ($canSync): upload butuh aksi milik user yang login. --}}
+    @if ($canSync)
+        <livewire:overtime-today-card key="overtime-today-card" :is-holiday="($status['state'] ?? null) === 'holiday'" />
+    @endif
 </div>

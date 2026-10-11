@@ -22,15 +22,9 @@ class OvertimeReqRepository
         try {
             // Handle file uploads - store to AttendanceRequestAttachments model
             if (!empty($data['attachments_files']) && is_array($data['attachments_files'])) {
-                foreach ($data['attachments_files'] as $file) {
+                foreach (array_slice($data['attachments_files'], 0, AttendanceRequestAttachments::MAX_OVERTIME) as $file) {
                     if ($file) {
-                        $path = Storage::disk('public')->putFile("overtime/{$data['request_id']}", $file);
-                        
-                        // Create attachment record
-                        AttendanceRequestAttachments::create([
-                            'request_id' => $data['request_id'],
-                            'file_path' => $path,
-                        ]);
+                        AttendanceRequestAttachments::storeUploaded($data['request_id'], $file, 'overtime');
                     }
                 }
             }
