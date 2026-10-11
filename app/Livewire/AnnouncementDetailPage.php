@@ -24,8 +24,21 @@ class AnnouncementDetailPage extends Component
         $this->record = $record->load('publisher');
     }
 
+    public string $comment = '';
+
+    /** Satu orang satu komentar - unique(announcement_id, user_id) di DB menahan double-submit. */
+    public function addComment(): void
+    {
+        $this->validate(['comment' => ['required', 'string', 'max:1000']], [], ['comment' => 'komentar']);
+
+        $this->record->comments()->firstOrCreate(['user_id' => Auth::id()], ['body' => trim($this->comment)]);
+        $this->reset('comment');
+    }
+
     public function render()
     {
-        return view('livewire.announcement-detail-page');
+        return view('livewire.announcement-detail-page', [
+            'comments' => $this->record->comments()->with('user')->oldest()->get(),
+        ]);
     }
 }

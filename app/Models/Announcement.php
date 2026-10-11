@@ -35,6 +35,11 @@ class Announcement extends Model
         return $this->belongsTo(User::class, 'published_by');
     }
 
+    public function comments()
+    {
+        return $this->hasMany(AnnouncementComment::class);
+    }
+
     public function jobPositions(): BelongsToMany
     {
         return $this->belongsToMany(JobPositions::class, 'announcement_job_position', 'announcement_id', 'job_position_id');
