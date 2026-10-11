@@ -79,18 +79,21 @@
                         </div>
                         <div style="display:flex;flex-direction:column;gap:12px;">
                             <div>
-                                <label class="form-label">Deskripsi Tugas</label>
+                                <label class="form-label">Deskripsi Tugas <span style="color:var(--danger-text);">*</span></label>
                                 <textarea class="form-input" rows="2" placeholder="Masukkan detail tugas lembur..." wire:model="tasks.{{ $index }}.task_description"></textarea>
+                                @error("tasks.{$index}.task_description") <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                             </div>
                             <div class="time-grid">
                                 <div>
                                     <input type="time" class="form-input" wire:model="tasks.{{ $index }}.start_time">
-                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Mulai</p>
+                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Mulai <span style="color:var(--danger-text);">*</span></p>
+                                    @error("tasks.{$index}.start_time") <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                                 </div>
                                 <div class="time-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                                 <div>
                                     <input type="time" class="form-input" wire:model="tasks.{{ $index }}.end_time">
-                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Selesai</p>
+                                    <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Jam Selesai <span style="color:var(--danger-text);">*</span></p>
+                                    @error("tasks.{$index}.end_time") <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
                                 </div>
                             </div>
                         </div>

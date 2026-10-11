@@ -8,7 +8,7 @@ terpisah lagi. Warna putih di atas gradient kartu, sama pola blok Extra/Double S
             {{-- Scrollbar baris lampiran: tipis, putih transparan (Firefox: scrollbar-*, Chrome/Safari: ::-webkit-scrollbar). --}}
             <style>
                 .ot-strip { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.45) transparent; }
-                .ot-strip::-webkit-scrollbar { height: 4px; }
+                .ot-strip::-webkit-scrollbar { height: 2px; }
                 .ot-strip::-webkit-scrollbar-track { background: transparent; }
                 .ot-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.45); border-radius: 999px; }
                 .ot-strip::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.7); }
@@ -71,7 +71,8 @@ terpisah lagi. Warna putih di atas gradient kartu, sama pola blok Extra/Double S
                     @php $max = \App\Models\Attendance\AttendanceRequestAttachments::MAX_OVERTIME; @endphp
                     {{-- Lampiran berjajar menyamping, tiap kotak 1:1 (gambar = thumbnail, PDF = ikon), geser kalau sempit.
                     Maksimal {{ $max }}; kotak tambah hilang kalau sudah penuh. Gambar dikompres otomatis di server. --}}
-                    <div x-data="{ lb: null }" x-on:keydown.escape.window="lb = null" class="ot-strip" style="display:flex;flex-wrap:nowrap;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:2px;">
+                    <div x-data="{ lb: null, linkOpen: false }" x-on:keydown.escape.window="lb = null" x-on:overtime-link-added.window="linkOpen = false">
+                    <div class="ot-strip" style="display:flex;flex-wrap:nowrap;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:2px;">
                         {{-- Lightbox gambar: overlay fixed di-teleport ke body (panel ini overflow:hidden), jadi tidak pindah halaman.
                         PDF tetap buka tab baru. Klik latar / Esc / tombol X menutup. --}}
                         <template x-teleport="body">
@@ -97,6 +98,9 @@ terpisah lagi. Warna putih di atas gradient kartu, sama pola blok Extra/Double S
                                    style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#fff;text-decoration:none;font-size:10.5px;font-weight:700;">
                                     @if ($att->is_image)
                                         <img src="{{ $att->file_url }}" alt="Lampiran {{ $loop->iteration }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">
+                                    @elseif ($att->is_link)
+                                        <i class="fa-solid fa-link" style="font-size:22px;"></i>
+                                        <span style="max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ preg_replace('/^www\./', '', parse_url($att->file_path, PHP_URL_HOST) ?: 'Link') }}</span>
                                     @else
                                         <i class="fa-solid fa-file-pdf" style="font-size:22px;"></i>
                                         <span>PDF {{ $loop->iteration }}</span>
@@ -139,9 +143,35 @@ terpisah lagi. Warna putih di atas gradient kartu, sama pola blok Extra/Double S
                                     <i class="fa-solid fa-spinner fa-spin" style="font-size:18px;"></i>Unggah
                                 </span>
                             </label>
+
+                            {{-- Kotak tambah link: membuka baris input URL di bawah baris lampiran. --}}
+                            <button type="button" x-on:click="linkOpen = !linkOpen" title="Tambah link"
+                                    style="flex:0 0 76px;width:76px;aspect-ratio:1/1;border-radius:12px;border:2px dashed rgba(255,255,255,0.75);background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#fff;font-size:10.5px;font-weight:700;cursor:pointer;opacity:0.6;">
+                                <i class="fa-solid fa-link" style="font-size:18px;"></i>Link
+                            </button>
                         @endif
                     </div>
-                    <p style="font-size:10.5px;color:rgba(255,255,255,0.8);margin:6px 0 0;">{{ $req->attachments->count() }}/{{ $max }} lampiran</p>
+
+                    {{-- Input URL (https://...): disimpan sebagai lampiran, tampil seperti PDF tapi ikon link. --}}
+                    <div x-show="linkOpen" x-cloak style="margin-top:8px;">
+                        <div style="display:flex;gap:8px;">
+                            <input type="url" inputmode="url" placeholder="https://..." wire:model="links.{{ $req->id }}" wire:keydown.enter="addLink('{{ $req->id }}')"
+                                   style="flex:1;min-width:0;min-height:40px;box-sizing:border-box;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);color:#fff;font-size:12.5px;">
+                            <button type="button" wire:click="addLink('{{ $req->id }}')" wire:loading.attr="disabled" wire:target="addLink"
+                                    style="min-height:40px;padding:0 14px;border:0;border-radius:10px;background:#fff;color:#042c6c;font-size:12px;font-weight:700;cursor:pointer;">
+                                Simpan
+                            </button>
+                        </div>
+                    </div>
+                    @error("links.{$req->id}") <span style="display:block;margin-top:4px;font-size:11px;font-weight:700;color:#fecaca;">{{ $message }}</span> @enderror
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;">
+                        <span style="font-size:10.5px;color:rgba(255,255,255,0.8);">{{ $req->attachments->count() }}/{{ $max }} lampiran</span>
+                        <a href="{{ route('my-attendance-requests.show', $req->id) }}" wire:navigate
+                           style="display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,0.2);color:#fff;font-size:11.5px;font-weight:700;text-decoration:none;">
+                            Detail pengajuan <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i>
+                        </a>
+                    </div>
                     @error("files.{$req->id}") <span style="display:block;margin-top:4px;font-size:11px;font-weight:700;color:#fecaca;">{{ $message }}</span> @enderror
                     @error("files.{$req->id}.*") <span style="display:block;margin-top:4px;font-size:11px;font-weight:700;color:#fecaca;">{{ $message }}</span> @enderror
                 </div>

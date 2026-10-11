@@ -21,6 +21,9 @@ class OvertimeTodayCard extends Component
     /** @var array<string, array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile>> keyed by request id */
     public array $files = [];
 
+    /** @var array<string, string> URL lampiran link, keyed by request id */
+    public array $links = [];
+
     /** Dari kartu Presensi Hari Ini: hari ini libur (tanggal merah / off sesuai jadwal) tapi ada lembur. */
     public bool $isHoliday = false;
 
@@ -67,6 +70,34 @@ class OvertimeTodayCard extends Component
         Notification::make()->title('Lampiran lembur ditambahkan')->success()->send();
     }
 
+    /** Tambah lampiran berupa link (URL http/https). Ikut kuota maksimal yang sama dengan file. */
+    public function addLink(string $requestId): void
+    {
+        $request = $this->loadRequests()->firstWhere('id', $requestId);
+        abort_unless($request, 403);
+
+        if ($request->attachments->count() >= AttendanceRequestAttachments::MAX_OVERTIME) {
+            $this->addError("links.{$requestId}", 'Maksimal ' . AttendanceRequestAttachments::MAX_OVERTIME . ' lampiran per lembur.');
+
+            return;
+        }
+
+        // Skema http/https saja (tolak javascript:, data:, dll) - URL ini nanti dirender sebagai href.
+        $this->validate([
+            "links.{$requestId}" => ['required', 'url:http,https', 'max:255'],
+        ], [], ["links.{$requestId}" => 'link']);
+
+        AttendanceRequestAttachments::create([
+            'request_id' => $request->id,
+            'file_path' => trim($this->links[$requestId]),
+        ]);
+
+        unset($this->links[$requestId]);
+        $this->dispatch('overtime-link-added');
+
+        Notification::make()->title('Link lampiran ditambahkan')->success()->send();
+    }
+
     public function deleteAttachment(string $requestId, string $attachmentId): void
     {
         // Scope sama dengan addAttachments: hanya lampiran pengajuan milik sendiri yang tampil di widget ini.
@@ -74,7 +105,9 @@ class OvertimeTodayCard extends Component
         $attachment = $request?->attachments->firstWhere('id', $attachmentId);
         abort_unless($attachment, 403);
 
-        \Illuminate\Support\Facades\Storage::disk('public')->delete($attachment->file_path);
+        if (! $attachment->is_link) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($attachment->file_path);
+        }
         $attachment->delete();
 
         Notification::make()->title('Lampiran dihapus')->success()->send();

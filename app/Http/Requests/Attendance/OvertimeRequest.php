@@ -20,11 +20,11 @@ class OvertimeRequest extends FormRequest
             'date' => ['required', 'date'],
             'type_id' => ['required', \Illuminate\Validation\Rule::enum(\App\Enum\Attendance\OvertimeTypeEnum::class)],
 
-            'tasks' => ['nullable', 'array', 'min:1'],
-            'tasks.*.task_description' => ['nullable', 'string', 'max:500'],
-            'tasks.*.start_time' => ['nullable', 'date_format:H:i'],
+            'tasks' => ['required', 'array', 'min:1'],
+            'tasks.*.task_description' => ['required', 'string', 'max:500'],
+            'tasks.*.start_time' => ['required', 'date_format:H:i'],
             'tasks.*.end_time' => [
-                'nullable',
+                'required',
                 'date_format:H:i',
                 'after:tasks.*.start_time',
             ],

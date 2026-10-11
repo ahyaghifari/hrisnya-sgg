@@ -128,7 +128,7 @@ class LemburRecapPage extends Component
                     $q2->when($this->companyId, fn ($q3) => $q3->whereCompany($this->companyId));
                     $this->applyDepartmentDivisionFilter($q2);
                 }))
-            ->with(['attendanceRequest.user', 'attendanceRequest.user.profile.jobPosition.orgStructure.parent.parent'])
+            ->with(['attendanceRequest.user', 'attendanceRequest.attachments', 'attendanceRequest.user.profile.jobPosition.orgStructure.parent.parent'])
             ->get()
             ->filter(fn ($d) => $d->attendanceRequest?->user);
 
@@ -155,6 +155,16 @@ class LemburRecapPage extends Component
                 $counts[$type] = ($counts[$type] ?? 0) + (float) $detail->total_hours;
 
                 return [
+                    'request_id' => $detail->request_id,
+                    // Pratinjau lampiran (baca-saja) di modal rincian: url + jenis, tanpa aksi apa pun.
+                    'attachments' => $detail->attendanceRequest->attachments->map(fn ($a) => [
+                        'url' => $a->file_url,
+                        'is_image' => $a->is_image,
+                        'is_link' => $a->is_link,
+                        'label' => $a->is_link
+                            ? (preg_replace('/^www\./', '', parse_url($a->file_path, PHP_URL_HOST) ?: 'Link'))
+                            : strtoupper(pathinfo($a->file_path, PATHINFO_EXTENSION) ?: 'FILE'),
+                    ])->all(),
                     'presensi'   => $presensi->get($detail->attendanceRequest->user_id . '|' . substr((string) $detail->date, 0, 10)),
                     'type_name'  => $type,
                     'date'       => $detail->date,
