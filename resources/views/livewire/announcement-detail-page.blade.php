@@ -7,9 +7,15 @@
     <h3 style="font-size:14px;font-weight:700;color:var(--text-heading);margin:0 0 12px;">Komentar ({{ $comments->count() }})</h3>
 
     @foreach ($comments as $c)
-        <div style="padding:10px 0;border-top:1px solid var(--border, #e5e7eb);">
-            <div style="font-size:12.5px;color:var(--text-muted);"><strong style="color:var(--text-heading);">{{ $c->user?->name ?? '-' }}</strong> · {{ $c->created_at->translatedFormat('j M Y H:i') }}</div>
-            <div style="font-size:14px;line-height:1.55;color:var(--text-body);white-space:pre-line;overflow-wrap:anywhere;">{{ $c->body }}</div>
+        <div style="padding:12px 0;border-top:1px solid var(--border, #e5e7eb);">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <x-avatar :user="$c->user" :size="36" />
+                <div>
+                    <div style="font-size:13.5px;font-weight:700;color:var(--text-heading);">{{ $c->user?->full_name ?? '-' }}</div>
+                    <div style="font-size:12px;color:var(--text-muted);">{{ $c->created_at->translatedFormat('j M Y H:i') }}</div>
+                </div>
+            </div>
+            <div style="font-size:14px;line-height:1.55;color:var(--text-body);white-space:pre-line;overflow-wrap:anywhere;margin-top:8px;">{{ $c->body }}</div>
         </div>
     @endforeach
 
