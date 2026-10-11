@@ -17,6 +17,24 @@ class AttendanceRequestAttachments extends Model
         'file_path',
     ];
 
+    /** Batas lampiran per pengajuan lembur. */
+    public const MAX_OVERTIME = 5;
+
+    /** Simpan file lampiran pengajuan; gambar jpg/png/webp otomatis diperkecil & dikompres (ImageCompressor). */
+    public static function storeUploaded(string $requestId, \Illuminate\Http\UploadedFile $file, string $dir): self
+    {
+        $compressed = \App\Support\ImageCompressor::compress($file);
+
+        if ($compressed) {
+            $path = "{$dir}/{$requestId}/" . \Illuminate\Support\Str::random(40) . '.' . $compressed['extension'];
+            Storage::disk('public')->put($path, $compressed['binary']);
+        } else {
+            $path = Storage::disk('public')->putFile("{$dir}/{$requestId}", $file);
+        }
+
+        return self::create(['request_id' => $requestId, 'file_path' => $path]);
+    }
+
     public function getFileUrlAttribute(): ?string
     {
         return $this->file_path ? Storage::disk('public')->url($this->file_path) : null;

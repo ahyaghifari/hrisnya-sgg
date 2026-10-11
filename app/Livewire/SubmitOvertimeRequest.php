@@ -61,7 +61,7 @@ class SubmitOvertimeRequest extends Component
             'tasks.*.task_description' => ['nullable', 'string', 'max:500'],
             'tasks.*.start_time' => ['nullable', 'date_format:H:i'],
             'tasks.*.end_time' => ['nullable', 'date_format:H:i', 'after:tasks.*.start_time'],
-            'attachments' => ['nullable', 'array'],
+            'attachments' => ['nullable', 'array', 'max:' . \App\Models\Attendance\AttendanceRequestAttachments::MAX_OVERTIME],
             'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ];
     }
