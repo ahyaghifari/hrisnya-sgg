@@ -13,7 +13,8 @@ makan tempat -> jarak ekstra di atas welcome card. Margin cuma berlaku kalau ada
     <livewire:document.pending-signatures-card />
 </div>
 
-{{-- Banner pengumuman: ikon X menyembunyikan per pengumuman (localStorage per perangkat), muncul lagi untuk pengumuman baru. --}}
+{{-- Banner pengumuman: ikon X menyembunyikan per pengumuman selama 24 jam (localStorage per perangkat), lalu muncul lagi
+selama pengumuman masih berlaku (banner_until); pengumuman baru selalu muncul. --}}
 @if ($this->announcementBanners->isNotEmpty())
 <style>
     .ann-banner { --ann-accent: var(--info-soft-text); display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 14px 16px; border-radius: 16px; color: var(--text-heading); position: relative; overflow: hidden; background: var(--surface); }
@@ -49,20 +50,22 @@ makan tempat -> jarak ekstra di atas welcome card. Margin cuma berlaku kalau ada
     .ann-dot { width: 6px; height: 6px; border-radius: 999px; border: 0; padding: 0; background: var(--text-faint); opacity: .45; cursor: pointer; transition: width .2s, opacity .2s, background .6s ease; }
     .ann-dot.on { width: 18px; background: var(--ann-accent); opacity: 1; }
 </style>
-{{-- Carousel otomatis (5 dtk, berhenti saat hover/disentuh) kalau lebih dari 1. X menyembunyikan per pengumuman (localStorage per perangkat). --}}
+{{-- Carousel otomatis (5 dtk, berhenti saat hover/disentuh) kalau lebih dari 1. X menyembunyikan per pengumuman 24 jam (localStorage per perangkat). --}}
 <div class="ann-banner" :class="'ann-' + (items[i]?.tone || 'info')"
      x-data="{ all: @js($this->announcementBanners->map(fn ($a) => ['id' => $a->id, 'title' => $a->title, 'tone' => $a->tone, 'summary' => \Illuminate\Support\Str::limit((string) $a->summary, 140), 'url' => route('pengumuman.show', $a)])->values()),
                items: [], i: 0, timer: null,
                init() {
                    let gone = [];
-                   try { gone = this.all.filter(a => localStorage.getItem('ann-dismissed-' + a.id)).map(a => a.id); } catch (e) {}
+                   // Nilai tersimpan = waktu ditutup (ms). Disembunyikan 24 jam, lalu muncul lagi selama masih berlaku (banner_until, difilter server).
+                   // Nilai lama '1' (versi sebelumnya) terbaca sebagai sangat lampau, jadi otomatis muncul lagi.
+                   try { const now = Date.now(); gone = this.all.filter(a => { const t = Number(localStorage.getItem('ann-dismissed-' + a.id)); return t > 0 && now - t < 86400000; }).map(a => a.id); } catch (e) {}
                    this.items = this.all.filter(a => !gone.includes(a.id));
                    this.play();
                },
                play() { this.stop(); if (this.items.length > 1) this.timer = setInterval(() => this.i = (this.i + 1) % this.items.length, 5000); },
                stop() { clearInterval(this.timer); },
                dismiss() {
-                   try { localStorage.setItem('ann-dismissed-' + this.items[this.i].id, '1'); } catch (e) {}
+                   try { localStorage.setItem('ann-dismissed-' + this.items[this.i].id, String(Date.now())); } catch (e) {}
                    this.items.splice(this.i, 1); this.i = 0; this.play();
                } }"
      x-show="items.length" x-cloak x-on:mouseenter="stop()" x-on:mouseleave="play()" x-on:touchstart.passive="stop()">
