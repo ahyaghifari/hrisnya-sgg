@@ -31,6 +31,7 @@ class EditAnnouncement extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            AnnouncementResource::previewAction(),
             // Simpan perubahan form dulu supaya yang terbit = yang terlihat di preview.
             Action::make('publish')
                 ->label('Simpan & Terbitkan')

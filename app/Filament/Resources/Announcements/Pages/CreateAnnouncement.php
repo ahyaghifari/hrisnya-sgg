@@ -11,6 +11,11 @@ class CreateAnnouncement extends CreateRecord
 
     protected static ?string $title = 'Buat Pengumuman';
 
+    protected function getHeaderActions(): array
+    {
+        return [AnnouncementResource::previewAction()];
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['company_id'] = auth()->user()->company_id;
