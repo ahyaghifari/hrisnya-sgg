@@ -14,7 +14,7 @@
     @endforeach
 
     @if ($comments->contains('user_id', auth()->id()))
-        <p style="font-size:12.5px;color:var(--text-muted);margin:12px 0 0;">Kamu sudah berkomentar. Satu komentar per pengumuman.</p>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:12px 0 0;">Anda sudah berkomentar.</p>
     @else
         <form wire:submit="addComment" style="margin-top:12px;">
             <textarea class="form-input" wire:model="comment" rows="3" maxlength="1000" placeholder="Tulis komentar (hanya bisa satu kali)"></textarea>
