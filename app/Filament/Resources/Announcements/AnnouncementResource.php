@@ -170,6 +170,11 @@ class AnnouncementResource extends BaseResource
         return Announcement::targetTree(static::canBrowseAllCompanies() ? null : static::companyId());
     }
 
+    public static function getRelations(): array
+    {
+        return [RelationManagers\CommentsRelationManager::class];
+    }
+
     public static function getPages(): array
     {
         return [
