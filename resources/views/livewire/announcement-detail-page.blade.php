@@ -8,7 +8,7 @@
         {{ $record->published_at?->translatedFormat('j F Y H:i') }}
     </p>
 
-    <div style="font-size:14px;line-height:1.65;color:var(--text-body);overflow-wrap:anywhere;">
+    <div class="[&_img]:max-w-full [&_img]:h-auto" style="font-size:14px;line-height:1.65;color:var(--text-body);overflow-wrap:anywhere;">
         {!! \Filament\Forms\Components\RichEditor\RichContentRenderer::make($record->body)->toHtml() !!}
     </div>
 </div>
