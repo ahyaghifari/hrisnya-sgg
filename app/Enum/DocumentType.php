@@ -11,12 +11,14 @@ enum DocumentType: string
 {
     case SP = 'sp';
     case BERITA_ACARA = 'berita_acara';
+    case SURAT_TUGAS = 'surat_tugas';
 
     public function label(): string
     {
         return match ($this) {
             self::SP => 'Surat Peringatan',
             self::BERITA_ACARA => 'Berita Acara',
+            self::SURAT_TUGAS => 'Surat Perintah Tugas',
         };
     }
 
@@ -26,6 +28,7 @@ enum DocumentType: string
         return match ($this) {
             self::SP => 'SP',
             self::BERITA_ACARA => 'BA',
+            self::SURAT_TUGAS => 'ST',
         };
     }
 }

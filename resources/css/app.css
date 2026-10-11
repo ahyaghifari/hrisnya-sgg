@@ -1446,6 +1446,12 @@ html.dark .ts-dropdown .active { background: rgba(110,168,224,0.16); }
 html.dark .ts-wrapper.multi .ts-control > div.item { background: rgba(110,168,224,0.16); color: #6ea8e0; }
 .ts-wrapper.plugin-remove_button .item .remove { border-left: none; margin-left: 6px; padding: 0 4px; color: inherit; opacity: .65; }
 .ts-wrapper.plugin-remove_button .item .remove:hover { opacity: 1; background: transparent; }
+/* <select data-avatar>: foto/inisial di opsi & chip terpilih (lihat avatarRender di app.js). */
+.ts-avatar-row { display: flex; align-items: center; gap: 8px; }
+.ts-avatar-row small { margin-left: auto; color: var(--text-faint); font-size: 11px; }
+.ts-avatar { width: 22px; height: 22px; border-radius: 50%; background: #042c6c; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; overflow: hidden; flex-shrink: 0; }
+.ts-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ts-wrapper.multi .ts-control > div.item:has(.ts-avatar-row) { padding: 3px 6px 3px 4px; }
 
 /* Filter status Pelatihan (Semua/Diikuti/Belum Diikuti) — pill warna pekat + teks putih. */
 .pelatihan-filter-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }

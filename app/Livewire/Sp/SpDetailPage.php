@@ -227,11 +227,22 @@ class SpDetailPage extends Component
         if (\App\Services\Sp\SpReportService::digitalSigningEnabled()) {
             $this->validate(['issuePassword' => ['required', 'string']], [], ['issuePassword' => 'Password']);
 
-            if (! Hash::check($this->issuePassword, Auth::user()->password)) {
-                $this->addError('issuePassword', 'Password salah.');
+            $locks = app(\App\Services\Document\SigningLockService::class);
+
+            // Penerbitan SP = tanda tangan pembuat: kena pembatasan percobaan yang sama dengan modal TTE.
+            if ($blocked = $locks->blockedMessage(Auth::user())) {
+                $this->addError('issuePassword', $blocked);
 
                 return;
             }
+
+            if (! Hash::check($this->issuePassword, Auth::user()->password)) {
+                $this->addError('issuePassword', $locks->recordFailure(Auth::user(), $this->record->document));
+
+                return;
+            }
+
+            $locks->recordSuccess(Auth::user());
         }
 
         $this->isAwaitingReissue

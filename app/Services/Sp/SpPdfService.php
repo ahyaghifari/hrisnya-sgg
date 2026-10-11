@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Cetak SP jadi PDF (instruksi user 2026-09-25) - pola persis PayrollService::download() (kop
- * surat = gambar background privat per company, storage/app/private/sp-bg/{code}.jpg, fallback
+ * surat = gambar background privat per company, storage/app/private/surat-bg/{code}.jpg, fallback
  * default.jpg, di-embed base64 di resources/views/pdf/sp/sp.blade.php).
  *
  * QR verifikasi (TTE Fase 1, docs/2026-09-28-tte-qr-internal-fase-1.md §7) di-generate ULANG
