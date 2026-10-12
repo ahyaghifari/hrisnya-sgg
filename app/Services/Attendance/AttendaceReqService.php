@@ -529,9 +529,9 @@ class AttendaceReqService
     }
 
     /**
-     * Jendela pengajuan Cuti Tahunan dibuka 1 BULAN sebelum tanggal eligible (instruksi user
-     * 2026-09-05, contoh: masa kerja minimal 12 bulan, gabung 5 Mei -> eligible 5 Mei tahun
-     * depan, form baru boleh diisi mulai 5 April tahun depan) - tapi tanggal MULAI cuti yang
+     * Jendela pengajuan Cuti Tahunan dibuka 2 BULAN sebelum tanggal eligible (awalnya 1 bulan,
+     * diubah user 2026-10-12; contoh: masa kerja minimal 12 bulan, gabung 3 Nov -> eligible
+     * 3 Nov tahun depan, form baru boleh diisi mulai 3 Sep tahun depan) - tapi tanggal MULAI cuti yang
      * dipilih tetap wajib >= tanggal eligible (submit boleh lebih awal, cutinya sendiri
      * tidak boleh). Dropdown jenis cuti di form (SubmitLeaveRequest::getLeaveTypesProperty())
      * sudah menyaring Cuti Tahunan sebelum jendela ini terbuka - assert ini jaring pengaman
@@ -549,10 +549,10 @@ class AttendaceReqService
             return;
         }
 
-        $windowOpen = $eligibleDate->copy()->subMonth();
+        $windowOpen = $eligibleDate->copy()->subMonths(2);
 
         if (Carbon::now()->lt($windowOpen)) {
-            throw new \Exception("Cuti Tahunan baru bisa diajukan mulai {$windowOpen->translatedFormat('d M Y')} (1 bulan sebelum masa kerja minimal terpenuhi pada {$eligibleDate->translatedFormat('d M Y')}).");
+            throw new \Exception("Cuti Tahunan baru bisa diajukan mulai {$windowOpen->translatedFormat('d M Y')} (2 bulan sebelum masa kerja minimal terpenuhi pada {$eligibleDate->translatedFormat('d M Y')}).");
         }
 
         if (Carbon::parse($data['start_date'])->lt($eligibleDate)) {
