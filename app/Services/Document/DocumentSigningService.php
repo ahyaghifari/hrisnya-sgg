@@ -29,6 +29,7 @@ class DocumentSigningService
     private const TYPES = [
         DocumentType::SP,
         DocumentType::BERITA_ACARA,
+        DocumentType::SURAT_TUGAS,
     ];
 
     /** @return Collection<int, Document> */
@@ -60,6 +61,14 @@ class DocumentSigningService
         abort_unless($role !== null, 403, 'Anda tidak ditugaskan menandatangani dokumen ini, atau sudah menandatangani sebelumnya.');
 
         $document->documentable->sign($actor, $role);
+
+        // Surat Perintah Tugas: penanda tangan tunggal - begitu TTD masuk, surat terbit & hari
+        // dinas peserta dicatat di presensi.
+        if ($document->documentable instanceof \App\Models\SuratTugas\SuratTugas) {
+            app(\App\Services\SuratTugas\SuratTugasService::class)->afterSigned($document->documentable);
+
+            return;
+        }
 
         // BA alur baru: begitu 3 pihak selesai TTD, status jadi SELESAI & isi terkunci.
         if ($document->documentable instanceof SpReport && ! $document->documentable->isLegacy()) {

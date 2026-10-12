@@ -31,7 +31,9 @@ class DocumentFinalizer
                 return;
             }
 
-            $pdf = app(SpPdfService::class)->renderFinal($locked->documentable);
+            $pdf = $locked->documentable instanceof \App\Models\SuratTugas\SuratTugas
+                ? app(\App\Services\SuratTugas\SuratTugasPdfService::class)->renderFinal($locked->documentable)
+                : app(SpPdfService::class)->renderFinal($locked->documentable);
             $path = "documents/final/{$locked->id}.pdf";
 
             Storage::disk(self::DISK)->put($path, $pdf);

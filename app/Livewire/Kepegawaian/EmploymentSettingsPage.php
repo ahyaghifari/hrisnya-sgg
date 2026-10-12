@@ -8,6 +8,8 @@ use App\Enum\SettingTypeEnum;
 use App\Models\AuditLog;
 use App\Models\Master\Companies;
 use App\Models\Setting;
+use App\Models\SuratTugas\PenandatanganSuratTugas;
+use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -28,6 +30,13 @@ class EmploymentSettingsPage extends Component
     public array $values = [];
 
     public ?string $viewingAuditKey = null;
+
+    /** Pemberi tugas / penanda tangan Surat Perintah Tugas (1 orang per company). */
+    public ?string $signerUserId = null;
+
+    public ?string $signerNama = null;
+
+    public ?string $signerJabatan = null;
 
     public function mount(): void
     {
@@ -60,6 +69,11 @@ class EmploymentSettingsPage extends Component
 
     private function loadCompanyState(): void
     {
+        $signer = $this->companyId ? PenandatanganSuratTugas::where('company_id', $this->companyId)->first() : null;
+        $this->signerUserId = $signer?->user_id;
+        $this->signerNama = $signer?->nama;
+        $this->signerJabatan = $signer?->jabatan;
+
         if (! $this->companyId) {
             $this->values = [];
             return;
@@ -120,6 +134,73 @@ class EmploymentSettingsPage extends Component
     public function getCanEditSettingsProperty(): bool
     {
         return Auth::user()->can(CustomPermissionEnum::EDIT_PENGATURAN_KEPEGAWAIAN->value);
+    }
+
+    /** Calon pemberi tugas: karyawan company terpilih. */
+    public function getSignerOptionsProperty()
+    {
+        return User::where('company_id', $this->companyId)->orderBy('name')->pluck('name', 'id');
+    }
+
+    /** Alasan buka blokir per user (key = user id). */
+    public array $unlockReasons = [];
+
+    public function getCanUnlockSigningProperty(): bool
+    {
+        return Auth::user()->can(CustomPermissionEnum::BUKA_BLOKIR_TANDA_TANGAN->value);
+    }
+
+    /** Akun di perusahaan terpilih yang tanda tangannya sedang diblokir (password salah berulang). */
+    public function getLockedSignersProperty()
+    {
+        return $this->canUnlockSigning
+            ? app(\App\Services\Document\SigningLockService::class)->lockedUsers($this->companyId)
+            : collect();
+    }
+
+    public function unlockSigning(string $userId): void
+    {
+        abort_unless($this->canUnlockSigning, 403);
+
+        $reason = trim($this->unlockReasons[$userId] ?? '');
+
+        if ($reason === '') {
+            $this->addError("unlockReasons.$userId", 'Alasan wajib diisi.');
+
+            return;
+        }
+
+        // Otorisasi lengkap (bukan akun sendiri, satu perusahaan) ada di SigningLockService::unlock().
+        app(\App\Services\Document\SigningLockService::class)->unlock(User::findOrFail($userId), Auth::user(), $reason);
+
+        unset($this->unlockReasons[$userId]);
+
+        Notification::make()->title('Blokir tanda tangan dibuka')->success()->send();
+    }
+
+    public function saveSigner(): void
+    {
+        abort_unless($this->canEditSettings, 403);
+
+        $this->validate([
+            'signerUserId' => 'required',
+            'signerNama' => 'required|string|max:255',
+            'signerJabatan' => 'required|string|max:255',
+        ], [
+            'signerUserId.required' => 'Pilih akun penanda tangan.',
+            'signerNama.required' => 'Nama di surat wajib diisi.',
+            'signerJabatan.required' => 'Jabatan di surat wajib diisi.',
+        ]);
+
+        // Hanya karyawan company yang sedang dikelola (Livewire property bisa di-$set dari luar).
+        abort_unless($this->signerOptions->has($this->signerUserId), 422);
+
+        PenandatanganSuratTugas::updateOrCreate(
+            ['company_id' => $this->companyId],
+            ['user_id' => $this->signerUserId, 'nama' => $this->signerNama, 'jabatan' => $this->signerJabatan],
+        );
+
+        Notification::make()->title('Penanda tangan Surat Perintah Tugas disimpan')->success()->send();
     }
 
     public function save(): void

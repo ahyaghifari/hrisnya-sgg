@@ -13,7 +13,10 @@
             ? ['label' => 'DICABUT', 'theme' => 'slate', 'desc' => 'Dokumen ini sudah dibatalkan dan tidak berlaku lagi.']
             : (! $hashMatches
                 ? ['label' => 'DATA BERUBAH', 'theme' => 'red', 'desc' => 'Isi dokumen sudah berbeda dari saat ditandatangani. Jangan dipakai sebagai acuan.']
-                : ['label' => 'SAH', 'theme' => 'emerald', 'desc' => 'Tanda tangan ini asli dan isi dokumen belum diubah sejak ditandatangani.']);
+                : ['label' => 'TERVERIFIKASI', 'theme' => 'emerald', 'desc' => 'Tanda tangan ini asli dan isi dokumen belum diubah sejak ditandatangani.']);
+
+        // Perusahaan penerbit: semua model dokumen (SP, Berita Acara, Surat Tugas) punya relasi `company`.
+        $companyName = $signable && method_exists($signable, 'company') ? $signable->company?->letterName() : null;
 
         $themes = [
             'emerald' => ['hero' => 'from-emerald-600 to-emerald-800', 'soft' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'ring' => 'ring-emerald-100'],
@@ -22,7 +25,6 @@
         ][$status['theme']];
 
         $roleLabel = $signable?->expectedSignerRoles()[$signature->signer_role] ?? $signature->signer_role;
-        $initials = collect(preg_split('/\s+/', trim($signature->signer_name)))->filter()->take(2)->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))->implode('');
     @endphp
 
     <div class="max-w-xl mx-auto px-4 py-8 sm:py-14">
@@ -66,6 +68,12 @@
                     <p class="text-[11px] text-slate-400 uppercase tracking-[0.1em] font-semibold mb-1">Jenis Dokumen</p>
                     <p class="text-xl font-bold text-slate-900 leading-snug">{{ $signable?->documentTypeLabel() ?? '-' }}</p>
                     <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                        @if ($companyName)
+                            <div class="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-4 py-3 sm:col-span-2">
+                                <dt class="text-[10.5px] text-slate-400 uppercase tracking-[0.1em] font-semibold">Perusahaan</dt>
+                                <dd class="text-sm font-semibold text-slate-800 mt-0.5">{{ $companyName }}</dd>
+                            </div>
+                        @endif
                         <div class="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-4 py-3">
                             <dt class="text-[10.5px] text-slate-400 uppercase tracking-[0.1em] font-semibold">Nomor</dt>
                             <dd class="text-sm font-semibold text-slate-800 break-all mt-0.5">{{ $signable?->nomor ?: 'Belum bernomor' }}</dd>
@@ -105,12 +113,6 @@
                 <div>
                     <p class="text-[11px] text-slate-400 uppercase tracking-[0.1em] font-semibold mb-3">Penanda Tangan</p>
                     <div class="flex items-center gap-4 rounded-2xl ring-1 ring-slate-200 px-4 py-4">
-                        <div class="relative shrink-0">
-                            <div class="w-12 h-12 rounded-full bg-slate-800 text-white flex items-center justify-center text-sm font-bold">{{ $initials }}</div>
-                            <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 ring-2 ring-white flex items-center justify-center">
-                                <svg viewBox="0 0 24 24" fill="none" class="w-3 h-3"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            </span>
-                        </div>
                         <div class="min-w-0 flex-1">
                             <p class="text-[10.5px] text-emerald-700 bg-emerald-50 inline-block rounded-full px-2 py-0.5 uppercase tracking-[0.08em] font-semibold">{{ $roleLabel }}</p>
                             <p class="text-[15px] font-bold text-slate-900 leading-tight mt-1">{{ $signature->signer_name }}</p>
@@ -169,6 +171,13 @@
                         <p class="text-[10.5px] text-slate-400 uppercase tracking-[0.1em] font-semibold">Kode Verifikasi</p>
                         <p class="text-lg font-mono font-bold text-slate-800 tracking-wider break-all">{{ $code }}</p>
                     </div>
+                </div>
+
+                {{-- Metode tanda tangan: paling bawah (instruksi user), setelah kode verifikasi. --}}
+                <div class="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-4 py-3">
+                    <p class="text-[10.5px] text-slate-400 uppercase tracking-[0.1em] font-semibold">Metode Tanda Tangan</p>
+                    <p class="text-sm font-semibold text-slate-800 mt-0.5">Tanda tangan elektronik internal <span class="font-normal text-slate-500">(tidak tersertifikasi PSrE)</span></p>
+                    <p class="text-xs text-slate-500 mt-0.5">Diverifikasi oleh sistem Syifa HRIS: identitas penanda tangan lewat akun dan password pribadi, keutuhan isi lewat pemeriksaan hash dokumen.</p>
                 </div>
             </div>
         </div>

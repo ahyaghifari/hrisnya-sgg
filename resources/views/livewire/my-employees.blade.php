@@ -14,6 +14,14 @@
     <button type="button" @click="tab = 'dashboard'; if (!dashboardLoaded) { dashboardLoaded = true; Livewire.dispatch('load-my-staff-dashboard'); }" class="section-nav-btn navy" :class="{ 'is-active': tab === 'dashboard' }">
         <i class="fa-solid fa-chart-line"></i> Dashboard
     </button>
+    <button type="button" @click="tab = 'surat-tugas'" class="section-nav-btn navy" :class="{ 'is-active': tab === 'surat-tugas' }">
+        <i class="fa-solid fa-file-signature"></i> Surat Perintah Tugas
+    </button>
+</div>
+
+{{-- ===================== TAB: SURAT PERINTAH TUGAS ===================== --}}
+<div x-show="tab === 'surat-tugas'" x-cloak>
+    <livewire:my-staff.surat-tugas-tab lazy />
 </div>
 
 {{-- ===================== TAB: DASHBOARD ===================== --}}

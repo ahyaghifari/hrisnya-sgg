@@ -26,7 +26,7 @@ class PendingSignaturesCard extends Component
     public function detailUrl(Document $doc): string
     {
         $model = $doc->documentable;
-        $mine = $model->user_id === Auth::id();
+        $mine = ($model instanceof SpReport || $model instanceof EmployeeSp) && $model->user_id === Auth::id();
 
         return match (true) {
             $model instanceof SpReport => $mine ? route('sp.saya.ba', $model) : route('ba.show', $model),

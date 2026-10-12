@@ -101,6 +101,23 @@ window.photoCropper = function (wireModel) {
     };
 };
 
+function avatarHtml(data, escape) {
+    const face = data.photo
+        ? `<img src="${escape(data.photo)}" alt="">`
+        : `<span>${escape(data.initials || "?")}</span>`;
+
+    return `<span class="ts-avatar">${face}</span>`;
+}
+
+const avatarRender = {
+    option: (data, escape) =>
+        `<div class="ts-avatar-row">${avatarHtml(data, escape)}<span>${escape(data.text)}</span>` +
+        (data.sub ? `<small>${escape(data.sub)}</small>` : "") +
+        `</div>`,
+    item: (data, escape) =>
+        `<div class="ts-avatar-row">${avatarHtml(data, escape)}<span>${escape(data.text)}</span></div>`,
+};
+
 function initTomSelects() {
     document.querySelectorAll("select[data-tom-select]").forEach((el) => {
         if (el.tomselect) {
@@ -127,6 +144,9 @@ function initTomSelects() {
             allowEmptyOption: true,
             placeholder: el.dataset.placeholder || "",
             plugins: el.multiple ? ["remove_button"] : [],
+            // <select data-avatar>: tiap <option data-data='{"photo":url|null,"initials":"AB","sub":"NIP"}'>
+            // tampil dengan foto/inisial di daftar & di chip terpilih.
+            ...(el.hasAttribute("data-avatar") && { render: avatarRender }),
         });
     });
 }

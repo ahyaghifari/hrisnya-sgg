@@ -65,6 +65,7 @@ class RoleForm
                 CustomPermissionEnum::LIHAT_DASHBOARD_KEPEGAWAIAN->value,
                 CustomPermissionEnum::LIHAT_PENGATURAN_KEPEGAWAIAN->value,
                 CustomPermissionEnum::EDIT_PENGATURAN_KEPEGAWAIAN->value,
+                CustomPermissionEnum::BUKA_BLOKIR_TANDA_TANGAN->value,
                 CustomPermissionEnum::LIHAT_JOB_EVALUATION->value,
                 CustomPermissionEnum::KELOLA_JOB_EVALUATION->value,
                 CustomPermissionEnum::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN->value,

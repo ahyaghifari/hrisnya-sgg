@@ -3,7 +3,7 @@
     @php $doc = $this->document; @endphp
     {{-- Panel menyatu dengan halaman (bukan overlay, jadi ikut scroll halaman); tersembunyi sampai
          event open-sign-modal, lalu halaman di-scroll ke sini. --}}
-    <div x-data x-init="$nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'center' }))" style="margin:0 0 16px;">
+    <div x-data x-init="$nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'center' }))" style="margin:20px 0 16px;">
         <div style="background:var(--surface);border:1.5px solid var(--brand);border-radius:14px;box-shadow:0 8px 28px rgba(4,44,108,0.14);overflow:hidden;">
             {{-- Header berwarna brand + ikon perisai: menandai ini tindakan resmi yang mengikat. --}}
             <div style="background:linear-gradient(135deg,var(--brand-fill) 0%,var(--brand-fill-strong) 100%);color:#fff;padding:20px 24px;display:flex;align-items:center;gap:14px;">
@@ -32,6 +32,9 @@
                     @foreach ($doc->documentable->signSummary() as $label => $value)
                         <p style="font-size:12.5px;color:var(--text-body);margin:6px 0 0;"><span style="color:var(--text-muted);">{{ $label }}:</span> <strong>{{ $value }}</strong></p>
                     @endforeach
+                    @if ($doc->documentable instanceof \App\Models\SuratTugas\SuratTugas)
+                        <p style="margin:10px 0 0;"><a href="{{ route('surat-tugas.preview', $doc->documentable) }}" target="_blank" class="btn-ghost btn-xs"><i class="fa-solid fa-file-pdf"></i> Lihat PDF Surat</a></p>
+                    @endif
                     @if ($this->roleLabel)
                         <p style="margin:10px 0 0;"><span style="display:inline-block;font-size:11.5px;font-weight:600;color:var(--brand);background:var(--brand-soft);border-radius:999px;padding:3px 10px;">Peran: {{ $this->roleLabel }}</span></p>
                     @endif
@@ -52,6 +55,13 @@
                     <i class="fa-solid fa-triangle-exclamation" style="color:var(--warning-text, #b45309);margin-top:2px;"></i>
                     <p style="font-size:12.5px;color:var(--text-body);margin:0;">Dengan memasukkan password, Anda menyatakan <strong>telah membaca dan menyetujui</strong> dokumen ini. Tanda tangan bersifat final.</p>
                 </div>
+
+                @if ($this->lockMessage)
+                    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 14px;">
+                        <i class="fa-solid fa-ban" style="color:#dc2626;margin-top:2px;"></i>
+                        <p style="font-size:12.5px;color:#991b1b;margin:0;">{{ $this->lockMessage }}</p>
+                    </div>
+                @endif
 
                 <div>
                     <label class="form-label"><i class="fa-solid fa-lock" style="font-size:11px;margin-right:4px;"></i> Password Anda</label>

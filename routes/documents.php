@@ -15,3 +15,18 @@ use Illuminate\Support\Facades\Route;
  */
 Route::get('/dokumen/tandatangani/{document?}', SignDocumentsPage::class)
     ->name('documents.sign');
+
+// Preview PDF Surat Perintah Tugas (inline di tab baru): halaman 1 surat tugas, halaman 2 surat
+// perintah perjalanan dinas. Boleh dibuka pembuat, penanda tangan, dan karyawan yang ditugaskan.
+Route::get('/surat-tugas/{record}/preview', function (\App\Models\SuratTugas\SuratTugas $record) {
+    $userId = \Illuminate\Support\Facades\Auth::id();
+
+    abort_unless(
+        $record->created_by === $userId
+            || $record->ttd_user_id === $userId
+            || $record->peserta()->where('user_id', $userId)->exists(),
+        403
+    );
+
+    return app(\App\Services\SuratTugas\SuratTugasPdfService::class)->preview($record);
+})->name('surat-tugas.preview');

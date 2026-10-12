@@ -1,10 +1,10 @@
 @php
     // Variabel dari SpPdfService (BA lama lewat SP maupun BA mandiri alur baru): $report, $user,
     // $company, $date, $coach (kolom kiri tanda tangan), $knowsBy, $verification.
-    // Background per company: file PRIVAT storage/app/private/sp-bg/{kode company}.jpg (bukan
+    // Background per company: file PRIVAT storage/app/private/surat-bg/{kode company}.jpg (bukan
     // public/ — dokumen internal), fallback ke default.jpg. Di-embed base64, pola persis
     // resources/views/pdf/payroll/payroll.blade.php.
-    $bgDir = storage_path('app/private/sp-bg/');
+    $bgDir = storage_path('app/private/surat-bg/');
     $bgFile = $bgDir . ($company->code ?? '') . '.jpg';
     if (! is_file($bgFile)) {
         $bgFile = $bgDir . 'default.jpg';
@@ -40,7 +40,7 @@
         background - berlaku OTOMATIS di SETIAP halaman lewat @page (beda dari spacer div biasa
         yang cuma sekali di awal dokumen lalu hilang begitu konten meluber ke halaman ke-2+, itu
         penyebab laporan user 2026-09-26: teks nabrak kop/footer di halaman kedua dst). Ukuran
-        diukur dari gambar asli storage/app/private/sp-bg/*.jpg (1241x1755px ~ rasio A4): zona
+        diukur dari gambar asli storage/app/private/surat-bg/*.jpg (1241x1755px ~ rasio A4): zona
         kop ~3cm, zona footer (yang ada footer-nya, mis. default.jpg) ~2.7cm. */
         @page {
             margin: 3cm 2.5cm 3.5cm 2.5cm;

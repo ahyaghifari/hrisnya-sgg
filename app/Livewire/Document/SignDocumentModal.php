@@ -4,6 +4,7 @@ namespace App\Livewire\Document;
 
 use App\Models\Document\Document;
 use App\Services\Document\DocumentSigningService;
+use App\Services\Document\SigningLockService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -52,6 +53,12 @@ class SignDocumentModal extends Component
         return $document?->pendingRoleFor(Auth::user()) ? $document : null;
     }
 
+    /** Pesan blokir tanda tangan akun yang sedang login, null kalau tidak diblokir. */
+    public function getLockMessageProperty(): ?string
+    {
+        return app(SigningLockService::class)->blockedMessage(Auth::user());
+    }
+
     public function getRoleLabelProperty(): ?string
     {
         $document = $this->document;
@@ -67,11 +74,24 @@ class SignDocumentModal extends Component
 
         $this->validate(['password' => ['required', 'string']], [], ['password' => 'Password']);
 
-        if (! Hash::check($this->password, Auth::user()->password)) {
-            $this->addError('password', 'Password salah.');
+        $locks = app(SigningLockService::class);
+
+        // Akun yang sedang diblokir tidak boleh mencoba lagi, bahkan dengan password yang benar.
+        if ($blocked = $locks->blockedMessage(Auth::user())) {
+            $this->addError('password', $blocked);
 
             return;
         }
+
+        if (! Hash::check($this->password, Auth::user()->password)) {
+            // Tercatat di jejak audit dokumen & akun (tanpa menyimpan password yang diketik);
+            // pesan memuat sisa percobaan atau status blokir.
+            $this->addError('password', $locks->recordFailure(Auth::user(), $document));
+
+            return;
+        }
+
+        $locks->recordSuccess(Auth::user());
 
         app(DocumentSigningService::class)->sign($document, Auth::user());
 

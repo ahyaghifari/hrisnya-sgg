@@ -189,6 +189,10 @@ enum CustomPermissionEnum: string
      * disembunyikan tombol simpan/input-nya), sama seperti pola LIHAT_PENGATURAN_ABSENSI. */
     case LIHAT_PENGATURAN_KEPEGAWAIAN = 'lihat_pengaturan_kepegawaian';
 
+    /** Buka blokir tanda tangan akun karyawan yang terkunci karena password salah berulang (lihat
+     * AppServicesDocumentSigningLockService). Tidak boleh dipakai membuka blokir akun sendiri. */
+    case BUKA_BLOKIR_TANDA_TANGAN = 'buka_blokir_tanda_tangan';
+
     /** Widget "Buka/Tutup Pengajuan Karyawan Tetap" di Dashboard Sikartap (toggle
      * KepegawaianSettingEnum::PENGANGKATAN_DIBUKA, lihat DashboardSikartapPage) - dikelompokkan
      * Sikartap (instruksi user 2026-09-27), bukan Kepegawaian, walau setting-nya sendiri masih
@@ -373,6 +377,7 @@ enum CustomPermissionEnum: string
             self::LIHAT_PENGATURAN_LMS => 'Lihat Pengaturan LMS',
             self::EDIT_PENGATURAN_KEPEGAWAIAN => 'Edit Pengaturan Kepegawaian',
             self::LIHAT_PENGATURAN_KEPEGAWAIAN => 'Lihat Pengaturan Kepegawaian',
+            self::BUKA_BLOKIR_TANDA_TANGAN => 'Buka Blokir Tanda Tangan',
             self::BUKA_TUTUP_PENGAJUAN_KARTAP => 'Buka/Tutup Pengajuan Karyawan Tetap',
             self::LIHAT_PENGATURAN_SIKARTAP => 'Lihat Pengaturan Sikartap',
             self::EDIT_PENGATURAN_SIKARTAP => 'Edit Pengaturan Sikartap',
