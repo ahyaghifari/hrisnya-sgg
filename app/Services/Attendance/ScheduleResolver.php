@@ -79,13 +79,9 @@ class ScheduleResolver
             ];
         }
 
-        $assignment = $ignoreEffectiveDate
-            // ponytail: bypass effective_from - cuma dipakai AccessLogScheduleReader untuk demo/
-            // tes pipeline dengan data access_logs lama, lihat catatan di sana. Real-time (UI)
-            // selalu pakai jalur resolveForUser() di bawah yang menghormati effective_from.
-            ? (ScheduleAssignment::query()->where('user_id', $user->id)->first()
-                ?? ScheduleAssignment::query()->where('job_position_id', $user->profile?->job_position_id)->first())
-            : ScheduleAssignment::resolveForUser($user, $date);
+        // $ignoreEffectiveDate: bypass effective_from (demo/tes pipeline access_logs lama, Extra Shift
+        // di tanggal sebelum assignment dibuat).
+        $assignment = ScheduleAssignment::resolveForUser($user, $date, $ignoreEffectiveDate);
 
         if (! $assignment) {
             return null;

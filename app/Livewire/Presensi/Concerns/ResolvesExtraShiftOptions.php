@@ -36,7 +36,9 @@ trait ResolvesExtraShiftOptions
      */
     protected function resolveNormalShift(User $user, string $date): ?array
     {
-        $resolved = app(ScheduleResolver::class)->resolveForUserDate($user, $date);
+        // effective_from sengaja diabaikan: admin boleh mengisi extra shift di tanggal sebelum
+        // assignment jadwal dibuat (dipakai juga ExtraShiftCalculator payroll, harus konsisten).
+        $resolved = app(ScheduleResolver::class)->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
 
         if ($resolved && $resolved['type'] === 'shift' && ! ($resolved['is_off_day'] ?? false)) {
             $config = $resolved['config'] ?? null; // ScheduleShiftType
@@ -62,7 +64,7 @@ trait ResolvesExtraShiftOptions
             return null;
         }
 
-        $assignment = ScheduleAssignment::resolveForUser($user, $date);
+        $assignment = ScheduleAssignment::resolveForUser($user, $date, true);
 
         if (! $assignment || $assignment->schedule?->schedule_type !== 'shift') {
             return null;
