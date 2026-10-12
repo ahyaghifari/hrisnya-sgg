@@ -68,30 +68,34 @@ class ScheduleAssignment extends Model
      * Resolusi jadwal aktif user pada 1 tanggal — user spesifik menang (override personal),
      * fallback ke assignment jabatan kalau tidak ada. Lihat planning §2.6.
      */
-    public static function resolveForUser(User $user, \DateTimeInterface|string $date): ?self
+    public static function resolveForUser(User $user, \DateTimeInterface|string $date, bool $ignoreEffectiveDate = false): ?self
     {
         $date = (string) $date;
-
-        $personal = static::query()
-            ->where('user_id', $user->id)
-            ->where('effective_from', '<=', $date)
-            ->where(fn ($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>=', $date))
-            ->first();
-
-        if ($personal) {
-            return $personal;
-        }
-
         $jobPositionId = $user->profile?->job_position_id;
 
-        if (! $jobPositionId) {
-            return null;
+        // Tanpa batas tanggal ($ignoreEffectiveDate): yang mencakup tanggal tetap diutamakan,
+        // kalau tidak ada pakai assignment terbaru (mis. Extra Shift di tanggal sebelum effective_from).
+        $find = function (string $column, string $value, bool $bounded) use ($date) {
+            return static::query()
+                ->where($column, $value)
+                ->when($bounded, fn ($q) => $q
+                    ->where('effective_from', '<=', $date)
+                    ->where(fn ($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>=', $date)))
+                ->orderByDesc('effective_from')
+                ->first();
+        };
+
+        $passes = $ignoreEffectiveDate ? [true, false] : [true];
+
+        foreach ($passes as $bounded) {
+            $found = $find('user_id', $user->id, $bounded)
+                ?? ($jobPositionId ? $find('job_position_id', $jobPositionId, $bounded) : null);
+
+            if ($found) {
+                return $found;
+            }
         }
 
-        return static::query()
-            ->where('job_position_id', $jobPositionId)
-            ->where('effective_from', '<=', $date)
-            ->where(fn ($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>=', $date))
-            ->first();
+        return null;
     }
 }
