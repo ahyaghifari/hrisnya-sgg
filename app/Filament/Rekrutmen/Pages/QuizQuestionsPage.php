@@ -4,9 +4,11 @@ namespace App\Filament\Rekrutmen\Pages;
 
 use App\Models\Rekrutmen\Quiz;
 use App\Models\Rekrutmen\QuizQuestion;
+use App\Models\Rekrutmen\QuizSection;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -25,7 +27,8 @@ use Maatwebsite\Excel\Facades\Excel;
 /**
  * Soal Kuis — port dari QuizQuestionsPage project `rekrutmen` (FL3 -> FL4), DB `recruitment`.
  * Editor repeater (simpan = hapus semua lalu tulis ulang) + unduh template + import Excel.
- * Upload GAMBAR soal SEMENTARA dihilangkan (butuh disk public bersama dgn app rekrutmen).
+ * Gambar soal & gambar pilihan diunggah langsung ke storage publik project rekrutmen
+ * (disk `rekrutmen_public`), path relatifnya sama dengan yang dibaca app rekrutmen.
  */
 class QuizQuestionsPage extends Page implements HasForms, HasTable
 {
@@ -85,10 +88,16 @@ class QuizQuestionsPage extends Page implements HasForms, HasTable
 
         $this->form->fill([
             'questions' => $questions->map(fn (QuizQuestion $q) => [
+                'quiz_section_id' => $q->quiz_section_id,
                 'question' => $q->question,
+                'image_path' => $q->image_path,
+                'max_select' => $q->max_select,
                 'options' => collect($q->options ?? [])->map(fn ($opt) => [
                     'label' => $opt,
-                    'is_correct' => $opt === $q->correct_option,
+                    'image' => $q->option_images[$opt] ?? null,
+                    'is_correct' => $q->max_select
+                        ? in_array($opt, explode(',', (string) $q->correct_option), true)
+                        : $opt === $q->correct_option,
                 ])->all(),
             ])->all(),
         ]);
@@ -102,12 +111,41 @@ class QuizQuestionsPage extends Page implements HasForms, HasTable
                 Repeater::make('questions')
                     ->label('Daftar Soal')
                     ->schema([
+                        Select::make('quiz_section_id')
+                            ->label('Subtest')
+                            ->options(fn () => $this->quizId
+                                ? QuizSection::where('quiz_id', $this->quizId)->orderBy('sort_order')->pluck('name', 'id')
+                                : [])
+                            ->placeholder('Tanpa subtest')
+                            ->columnSpanFull(),
                         Textarea::make('question')->label('Pertanyaan')->required()->rows(2)->columnSpanFull(),
+                        FileUpload::make('image_path')
+                            ->label('Gambar Soal (opsional)')
+                            ->image()
+                            ->disk('rekrutmen_public')
+                            ->directory('quiz-questions')
+                            ->imagePreviewHeight('160')
+                            ->nullable()
+                            ->columnSpanFull(),
+                        TextInput::make('max_select')
+                            ->label('Maks. pilihan dipilih (kosong = pilih satu)')
+                            ->numeric()
+                            ->minValue(2)
+                            ->nullable()
+                            ->helperText('Isi untuk soal multi-jawaban, lalu centang semua jawaban benar.'),
                         Repeater::make('options')
                             ->label('Pilihan Jawaban')
                             ->schema([
                                 TextInput::make('label')->label('Pilihan')->required()->columnSpan(2),
                                 Checkbox::make('is_correct')->label('Jawaban Benar'),
+                                FileUpload::make('image')
+                                    ->label('Gambar Pilihan (opsional)')
+                                    ->image()
+                                    ->disk('rekrutmen_public')
+                                    ->directory('quiz-options')
+                                    ->imagePreviewHeight('80')
+                                    ->nullable()
+                                    ->columnSpanFull(),
                             ])
                             ->columns(3)
                             ->minItems(2)
@@ -139,9 +177,15 @@ class QuizQuestionsPage extends Page implements HasForms, HasTable
             $options = collect($q['options'] ?? []);
             QuizQuestion::create([
                 'quiz_id' => $this->quizId,
+                'quiz_section_id' => $q['quiz_section_id'] ?? null,
                 'question' => $q['question'],
+                'image_path' => $q['image_path'] ?? null,
                 'options' => $options->pluck('label')->all(),
-                'correct_option' => $options->firstWhere('is_correct', true)['label'] ?? null,
+                'option_images' => $options->filter(fn ($o) => ! empty($o['image']))->pluck('image', 'label')->all() ?: null,
+                'max_select' => $q['max_select'] ?: null,
+                'correct_option' => ($q['max_select'] ?? null)
+                    ? $options->where('is_correct', true)->pluck('label')->implode(',')
+                    : ($options->firstWhere('is_correct', true)['label'] ?? null),
                 'sort_order' => $i,
             ]);
         }
@@ -247,11 +291,13 @@ class QuizQuestionsPage extends Page implements HasForms, HasTable
         return $table
             ->query(
                 $this->quizId
-                    ? QuizQuestion::query()->where('quiz_id', $this->quizId)
+                    ? QuizQuestion::query()->with('section')->where('quiz_id', $this->quizId)
                     : QuizQuestion::query()->whereRaw('1 = 0')
             )
             ->columns([
                 TextColumn::make('sort_order')->label('#')->width(50)->sortable(),
+                \Filament\Tables\Columns\ImageColumn::make('image_path')->label('Gambar')->disk('rekrutmen_public')->height(40),
+                TextColumn::make('section.name')->label('Subtest')->placeholder('—'),
                 TextColumn::make('question')->label('Pertanyaan')->limit(70)->wrap(),
                 TextColumn::make('correct_option')->label('Jawaban Benar')->badge()->color('success'),
             ])
