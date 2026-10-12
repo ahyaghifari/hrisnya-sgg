@@ -118,6 +118,14 @@ class SubmitLeaveRequest extends Component
      *  atau sudah terpenuhi. */
     public function getMinimumTenureNoteProperty(): ?string
     {
+        // Jendela Cuti Tahunan sudah buka (masuk 2 bulan sebelum eligible) - form harus tetap
+        // tampil walau masa kerja belum penuh, dropdown cuma berisi Cuti Tahunan.
+        $eligibleDate = app(AttendaceReqService::class)->cutiTahunanEligibleDate(Auth::user());
+
+        if ($eligibleDate && now()->gte($eligibleDate->copy()->subMonths(2))) {
+            return null;
+        }
+
         return app(AttendaceReqService::class)->getMinimumTenureBlockNote(Auth::user());
     }
 
