@@ -68,9 +68,20 @@ trait HandlesShiftScheduleForm
             unset($payload['id']);
             $payload['schedule_id'] = $schedule->id;
 
-            $shiftType = $id
-                ? tap(ScheduleShiftType::findOrFail($id))->update($payload)
-                : ScheduleShiftType::create($payload);
+            // Baris baru dengan kode yang pernah ada (soft-deleted / dihapus & ditambah ulang di save
+            // yang sama) dipulihkan, bukan di-insert: unique (schedule_id, code) tetap menghitung baris
+            // soft-deleted -> "Duplicate entry ...-OC".
+            $existing = $id
+                ? ScheduleShiftType::findOrFail($id)
+                : ScheduleShiftType::withTrashed()->where('schedule_id', $schedule->id)->where('code', $payload['code'])->first();
+
+            if ($existing) {
+                $existing->restore();
+                $existing->update($payload);
+                $shiftType = $existing;
+            } else {
+                $shiftType = ScheduleShiftType::create($payload);
+            }
 
             $row['id'] = $shiftType->id;
             $keepIds[] = $shiftType->id;
