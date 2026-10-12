@@ -19,6 +19,7 @@ enum DoctorDocumentType: string implements HasLabel
     case KTP = 'KTP';
     case NPWP = 'NPWP';
     case CREDENTIALING = 'CREDENTIALING';
+    case PAS_FOTO = 'PAS_FOTO';
 
     public function getLabel(): string
     {
@@ -35,6 +36,7 @@ enum DoctorDocumentType: string implements HasLabel
             self::KTP => 'KTP',
             self::NPWP => 'NPWP',
             self::CREDENTIALING => 'PDF Credentialing',
+            self::PAS_FOTO => 'Pas Foto',
         };
     }
 }

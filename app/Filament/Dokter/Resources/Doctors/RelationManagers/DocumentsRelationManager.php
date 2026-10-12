@@ -52,6 +52,8 @@ class DocumentsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            // Scan SIP milik lisensi per penempatan (tab Lisensi), bukan dokumen profil.
+            ->modifyQueryUsing(fn ($query) => $query->where('document_type', '!=', DoctorLicenseType::SIP->value))
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('document_type')->label('Jenis')->badge()->formatStateUsing(fn ($state) => DoctorDocumentType::tryFrom($state)?->getLabel() ?? DoctorLicenseType::tryFrom($state)?->getLabel() ?? $state),

@@ -85,10 +85,11 @@ class DoctorResource extends Resource
                 ]),
 
             // Lisensi langsung saat tambah dokter; file scan-nya ikut jadi dokumen (DoctorLicenseService).
-            Section::make('Lisensi (SIP / STR / STR-KT)')->columnSpanFull()->collapsed()->visibleOn('create')
-                ->description('Opsional. Bisa juga ditambah nanti lewat tab Lisensi di halaman edit.')->schema([
+            Section::make('Lisensi (STR / STR-KT)')->columnSpanFull()->collapsed()->visibleOn('create')
+                ->description('Opsional. SIP terikat penempatan RS: tambahkan lewat tab Lisensi setelah dokter & penempatannya tersimpan.')->schema([
                     Repeater::make('lisensi')->label('')->defaultItems(0)->addActionLabel('Tambah Lisensi')->columns(3)->schema([
-                        Select::make('jenis')->label('Jenis')->options(DoctorLicenseType::class)->required(),
+                        Select::make('jenis')->label('Jenis')->required()
+                            ->options(collect([DoctorLicenseType::STR, DoctorLicenseType::STR_KT])->mapWithKeys(fn ($t) => [$t->value => $t->getLabel()])->all()),
                         TextInput::make('nomor')->label('Nomor')->maxLength(150),
                         FileUpload::make('file')->label('File Scan (opsional)')->storeFiles(false)
                             ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])->maxSize(10240),
