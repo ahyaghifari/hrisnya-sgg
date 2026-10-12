@@ -315,7 +315,10 @@
         .task-detail-modal-wide .task-checklist-checkbox.custom-checkbox { width: 18px; height: 18px; }
         .task-detail-modal-wide .task-checklist-checkbox .box i { font-size: 10px; }
         .task-detail-modal-wide .task-detail-body { font-size: 12.5px; }
+        .task-detail-comments-inner { position: static !important; }
+        .task-detail-comments-inner .task-list-scroll { overflow: visible !important; }
         .task-detail-comments {
+            min-height: 0 !important;
             flex: 1 1 auto !important;
             border-left: none !important;
             border-top: 1px solid var(--border-soft);
@@ -1684,8 +1687,10 @@
 
                 @unless ($isPersonalNote)
                     {{-- Komentar ala Trello, kolom kanan terpisah — cuma buat task yang bukan self-assigned. --}}
-                    <div class="task-detail-comments" style="flex:0 0 480px;border-left:1px solid var(--border-soft);padding-left:24px;">
-                        <h4 style="font-size:16px;font-weight:700;margin:0 0 12px;"><i class="fa-regular fa-comment"></i> Komentar ({{ $task->comments->count() }})</h4>
+                    <div class="task-detail-comments" style="flex:0 0 480px;position:relative;min-height:360px;border-left:1px solid var(--border-soft);padding-left:24px;">
+                        {{-- Tinggi kolom komentar mengikuti tinggi kartu (mis. bertambah karena lampiran); kolom input tetap, sisanya jadi area daftar komentar yang scroll. --}}
+                        <div class="task-detail-comments-inner" style="position:absolute;top:0;right:0;bottom:0;left:24px;display:flex;flex-direction:column;min-height:0;">
+                        <h4 style="font-size:16px;font-weight:700;margin:0 0 12px;flex-shrink:0;"><i class="fa-regular fa-comment"></i> Komentar ({{ $task->comments->count() }})</h4>
                         @php
                             // Mention "@Nama": daftar nama buat dropdown (tanpa diri sendiri) & buat menebalkan "@Nama" di teks.
                             $mentionUsers = app(\App\Services\Task\TaskService::class)->mentionableUsers($task);
@@ -1698,7 +1703,7 @@
                             $repliesByParent = $task->comments->whereNotNull('parent_id')->groupBy('parent_id');
                             $replyingTo = $this->replyToId ? $task->comments->firstWhere('id', $this->replyToId) : null;
                         @endphp
-                        <div style="margin-bottom:14px;"
+                        <div style="margin-bottom:14px;flex-shrink:0;"
                             x-data="{
                                 names: @js($mentionPick), open: false, q: '',
                                 matches() { const q = this.q.toLowerCase(); return this.names.filter(n => n.label.toLowerCase().includes(q) || n.full.toLowerCase().includes(q)).slice(0, 6) },
@@ -1736,8 +1741,8 @@
                                     x-init="$watch('$wire.newComment', () => $nextTick(() => { $el.style.height = 'auto'; $el.style.height = Math.min($el.scrollHeight, 200) + 'px' }))"
                                     @input="check($el); $el.style.height = 'auto'; $el.style.height = Math.min($el.scrollHeight, 200) + 'px'" @click="check($el)" @keyup.arrow-left="check($el)" @keyup.arrow-right="check($el)"
                                     @keydown.escape="open = false"
-                                    @keydown.enter="if ($event.shiftKey) return; $event.preventDefault(); open ? pick($el, matches()[0]) : $wire.addComment('{{ $task->id }}')"
-                                    placeholder="{{ $replyingTo ? 'Tulis balasan...' : 'Tulis komentar... (@ untuk menyebut)' }}"></textarea>
+                                    @keydown.enter="if (open) { $event.preventDefault(); pick($el, matches()[0]) } else if ($event.ctrlKey || $event.metaKey) { $event.preventDefault(); $wire.addComment('{{ $task->id }}') }"
+                                    placeholder="{{ $replyingTo ? 'Tulis balasan...' : 'Tulis komentar... (@ untuk menyebut, Ctrl+Enter untuk kirim)' }}"></textarea>
                                 {{-- Lampirkan file/foto ke komentar; hasilnya tampil di komentar dan masuk daftar Lampiran. --}}
                                 <label class="btn-ghost" style="padding:8px 10px;cursor:pointer;flex-shrink:0;" title="Lampirkan file atau foto" aria-label="Lampirkan file atau foto">
                                     <i class="fa-solid fa-paperclip"></i>
@@ -1754,7 +1759,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="task-list-scroll" style="display:flex;flex-direction:column;gap:14px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;padding-right:6px;">
+                        <div class="task-list-scroll" style="flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:14px;padding-right:6px;">
                             @forelse ($topComments as $comment)
                                 <div style="font-size:13.5px;">
                                     <div style="display:flex;gap:9px;padding:8px 10px;border-radius:10px;background:var(--surface-alt);border:1px solid var(--border-soft);{{ $this->isNewItem($comment->created_at, $comment->user_id) ? 'border-left:3px solid var(--brand);' : '' }}">
@@ -1785,6 +1790,7 @@
                             @empty
                                 <p style="font-size:13.5px;color:var(--text-muted);margin:0;">Belum ada komentar.</p>
                             @endforelse
+                        </div>
                         </div>
                     </div>
                 @endunless
