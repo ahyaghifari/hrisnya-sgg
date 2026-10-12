@@ -141,7 +141,11 @@ trait ResolvesExtraShiftOptions
             : null;
 
         if ($allowedTeamIds !== null) {
-            $types = $types->whereIn('id', $allowedTeamIds)->values();
+            // Oncall dikecualikan dari pembatasan Regu: dinyalakan per jadwal (allow_oncall_extra_shift)
+            // dan jarang masuk daftar shift Regu, tanpa ini otomatis tersaring habis.
+            $types = $types
+                ->filter(fn ($t) => in_array($t->id, $allowedTeamIds, true) || $t->shift_type === ShiftType::ONCALL->value)
+                ->values();
         }
 
         return $types;
