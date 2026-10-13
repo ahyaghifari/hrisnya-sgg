@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Imports\Kepegawaian\KaryawanAccountImport;
 use App\Models\Master\Companies;
 use App\Models\User;
 use Illuminate\Console\Command;
@@ -12,7 +11,7 @@ class ResetCompanyUserPasswords extends Command
 {
     protected $signature = 'user:reset-company-passwords {company : Nama atau kode perusahaan (m_companies.name / code)} {--force : Jalankan tanpa konfirmasi}';
 
-    protected $description = 'Reset password seluruh user pada satu perusahaan ke pola !{inisial}{nip}# (pola sama seperti import akun karyawan)';
+    protected $description = 'Reset password seluruh user pada satu perusahaan ke pola !{nip}#';
 
     public function handle(): int
     {
@@ -44,8 +43,7 @@ class ResetCompanyUserPasswords extends Command
         }
 
         foreach ($users as $user) {
-            $password = KaryawanAccountImport::generatePassword($user->name, $user->nip);
-            $user->update(['password' => Hash::make($password)]);
+            $user->update(['password' => Hash::make("!{$user->nip}#")]);
         }
 
         $this->info("Selesai. {$users->count()} password berhasil direset.");
