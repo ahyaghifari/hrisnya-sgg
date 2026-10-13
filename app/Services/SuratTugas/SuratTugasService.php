@@ -5,6 +5,7 @@ namespace App\Services\SuratTugas;
 use App\Models\SuratTugas\PenandatanganSuratTugas;
 use App\Models\SuratTugas\SuratTugas;
 use App\Models\User;
+use App\Notifications\SpReportUpdated;
 use App\Services\Attendance\AttendaceReqService;
 use App\Services\OrgHierarchyService;
 use Illuminate\Support\Facades\DB;
@@ -155,6 +156,16 @@ class SuratTugasService
                 }
             }
         });
+
+        // Kabari yang ditugaskan setelah commit; tujuan klik = PDF surat (preview boleh dibuka peserta).
+        foreach ($surat->peserta as $peserta) {
+            $peserta->user?->notify(new SpReportUpdated(
+                'Surat Perintah Tugas Terbit',
+                'Anda ditugaskan: ' . \Illuminate\Support\Str::limit($surat->tugas, 80) . " di {$surat->tempat} ({$surat->periodeLabel()}).",
+                url: route('surat-tugas.preview', $surat),
+                always: true,
+            ));
+        }
     }
 
     /** Pemberi tugas diatur HC di Pengaturan Kepegawaian, bukan dipilih per surat. */

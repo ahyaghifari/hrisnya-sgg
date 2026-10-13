@@ -148,6 +148,22 @@
     @endforeach
 </div>
 
+@if ($this->suratTugas->isNotEmpty())
+    <div class="task-menu-divider"></div>
+
+    <p class="task-menu-section-label">Surat Perintah Tugas Saya</p>
+    <div class="task-menu-grid task-menu-grid-board">
+        @foreach ($this->suratTugas as $surat)
+            <a href="{{ route('tugas.surat-tugas', $surat) }}" wire:navigate class="task-menu-tile" style="border-left:4px solid #d4a017;">
+                <i class="fa-solid fa-file-signature task-menu-tile-icon" style="color:#d4a017;"></i>
+                <span class="task-menu-tile-label">{{ $surat->nomor ?: 'Tanpa nomor' }}</span>
+                <span style="font-size:12px;color:var(--text-muted);">{{ $surat->tempat }}</span>
+                <span style="font-size:11.5px;color:var(--text-muted);">{{ $surat->periodeLabel() }}</span>
+            </a>
+        @endforeach
+    </div>
+@endif
+
 @if ($showProjectModal)
     <div class="modal-overlay" wire:click="closeProjectModal">
         <div class="modal-box" onclick="event.stopPropagation()">

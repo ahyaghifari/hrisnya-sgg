@@ -34,6 +34,17 @@ class TaskMenuPage extends Component
         return app(OrgHierarchyService::class)->subordinates(Auth::user())->exists();
     }
 
+    /** Surat Perintah Tugas terbit yang menugaskan user ini; kosong = bagian ini tidak ditampilkan. */
+    public function getSuratTugasProperty()
+    {
+        return \App\Models\SuratTugas\SuratTugas::where('status', \App\Models\SuratTugas\SuratTugas::STATUS_TERBIT)
+            ->whereHas('peserta', fn ($q) => $q->where('user_id', Auth::id()))
+            ->with('periode')
+            ->latest()
+            ->limit(20)
+            ->get();
+    }
+
     public function getMyTaskPendingCountProperty(): int
     {
         return app(TaskService::class)->countIncomplete(Auth::user(), 'saya');
