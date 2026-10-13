@@ -686,7 +686,7 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                                     </p>
                                     <div style="display:flex;justify-content:flex-end;gap:8px;">
                                         <button type="button" class="btn-ghost" x-on:click="open = false" style="font-size:12px;padding:8px 16px;">Batal</button>
-                                        <button type="button" class="btn-primary" wire:click="saveNakesDocument('{{ $t }}')" wire:confirm="{{ $konfirmasi }}" wire:loading.attr="disabled" style="font-size:12px;padding:8px 18px;">Simpan</button>
+                                        <button type="button" class="btn-primary" wire:click="saveNakesDocument('{{ $t }}')" wire:confirm="{{ $konfirmasi }}" wire:loading.attr="disabled" style="font-size:12px;padding:8px 18px;">{{ $nd && ! $belumLengkap ? 'Perpanjang' : 'Simpan' }}</button>
                                     </div>
                                 </div>
                                 </div>
