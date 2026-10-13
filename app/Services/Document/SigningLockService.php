@@ -152,7 +152,7 @@ class SigningLockService
         return SigningLock::query()
             ->with('user')
             ->where(fn ($q) => $q->whereNotNull('hard_locked_at')->orWhere('locked_until', '>', now()))
-            ->whereHas('user', fn ($q) => $companyId ? $q->where('company_id', $companyId) : $q)
+            ->whereHas('user', fn ($q) => $companyId ? $q->whereCompany($companyId) : $q)
             ->orderByDesc('hard_locked_at')
             ->get();
     }

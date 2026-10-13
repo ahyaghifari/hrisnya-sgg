@@ -117,7 +117,7 @@ class SikartapSettingsPage extends Component
         return \App\Models\User\UserJobPositions::query()
             ->where('job_position_id', $this->presentationApproverJobPositionId)
             ->where('status', 'active')
-            ->with('user:id,name')
+            ->with('user')
             ->get()
             ->pluck('user.name')
             ->filter()
