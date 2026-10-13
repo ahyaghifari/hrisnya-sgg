@@ -571,6 +571,9 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                             $riwayat = $this->nakesHistory->get($t, collect());
                             $sisa = $nd?->sisaHari();
                             $belumLengkap = $nd && ! $nd->nomor && ! $nd->berlaku_sampai; // data lama: file saja
+                            // SIP lengkap: Perpanjang baru muncul <= 30 hari sebelum habis (atau sudah lewat).
+                            $bolehForm = ! $nd || $belumLengkap || $t !== 'SIP'
+                                || ($sisa !== null && $sisa <= \App\Models\Employee\EmployeeNakesDocument::PERPANJANG_SIP_HARI);
                             $prop = strtolower($t) . 'File';
                             $fmt = fn ($d) => $d->translatedFormat('d M Y');
                             $konfirmasi = "Setelah disimpan, nomor dan tanggal {$t} tidak bisa diubah lagi."
@@ -610,7 +613,7 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                                         <i class="fa-solid fa-clock-rotate-left"></i> Riwayat ({{ $riwayat->count() }})
                                     </button>
                                 @endif
-                                @if ($isSelf)
+                                @if ($isSelf && $bolehForm)
                                     <button type="button" class="btn-ghost" x-on:click="open = ! open" style="font-size:12px;padding:6px 12px;white-space:nowrap;">
                                         <i class="fa-solid fa-{{ $nd && ! $belumLengkap ? 'arrows-rotate' : 'pen' }}"></i>
                                         {{ ! $nd ? 'Isi data' : ($belumLengkap ? 'Lengkapi data' : 'Perpanjang') }}
@@ -640,7 +643,7 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                                 </div>
                             @endif
 
-                            @if ($isSelf)
+                            @if ($isSelf && $bolehForm)
                                 <div x-show="open" x-cloak style="width:100%;">
                                 <div style="display:grid;grid-template-columns:1fr;gap:18px;margin-top:4px;padding:18px 4px 6px;border-top:1px solid var(--border);">
                                     <div>

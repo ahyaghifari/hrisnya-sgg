@@ -368,6 +368,16 @@ class EmployeeStatistics extends Component
         $employee = $this->record->employee;
         abort_unless($employee, 404);
 
+        // SIP lengkap yang masih lama berlakunya belum boleh diganti (tombol Perpanjang juga disembunyikan di blade).
+        if ($type === 'SIP') {
+            $aktif = EmployeeNakesDocument::where('employee_id', $employee->id)->where('type', 'SIP')->where('is_active', true)->first();
+            abort_if(
+                $aktif && filled($aktif->nomor) && $aktif->berlaku_sampai
+                    && $aktif->sisaHari() > EmployeeNakesDocument::PERPANJANG_SIP_HARI,
+                403
+            );
+        }
+
         $prop = strtolower($type) . 'File';
         $lifetime = $type === 'STR' && (bool) ($this->nakesForm[$type]['seumur_hidup'] ?? false); // SIP selalu ada masa berlaku
 
