@@ -139,7 +139,7 @@ class EmploymentSettingsPage extends Component
     /** Calon pemberi tugas: karyawan company terpilih. */
     public function getSignerOptionsProperty()
     {
-        return User::where('company_id', $this->companyId)->orderBy('name')->pluck('name', 'id');
+        return User::whereCompany($this->companyId)->orderByName()->get()->pluck('name', 'id');
     }
 
     /** Alasan buka blokir per user (key = user id). */
