@@ -15,8 +15,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
-use App\Models\Master\Companies;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -26,20 +24,16 @@ class LicensesRelationManager extends RelationManager
 {
     protected static string $relationship = 'licenses';
 
-    protected static ?string $title = 'Lisensi (SIP/STR)';
+    protected static ?string $title = 'Lisensi (STR/STR-KT)';
 
     public const STATUS_LABELS = ['aktif' => 'Aktif', 'akan_expired' => 'Akan Expired', 'expired' => 'Expired', 'nonaktif' => 'Nonaktif'];
 
     public function form(Schema $schema): Schema
     {
         return $schema->columns(2)->components([
-            Select::make('jenis')->label('Jenis')->options(DoctorLicenseType::class)->required()->live(),
-            // SIP terikat tempat praktik: wajib pilih penempatan; STR/STR-KT milik dokter, tanpa penempatan.
-            Select::make('doctor_hospital_id')->label('Penempatan (RS)')
-                ->visible(fn (Get $get) => $get('jenis') === DoctorLicenseType::SIP->value)
-                ->required(fn (Get $get) => $get('jenis') === DoctorLicenseType::SIP->value)
-                ->options(fn () => $this->hospitalOptions())
-                ->helperText('Tambahkan dulu penempatan RS di halaman edit dokter kalau pilihan kosong.'),
+            // SIP terikat tempat praktik: diisi di section Penempatan Rumah Sakit, bukan di sini.
+            Select::make('jenis')->label('Jenis')->required()
+                ->options(collect([DoctorLicenseType::STR, DoctorLicenseType::STR_KT])->mapWithKeys(fn ($t) => [$t->value => $t->getLabel()])->all()),
             TextInput::make('nomor')->label('Nomor')->maxLength(150),
             DatePicker::make('tanggal_terbit')->label('Tanggal Terbit'),
             DatePicker::make('tanggal_berlaku')->label('Berlaku Mulai'),
@@ -53,23 +47,13 @@ class LicensesRelationManager extends RelationManager
         ]);
     }
 
-    /** @return array<int,string> doctor_hospitals.id => nama RS (lintas DB, nama dicari manual) */
-    private function hospitalOptions(): array
-    {
-        $hospitals = $this->getOwnerRecord()->hospitals;
-        $names = Companies::whereIn('id', $hospitals->pluck('rumah_sakit_id'))->pluck('name', 'id');
-
-        return $hospitals->mapWithKeys(fn ($h) => [$h->id => $names[$h->rumah_sakit_id] ?? 'RS tidak ditemukan'])->all();
-    }
-
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn ($query) => $query->where('jenis', '!=', DoctorLicenseType::SIP->value))
             ->defaultSort('tanggal_berakhir', 'desc')
             ->columns([
                 TextColumn::make('jenis')->label('Jenis')->badge()->formatStateUsing(fn ($state) => DoctorLicenseType::tryFrom($state)?->getLabel() ?? $state),
-                TextColumn::make('doctor_hospital_id')->label('Penempatan')->placeholder('-')
-                    ->formatStateUsing(fn ($state) => $state ? ($this->hospitalOptions()[$state] ?? '-') : '-'),
                 TextColumn::make('nomor')->label('Nomor')->placeholder('-'),
                 TextColumn::make('tanggal_berlaku')->label('Berlaku Mulai')->date('j M Y')->placeholder('-'),
                 TextColumn::make('tanggal_berakhir')->label('Berakhir')->date('j M Y')->placeholder('-'),

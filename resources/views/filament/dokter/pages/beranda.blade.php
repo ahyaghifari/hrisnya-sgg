@@ -44,16 +44,16 @@
             color: #fff; font-size: .8125rem; font-weight: 500; cursor: pointer; outline: none; max-width: 16rem; }
         .dk-sel option { color: #1e293b; }
 
-        .dk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; }
-        .dk-card { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 1.25rem 1rem; border: 0; cursor: pointer; font-family: inherit;
+        .dk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
+        .dk-card { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 1.75rem 1.25rem; border: 0; cursor: pointer; font-family: inherit;
             background: rgba(255,255,255,.96); border-radius: 1rem; box-shadow: 0 4px 14px rgba(15,60,100,.12); transition: box-shadow .15s, transform .15s; }
         .dk-card:hover { box-shadow: 0 10px 24px rgba(15,60,100,.22); transform: translateY(-2px); }
         .dk-card:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
         .dk-card.off { opacity: .65; }
-        .dk-name { margin: .75rem 0 0; font-size: .8125rem; font-weight: 700; color: #0f172a; }
-        .dk-nip { margin: .125rem 0 0; font-size: .6875rem; color: #64748b; }
-        .dk-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem; margin-top: .625rem; }
-        .dk-tag { padding: .125rem .5rem; border-radius: 9999px; background: #ccfbf1; color: #115e59; font-size: .6875rem; font-weight: 600; }
+        .dk-name { margin: 1rem 0 0; font-size: 1rem; font-weight: 700; color: #0f172a; }
+        .dk-nip { margin: .25rem 0 0; font-size: .8125rem; color: #64748b; }
+        .dk-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: .375rem; margin-top: .875rem; }
+        .dk-tag { padding: .2rem .625rem; border-radius: 9999px; background: #ccfbf1; color: #115e59; font-size: .75rem; font-weight: 600; }
         .dk-tag.gray { background: #f1f5f9; color: #475569; }
         .dk-empty { padding: 2rem; border-radius: 1rem; background: rgba(255,255,255,.96); text-align: center; color: #64748b; font-size: .875rem; }
 
@@ -143,7 +143,7 @@
             <div class="dk-grid">
                 @foreach ($data['rows'] as $dokter)
                     <button type="button" wire:click="buka({{ $dokter->id }})" wire:key="dokter-{{ $dokter->id }}" class="dk-card {{ $dokter->status === 'nonaktif' ? 'off' : '' }}">
-                        <x-dokter.avatar :photo="$data['foto'][$dokter->id] ?? null" :gender="$dokter->jenis_kelamin" :size="72" />
+                        <x-dokter.avatar :photo="$data['foto'][$dokter->id] ?? null" :gender="$dokter->jenis_kelamin" :size="112" />
                         <p class="dk-name">{{ $dokter->nama_lengkap }}</p>
                         <p class="dk-nip">{{ $dokter->nip ?: 'NIP belum diisi' }}</p>
                         <div class="dk-tags">

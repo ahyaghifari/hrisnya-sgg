@@ -2,6 +2,7 @@
 
 namespace App\Services\Doctor;
 
+use App\Enum\Doctor\CredentialingStatus;
 use App\Enum\Doctor\DoctorDocumentType;
 use App\Enum\Doctor\DoctorLicenseType;
 use App\Models\Doctor\Doctor;
@@ -25,7 +26,11 @@ class DoctorApplicationService
         'd_transkrip' => 'TRANSKRIP', 'd_kompetensi' => 'SERTIFIKAT_KOMPETENSI', 'd_rekening' => 'BUKU_REKENING',
     ];
 
-    public function __construct(private DoctorDocumentService $documents, private DoctorLicenseService $licenses) {}
+    public function __construct(
+        private DoctorDocumentService $documents,
+        private DoctorLicenseService $licenses,
+        private DoctorCredentialingService $credentialing,
+    ) {}
 
     public function accept(DoctorApplication $app): Doctor
     {
@@ -35,7 +40,14 @@ class DoctorApplicationService
             throw new \RuntimeException('NIK sudah terdaftar di master dokter.');
         }
 
-        $doctor = DB::connection('doctor')->transaction(function () use ($app, $d) {
+        if (empty($app->files['kredensial'])) {
+            throw new \RuntimeException('Unggah dokumen kredensial dulu sebelum menerima.');
+        }
+
+        // Perusahaan rekrutmen -> m_companies HRIS lewat hris_code == code (jembatan yang sama dgn Rekrutmen\Company).
+        $rsId = $app->company?->hris_code ? Companies::where('code', $app->company->hris_code)->value('id') : null;
+
+        $doctor = DB::connection('doctor')->transaction(function () use ($app, $d, $rsId) {
             $doctor = Doctor::create([
                 'nama' => $d['nama'] ?? $app->user?->name,
                 'gelar_depan' => $d['gelar_depan'] ?? null,
@@ -56,8 +68,6 @@ class DoctorApplicationService
                 }
             }
 
-            // Perusahaan rekrutmen -> m_companies HRIS lewat hris_code == code (jembatan yang sama dgn Rekrutmen\Company).
-            $rsId = $app->company?->hris_code ? Companies::where('code', $app->company->hris_code)->value('id') : null;
             if ($rsId) {
                 $doctor->hospitals()->create(['rumah_sakit_id' => $rsId, 'tanggal_mulai' => now()->toDateString(), 'status' => 'aktif']);
             }
@@ -93,6 +103,21 @@ class DoctorApplicationService
                     'notes' => $row['nama'] ?? null,
                 ], $file);
             }
+        }
+
+        // Hasil kredensial: PDF diunggah di tahap Kredensial -> case selesai (butuh RS; tanpa RS jadi dokumen saja).
+        $pdf = $this->upload($app->files['kredensial']);
+        if ($pdf && $rsId) {
+            $this->credentialing->save($doctor, [
+                'rumah_sakit_id' => $rsId,
+                'jenis' => 'awal',
+                'tanggal_pengajuan' => $app->created_at?->toDateString(),
+                'tanggal_selesai' => now()->toDateString(),
+                'status' => CredentialingStatus::SELESAI->value,
+                'notes' => "Dari lamaran dokter #{$app->id}",
+            ], $pdf);
+        } elseif ($pdf) {
+            $this->documents->store($doctor, ['document_type' => DoctorDocumentType::CREDENTIALING->value], $pdf);
         }
 
         $app->update(['status' => 'diterima']);
