@@ -71,6 +71,9 @@ class ScheduleShiftRosterTab extends Component
     /** @var array<string, array<string, string>> draft [user_id => [date => shift_type_id/'off'/'']] selama editMode. */
     public array $draft = [];
 
+    /** Alasan perubahan - wajib saat Simpan diajukan ke approval (bukan simpan langsung). */
+    public string $changeReason = '';
+
     public bool $showLogs = false;
 
     /** Cara pembagian tim ditampilkan di grid — 'row' (default, baris pemisah colspan penuh
@@ -615,6 +618,32 @@ class ScheduleShiftRosterTab extends Component
         return $roster;
     }
 
+    /** Daftar sel yang diajukan [nama, tanggal, dari, ke, alasan] - buat banner approver biar
+     * kelihatan perubahannya dari shift apa ke shift apa & kenapa (bukan cuma sel dim di grid). */
+    public function getPendingChangesProperty(): array
+    {
+        $types = $this->schedule->shiftTypes->keyBy('id');
+        $label = fn (?string $v) => match (true) {
+            $v === null || $v === '' => 'Kosong',
+            $v === 'off' => 'Libur',
+            default => $types->get($v)?->code ?? '?',
+        };
+        $names = $this->employees->pluck('name', 'id');
+
+        $rows = $this->shiftAssignmentQuery()
+            ->whereIn('user_id', $names->keys()->all())
+            ->whereNotNull('draft_request_id')
+            ->get();
+
+        return $rows->map(fn ($row) => [
+            'name' => $names->get($row->user_id, '-'),
+            'date' => $row->date->toDateString(),
+            'from' => $label($row->off_day ? 'off' : $row->shift_type_id),
+            'to' => $label($row->draft_off_day ? 'off' : $row->draft_shift_type_id),
+            'reason' => $row->draft_reason,
+        ])->sortBy(fn ($c) => $c['date'] . '|' . $c['name'])->values()->all();
+    }
+
     /** Pengajuan perubahan jadwal yang masih menunggu keputusan untuk jadwal INI (kalau ada - 1
      * schedule cuma boleh punya 1 yang in_review, lihat ScheduleRosterChangeService). Dipakai
      * banner "Menunggu Persetujuan" di atas grid & gerbang approveRosterChange()/rejectRosterChange(). */
@@ -889,6 +918,7 @@ class ScheduleShiftRosterTab extends Component
     {
         $this->editMode = false;
         $this->draft = [];
+        $this->changeReason = '';
     }
 
     /** Tulis $draft ke DB SEKALIGUS lewat batch (upsert + delete + insert log), BUKAN loop
@@ -963,9 +993,17 @@ class ScheduleShiftRosterTab extends Component
         // ApprovalFlowService::advanceStep() cabang SCHEDULE_ROSTER_CHANGE). Yang punya
         // Update:Schedule tetap langsung tersimpan seperti biasa.
         if ($pending && ! $this->canEditPastDates) {
+            $reason = trim($this->changeReason);
+
+            if ($reason === '') {
+                Notification::make()->title('Isi alasan perubahan jadwal dulu.')->danger()->send();
+
+                return;
+            }
+
             try {
                 app(\App\Services\Shift\ScheduleRosterChangeService::class)
-                    ->submitForApproval($this->schedule, $this->period, $pending, Auth::user());
+                    ->submitForApproval($this->schedule, $this->period, $pending, Auth::user(), $reason);
             } catch (\Throwable $e) {
                 Notification::make()
                     ->title('Gagal mengajukan perubahan jadwal: ' . $e->getMessage())
@@ -977,6 +1015,7 @@ class ScheduleShiftRosterTab extends Component
 
             $this->editMode = false;
             $this->draft = [];
+            $this->changeReason = '';
 
             unset($this->draftRoster, $this->displayRoster, $this->rosterLogs);
 

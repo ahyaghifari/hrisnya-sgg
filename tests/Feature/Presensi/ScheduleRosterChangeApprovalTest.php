@@ -101,6 +101,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster')
             ->assertSet('editMode', false);
 
@@ -136,6 +137,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         $firstRequestId = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->firstOrFail()->id;
@@ -147,6 +149,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->call('startEdit')
             ->assertSet("draft.{$employee->id}.{$date}", $shiftType->id)
             ->set("draft.{$employee->id}.{$date}", $shiftTypeSiang->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         $this->assertSame(1, ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->count(), 'Tidak boleh bikin pengajuan baru.');
@@ -182,6 +185,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftTypeSiang->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         $request = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->firstOrFail();
@@ -193,6 +197,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->call('startEdit')
             ->assertSet("draft.{$employee->id}.{$date}", $shiftTypeSiang->id)
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         $this->assertSame('cancelled', $request->fresh()->status, 'Satu-satunya sel draft dibalik ke approved -> pengajuan otomatis batal.');
@@ -214,6 +219,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         $request = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->firstOrFail();
@@ -247,6 +253,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         $request = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->firstOrFail();
@@ -274,6 +281,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         $this->assertFalse(ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)->exists());
@@ -298,6 +306,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         Livewire::actingAs($approver)
@@ -332,6 +341,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         Livewire::actingAs($approver)
@@ -361,6 +371,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         Livewire::actingAs($karu)
@@ -386,6 +397,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         Livewire::actingAs($randomViewer)
@@ -434,6 +446,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         $this->assertDatabaseCount('attendance_records', 0);
@@ -467,6 +480,7 @@ class ScheduleRosterChangeApprovalTest extends TestCase
             ->test(ScheduleShiftRosterTab::class, ['schedule' => $schedule])
             ->call('startEdit')
             ->set("draft.{$employee->id}.{$date}", $shiftType->id)
+            ->set('changeReason', 'Tes')
             ->call('saveRoster');
 
         $resolved = app(\App\Services\Attendance\ScheduleResolver::class)->resolveForUserDate($employee, $date);

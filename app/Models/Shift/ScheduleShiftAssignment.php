@@ -37,6 +37,7 @@ class ScheduleShiftAssignment extends Model
         'draft_request_id',
         'draft_shift_type_id',
         'draft_off_day',
+        'draft_reason',
     ];
 
     protected $casts = [

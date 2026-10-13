@@ -40,9 +40,9 @@ class ScheduleRosterChangeService
     ) {}
 
     /** @param array<int, array{user_id:string, date:string, before:?string, value:?string}> $pending */
-    public function submitForApproval(Schedule $schedule, string $period, array $pending, User $user): ScheduleRosterChangeRequest
+    public function submitForApproval(Schedule $schedule, string $period, array $pending, User $user, ?string $reason = null): ScheduleRosterChangeRequest
     {
-        return DB::transaction(function () use ($schedule, $period, $pending, $user) {
+        return DB::transaction(function () use ($schedule, $period, $pending, $user, $reason) {
             $request = ScheduleRosterChangeRequest::where('schedule_id', $schedule->id)
                 ->where('status', 'in_review')
                 ->first();
@@ -79,7 +79,7 @@ class ScheduleRosterChangeService
                 );
             }
 
-            $this->applyCellsToDraft($schedule, $request, $pending);
+            $this->applyCellsToDraft($schedule, $request, $pending, $reason);
 
             // Semua sel sudah balik ke kondisi approved (revert) - tidak ada lagi yang perlu
             // ditinjau, pengajuan otomatis batal.
@@ -97,7 +97,7 @@ class ScheduleRosterChangeService
     }
 
     /** @param array<int, array{user_id:string, date:string, before:?string, value:?string}> $pending */
-    private function applyCellsToDraft(Schedule $schedule, ScheduleRosterChangeRequest $request, array $pending): void
+    private function applyCellsToDraft(Schedule $schedule, ScheduleRosterChangeRequest $request, array $pending, ?string $reason = null): void
     {
         $userIds = array_unique(array_column($pending, 'user_id'));
         $dates = array_unique(array_column($pending, 'date'));
@@ -130,6 +130,7 @@ class ScheduleRosterChangeService
                     'draft_request_id' => $request->id,
                     'draft_shift_type_id' => $proposedValue && $proposedValue !== 'off' ? $proposedValue : null,
                     'draft_off_day' => $proposedValue === 'off',
+                    'draft_reason' => $reason,
                 ]);
 
                 continue;
@@ -154,6 +155,7 @@ class ScheduleRosterChangeService
                 'draft_request_id' => $request->id,
                 'draft_shift_type_id' => $proposedValue !== 'off' ? $proposedValue : null,
                 'draft_off_day' => $proposedValue === 'off',
+                'draft_reason' => $reason,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -179,6 +181,7 @@ class ScheduleRosterChangeService
             'draft_request_id' => null,
             'draft_shift_type_id' => null,
             'draft_off_day' => false,
+            'draft_reason' => null,
         ]);
     }
 
@@ -210,6 +213,7 @@ class ScheduleRosterChangeService
             'draft_request_id' => null,
             'draft_shift_type_id' => null,
             'draft_off_day' => false,
+            'draft_reason' => null,
         ]);
 
         $this->resweepPastDates($pending);
