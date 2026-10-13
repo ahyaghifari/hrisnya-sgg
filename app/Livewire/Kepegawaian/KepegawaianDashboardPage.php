@@ -202,7 +202,7 @@ class KepegawaianDashboardPage extends Component
      * - STR: belum diunggah; atau tanggalnya belum diisi (STR seumur hidup = nomor terisi & tanggal kosong, aman).
      * - SIP: belum diunggah; tanggal mulai/sampai belum diisi; atau sudah lewat berlaku_sampai.
      *
-     * @return array{counts: array<string,int>, rows: \Illuminate\Support\Collection, total: int}
+     * @return array{counts: array<string,int>, rows: \Illuminate\Support\Collection, total: int, percent: int}
      */
     public function getNakesCompletenessProperty(): array
     {
@@ -216,8 +216,9 @@ class KepegawaianDashboardPage extends Component
 
         $today = now()->startOfDay();
         $counts = array_fill_keys(array_keys(self::NAKES_ISSUES), 0);
+        $okItems = 0; // butir terpenuhi (5 per nakes: STR ada/tanggal, SIP ada/tanggal/berlaku) buat persentase
 
-        $rows = $users->map(function (User $user) use ($docs, $today, &$counts) {
+        $rows = $users->map(function (User $user) use ($docs, $today, &$counts, &$okItems) {
             $mine = $docs->get($user->employee?->id, collect())->keyBy('type');
             $str = $mine->get('STR');
             $sip = $mine->get('SIP');
@@ -240,13 +241,25 @@ class KepegawaianDashboardPage extends Component
             foreach ($issues as $i) {
                 $counts[$i]++;
             }
+            // Butir yang bergantung dokumen (tanggal/berlaku) ikut belum terpenuhi bila dokumennya belum ada.
+            $okItems += 5 - count(array_unique(array_merge(
+                $issues,
+                $str ? [] : ['str_date'],
+                $sip ? [] : ['sip_date', 'sip_expired'],
+                in_array('sip_date', $issues, true) ? ['sip_expired'] : [], // tanggal kosong: berlaku tak bisa dinilai
+            )));
 
             return ['user' => $user, 'issues' => $issues];
         })->filter(fn (array $r) => $r['issues'] !== [])
             ->sortByDesc(fn (array $r) => count($r['issues']))
             ->values();
 
-        return ['counts' => $counts, 'rows' => $rows, 'total' => $users->count()];
+        return [
+            'counts' => $counts,
+            'rows' => $rows,
+            'total' => $users->count(),
+            'percent' => $users->isEmpty() ? 0 : (int) round($okItems / ($users->count() * 5) * 100),
+        ];
     }
 
     public function getDataCompletenessPercentProperty(): int
