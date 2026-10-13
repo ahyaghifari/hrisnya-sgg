@@ -23,7 +23,7 @@ class Candidate extends Model
     protected $fillable = [
         'user_id', 'job_application_id', 'name', 'nickname', 'nik', 'no_kk',
         'blood_type', 'body_height_weight', 'religion', 'nationality', 'status_marital',
-        'marriage_date', 'mother_name', 'ktp_address', 'village', 'district', 'city',
+        'marriage_date', 'mother_name', 'no_str', 'ktp_address', 'village', 'district', 'city',
         'province', 'social_media_accounts', 'no_bpjskes', 'faskes', 'no_bpjstk',
         'company_bpjstk', 'bsi_bank_number', 'profile_picture', 'overall_status',
         'is_onboarded',

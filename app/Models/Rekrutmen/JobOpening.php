@@ -25,7 +25,7 @@ class JobOpening extends Model
     protected $connection = 'recruitment';
 
     protected $fillable = [
-        'id', 'company_id', 'job_position_id', 'title', 'division_name', 'company_name', 'quota', 'max_applicants',
+        'id', 'company_id', 'job_position_id', 'title', 'division_name', 'is_nakes', 'company_name', 'quota', 'max_applicants',
         'applications_deadline', 'hris_job_opening_id', 'is_active', 'description',
         'requirements', 'requires_psychotest',
         'published_at', 'closed_at', 'created_by_name', 'published_by', 'closed_by',
@@ -33,6 +33,7 @@ class JobOpening extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_nakes' => 'boolean',
         'quota' => 'integer',
         'max_applicants' => 'integer',
         'applications_deadline' => 'date',
@@ -60,12 +61,16 @@ class JobOpening extends Model
                 return;
             }
 
-            if (! $opening->isDirty('job_position_id') && $opening->division_name) {
+            if (! $opening->isDirty('job_position_id') && $opening->division_name && $opening->exists) {
                 return;
             }
 
-            $opening->division_name = JobPositions::find($opening->job_position_id)?->department_name
-                ?? $opening->division_name;
+            $position = JobPositions::find($opening->job_position_id);
+            $opening->division_name = $position?->department_name ?? $opening->division_name;
+            // Salinan is_nakes (project rekrutmen tak punya koneksi ke DB HRIS) - dipakai form Data Diri
+            // kandidat untuk menampilkan field STR. Jabatan yang ditandai nakes belakangan: lihat
+            // JobPositions::booted().
+            $opening->is_nakes = (bool) $position?->is_nakes;
         });
     }
 
@@ -123,6 +128,11 @@ class JobOpening extends Model
     public function effectiveAgreements(): \Illuminate\Support\Collection
     {
         $this->loadMissing('company.agreements', 'agreements');
+
+        // Perusahaan tanpa persetujuan onboarding: tidak ada naskah efektif (selaras project rekrutmen).
+        if ($this->company && ! $this->company->requires_agreement) {
+            return collect();
+        }
 
         $items = collect();
         foreach ($this->company?->agreements ?? collect() as $a) {

@@ -22,7 +22,7 @@ $dateFmt = fn ($v) => $v ? \Carbon\Carbon::parse($v)->translatedFormat('j F Y') 
             'Status Pernikahan' => $candidate->status_marital,
             'Tanggal Menikah' => $candidate->marriage_date ? $dateFmt($candidate->marriage_date) : null,
             'Nama Ibu Kandung' => $candidate->mother_name,
-        ] as $label => $value)
+        ] + ($candidate->jobApplication?->jobOpening?->is_nakes || $candidate->no_str ? ['No. STR' => $candidate->no_str] : []) as $label => $value)
         <div>
             <div class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ $label }}</div>
             <div class="text-gray-900 dark:text-gray-100">{{ $fmt($value) }}</div>
