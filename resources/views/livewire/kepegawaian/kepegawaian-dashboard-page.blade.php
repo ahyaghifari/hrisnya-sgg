@@ -75,17 +75,27 @@
 @php $nakes = $this->nakesCompleteness; @endphp
 @if ($nakes['total'] > 0)
     <button type="button" wire:click="openModal('nakes')" style="display:block;width:100%;text-align:left;border:none;cursor:pointer;font-family:inherit;background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
-            <h3 style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;"><i class="fa-solid fa-user-doctor" style="color:var(--brand);margin-right:6px;"></i>Kelengkapan Dokumen Nakes</h3>
-            <span style="font-size:11px;color:var(--text-muted);">{{ $nakes['rows']->count() }} dari {{ $nakes['total'] }} nakes perlu tindak lanjut</span>
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
+            <div style="position:relative;width:96px;height:96px;flex-shrink:0;">
+                <div style="width:100%;height:100%;border-radius:50%;background:conic-gradient(#0f766e {{ $nakes['percent'] * 3.6 }}deg, var(--border) 0deg);"></div>
+                <div style="position:absolute;inset:9px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;">
+                    <span style="font-size:20px;font-weight:800;color:#0f766e;letter-spacing:-0.5px;">{{ $nakes['percent'] }}%</span>
+                </div>
+            </div>
+            <div>
+                <h3 style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0 0 4px;"><i class="fa-solid fa-user-doctor" style="color:var(--brand);margin-right:6px;"></i>Kelengkapan Dokumen Nakes</h3>
+                <p style="font-size:11px;color:var(--text-muted);margin:0;line-height:1.5;max-width:200px;">{{ $nakes['rows']->count() }} dari {{ $nakes['total'] }} nakes perlu tindak lanjut (STR &amp; SIP).</p>
+            </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+        <div style="flex:1;min-width:260px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
             @foreach (\App\Livewire\Kepegawaian\KepegawaianDashboardPage::NAKES_ISSUES as $key => $label)
                 <div style="border:1px solid var(--border);border-radius:12px;padding:12px;">
                     <p style="font-size:22px;font-weight:800;margin:0;color:{{ $nakes['counts'][$key] > 0 ? 'var(--danger-text)' : 'var(--text-heading)' }};">{{ $nakes['counts'][$key] }}</p>
                     <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $label }}</p>
                 </div>
             @endforeach
+        </div>
         </div>
     </button>
 @endif
