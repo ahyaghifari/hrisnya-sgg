@@ -7,7 +7,7 @@ use App\Filament\Dokter\Resources\Doctors\DoctorResource;
 use App\Enum\Doctor\DoctorDocumentType;
 use App\Models\User;
 use App\Services\Doctor\DoctorAccountService;
-use Filament\Actions\DeleteAction;
+use Filament\Actions\Action;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -27,7 +27,23 @@ class EditDoctor extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [DeleteAction::make()->successRedirectUrl(Beranda::getUrl())];
+        // Dokter yang sudah ditambahkan tidak dihapus (riwayat lisensi/credentialing/dokumen dijaga): cukup dinonaktifkan.
+        return [
+            Action::make('nonaktifkan')->label('Nonaktifkan')->icon('heroicon-o-no-symbol')->color('danger')
+                ->visible(fn () => $this->getRecord()->status === 'aktif')
+                ->requiresConfirmation()->modalDescription('Dokter disembunyikan dari daftar aktif. Semua data dan riwayatnya tetap tersimpan.')
+                ->action(function () {
+                    $this->getRecord()->update(['status' => 'nonaktif']);
+                    $this->redirect(Beranda::getUrl());
+                }),
+            Action::make('aktifkan')->label('Aktifkan')->icon('heroicon-o-check-circle')->color('success')
+                ->visible(fn () => $this->getRecord()->status !== 'aktif')
+                ->requiresConfirmation()
+                ->action(function () {
+                    $this->getRecord()->update(['status' => 'aktif']);
+                    $this->redirect(Beranda::getUrl());
+                }),
+        ];
     }
 
     /** Foto ada di akun HRIS dokter (users.profile_picture), bukan di Doctor DB. */
@@ -40,6 +56,11 @@ class EditDoctor extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        // Field Foto & Akun HRIS di-hold (tidak ada di form): jangan sentuh foto akun yang sudah tertaut.
+        if (! array_key_exists('foto', $data)) {
+            return $data;
+        }
+
         $foto = $data['foto'] ?? null;
         unset($data['foto']);
 

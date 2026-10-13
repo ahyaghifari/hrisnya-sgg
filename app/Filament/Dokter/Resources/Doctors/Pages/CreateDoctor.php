@@ -7,7 +7,6 @@ use App\Enum\Doctor\DoctorLicenseType;
 use App\Filament\Dokter\Pages\Beranda;
 use App\Filament\Dokter\Resources\Doctors\DoctorResource;
 use App\Models\Doctor\Doctor;
-use App\Services\Doctor\DoctorAccountService;
 use App\Services\Doctor\DoctorDocumentService;
 use App\Services\Doctor\DoctorLicenseService;
 use Filament\Notifications\Notification;
@@ -15,7 +14,6 @@ use Filament\Resources\Pages\CreateRecord;
 use Filament\Support\Enums\Alignment;
 use Filament\Support\Enums\Width;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 
 class CreateDoctor extends CreateRecord
 {
@@ -29,47 +27,23 @@ class CreateDoctor extends CreateRecord
     // Tombol Simpan/Batal di kanan bawah form.
     public static string | Alignment $formActionsAlignment = Alignment::End;
 
-    /** Akun HRIS dibuat bersamaan dengan dokter; kalau salah satu gagal, dua-duanya batal (akun HRIS di DB default, dokter di DB `doctor`). */
+    /**
+     * Akun login HRIS & foto di-hold: dokter dibuat tanpa akun (tautkan nanti). Dokumen & lisensi diproses
+     * setelah dokter tersimpan; spesialisasi, penempatan, dan SIP disimpan Filament (saveRelationships).
+     */
     protected function handleRecordCreation(array $data): Model
     {
-        $accounts = app(DoctorAccountService::class);
-        $account = collect($data)->only(['email', 'password', 'company_id'])->all()
-            + ['name' => $data['nama'], 'nip' => $data['nip'] ?? null, 'jenis_kelamin' => $data['jenis_kelamin'] ?? null];
-        $foto = $data['foto'] ?? null;
         $dokumen = $data['dokumen'] ?? [];
         $lisensi = $data['lisensi'] ?? [];
-        $doctorData = collect($data)->except(['email', 'password', 'company_id', 'foto', 'dokumen', 'lisensi'])->all();
 
-        DB::beginTransaction();
-        DB::connection('doctor')->beginTransaction();
-
-        try {
-            $user = $accounts->create($account);
-            // Spesialisasi & penempatan RS disimpan Filament sesudah method ini (saveRelationships).
-            $doctor = Doctor::create($doctorData + ['hris_user_id' => $user->id]);
-
-            if ($foto) {
-                $accounts->setPhoto($user, $foto);
-            }
-
-            DB::connection('doctor')->commit();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::connection('doctor')->rollBack();
-            DB::rollBack();
-
-            throw $e;
-        }
+        $doctor = Doctor::create(collect($data)->except(['dokumen', 'lisensi'])->all());
 
         $this->storeExtras($doctor, $dokumen, $lisensi);
 
         return $doctor;
     }
 
-    /**
-     * Dokumen & lisensi diproses setelah dokter & akun tersimpan; kegagalan satu item tidak membatalkan
-     * dokter (bisa ditambah lagi lewat tab Dokumen/Lisensi di halaman edit).
-     */
+    /** Kegagalan satu item dokumen/lisensi tidak membatalkan dokter (bisa ditambah lagi lewat tab di halaman edit). */
     private function storeExtras(Doctor $doctor, array $dokumen, array $lisensi): void
     {
         $gagal = [];

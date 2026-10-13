@@ -12,9 +12,8 @@ use App\Filament\Dokter\Resources\Doctors\RelationManagers\DocumentsRelationMana
 use App\Filament\Dokter\Resources\Doctors\RelationManagers\LicensesRelationManager;
 use App\Models\Doctor\Doctor;
 use App\Models\Master\Companies;
-use App\Models\User;
+use App\Services\Doctor\DoctorDocumentService;
 use BackedEnum;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -23,7 +22,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -51,7 +49,7 @@ class DoctorResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        // Grid 3 kolom: Data Diri selebar penuh, lalu Foto | Akun | Penempatan sejajar. Kolom field di dalamnya diatur per section.
+        // Grid 3 kolom; setiap section selebar penuh.
         return $schema->columns(3)->components([
             Section::make('Data Diri')->columnSpanFull()->columns(3)->schema([
                 TextInput::make('gelar_depan')->label('Gelar Depan')->maxLength(100)->placeholder('dr.'),
@@ -86,7 +84,7 @@ class DoctorResource extends Resource
 
             // Lisensi langsung saat tambah dokter; file scan-nya ikut jadi dokumen (DoctorLicenseService).
             Section::make('Lisensi (STR / STR-KT)')->columnSpanFull()->collapsed()->visibleOn('create')
-                ->description('Opsional. SIP terikat penempatan RS: tambahkan lewat tab Lisensi setelah dokter & penempatannya tersimpan.')->schema([
+                ->description('Opsional. SIP diisi di section Penempatan Rumah Sakit.')->schema([
                     Repeater::make('lisensi')->label('')->defaultItems(0)->addActionLabel('Tambah Lisensi')->columns(3)->schema([
                         Select::make('jenis')->label('Jenis')->required()
                             ->options(collect([DoctorLicenseType::STR, DoctorLicenseType::STR_KT])->mapWithKeys(fn ($t) => [$t->value => $t->getLabel()])->all()),
@@ -99,45 +97,54 @@ class DoctorResource extends Resource
                     ]),
                 ]),
 
-            Section::make('Foto')->columnSpan(1)->description('Opsional. Kalau kosong, kartu menampilkan siluet sesuai jenis kelamin.')->schema([
-                // Disimpan ke users.profile_picture akun dokter (bukan kolom Doctor DB) lewat DoctorAccountService.
-                FileUpload::make('foto')->label('')->image()->imageEditor()->disk('public')->directory('profile-pictures')->maxSize(2048)
-                    ->visible(fn (string $operation, Get $get) => $operation === 'create' || filled($get('hris_user_id'))),
-            ]),
-
-            // Tambah dokter = sekaligus buat akun HRIS-nya (DoctorAccountService, dipanggil CreateDoctor).
-            Section::make('Akun Login HRIS')->description('Akun dibuat otomatis bersama data dokter. Dokter login lewat HRIS/SSO memakai email ini.')
-                ->columnSpan(1)->columns(1)->visibleOn('create')->schema([
-                    TextInput::make('email')->label('Email')->email()->required()->maxLength(255)
-                        ->unique('users', 'email', modifyRuleUsing: fn ($rule) => $rule->whereNull('deleted_at')),
-                    TextInput::make('password')->label('Password')->password()->revealable()->required()->minLength(8),
-                    Select::make('company_id')->label('Perusahaan')->required()->searchable()->columnSpanFull()
-                        ->options(fn () => Companies::query()->orderBy('name')->pluck('name', 'id'))
-                        ->default(fn () => auth()->user()?->company_id),
-                ]),
-
-            // Edit: tautkan akun lama yang sudah ada (dokter yang dibuat sebelum alur "sekalian akun").
-            Section::make('Akun Login HRIS')->columnSpan(1)->visibleOn('edit')->schema([
-                // Lintas DB: tidak bisa relationship(), jadi opsi dicari manual. Dokter disembunyikan
-                // global scope 'dokter' di User, makanya onlyDokter() (akun yang ditandai is_dokter).
-                Select::make('hris_user_id')->label('Akun HRIS')
-                    ->searchable()
-                    ->getSearchResultsUsing(fn (string $search) => User::onlyDokter()->searchNameOrNip($search)->limit(20)->get()
-                        ->mapWithKeys(fn (User $u) => [$u->id => "{$u->name} ({$u->nip})"])->all())
-                    ->getOptionLabelUsing(fn ($value) => ($u = User::withoutGlobalScopes()->find($value)) ? "{$u->name} ({$u->nip})" : $value)
-                    ->helperText('Akun yang dipakai dokter untuk login (SSO/HRIS).'),
-            ]),
-
-            Section::make('Penempatan Rumah Sakit')->columnSpan(1)->schema([
-                Repeater::make('hospitals')->relationship()->label('')->defaultItems(0)->addActionLabel('Tambah Penempatan')->columns(1)->schema([
-                    Select::make('rumah_sakit_id')->label('Rumah Sakit')->required()->searchable()->columnSpanFull()
+            // Akun login HRIS & foto di-hold (foto = users.profile_picture, butuh akun). SIP terikat tempat praktik,
+            // jadi disimpan sebagai doctor_licenses (jenis SIP) milik penempatan, bukan di tab Lisensi/Dokumen.
+            Section::make('Penempatan Rumah Sakit')->columnSpanFull()->schema([
+                Repeater::make('hospitals')->relationship()->label('')->defaultItems(0)->addActionLabel('Tambah Penempatan')->columns(4)->schema([
+                    Select::make('rumah_sakit_id')->label('Rumah Sakit')->required()->searchable()->columnSpan(2)
                         ->options(fn () => Companies::query()->orderBy('name')->pluck('name', 'id')),
                     DatePicker::make('tanggal_mulai')->label('Mulai'),
                     DatePicker::make('tanggal_selesai')->label('Selesai'),
                     Select::make('status')->options(['aktif' => 'Aktif', 'nonaktif' => 'Nonaktif'])->default('aktif')->required(),
+
+                    Repeater::make('sips')->relationship('sips')->label('SIP di rumah sakit ini')->defaultItems(0)
+                        ->addActionLabel('Tambah SIP')->columns(4)->columnSpanFull()
+                        ->mutateRelationshipDataBeforeCreateUsing(fn (array $data, $livewire) => static::sipData($data, $livewire->getRecord()))
+                        ->mutateRelationshipDataBeforeSaveUsing(fn (array $data, $livewire) => static::sipData($data, $livewire->getRecord()))
+                        ->schema([
+                            TextInput::make('nomor')->label('Nomor SIP')->required()->maxLength(150),
+                            DatePicker::make('tanggal_terbit')->label('Tanggal Terbit'),
+                            DatePicker::make('tanggal_berlaku')->label('Berlaku Mulai'),
+                            DatePicker::make('tanggal_berakhir')->label('Berakhir')->afterOrEqual('tanggal_berlaku'),
+                            Select::make('status')->options(['aktif' => 'Aktif', 'nonaktif' => 'Nonaktif'])->default('aktif')->required(),
+                            // Disimpan terenkripsi lewat DoctorDocumentService (sipData); file lama tetap kalau tidak diganti.
+                            FileUpload::make('file')->label('Scan SIP (opsional)')->storeFiles(false)->columnSpan(3)
+                                ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])->maxSize(10240),
+                        ]),
                 ]),
             ]),
         ]);
+    }
+
+    /** Lengkapi data SIP dari repeater penempatan: jenis/doctor_id, dan file scan -> dokumen terenkripsi. */
+    private static function sipData(array $data, Doctor $doctor): array
+    {
+        $file = $data['file'] ?? null;
+        unset($data['file']);
+
+        $data['jenis'] = DoctorLicenseType::SIP->value;
+        $data['doctor_id'] = $doctor->id;
+
+        if ($file) {
+            $data['doctor_document_id'] = app(DoctorDocumentService::class)->store($doctor, [
+                'document_type' => DoctorLicenseType::SIP->value,
+                'document_number' => $data['nomor'] ?? null,
+                'issued_at' => $data['tanggal_terbit'] ?? null,
+                'expired_at' => $data['tanggal_berakhir'] ?? null,
+            ], $file)->id;
+        }
+
+        return $data;
     }
 
     public static function table(Table $table): Table
@@ -158,7 +165,7 @@ class DoctorResource extends Resource
                 SelectFilter::make('specialty')->label('Spesialisasi')
                     ->relationship('specialties', 'nama'),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()]);
+            ->recordActions([EditAction::make()]);
     }
 
     public static function getRelations(): array

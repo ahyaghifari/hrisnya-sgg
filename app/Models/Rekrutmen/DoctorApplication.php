@@ -17,12 +17,24 @@ class DoctorApplication extends Model
 
     protected $casts = ['data' => 'array', 'files' => 'array'];
 
+    /** Tahap: lamaran diajukan -> tinjau -> kredensial (diundang, PDF kredensial diunggah) -> diterima / ditolak. */
     public const STATUS = [
-        'baru' => 'Lamaran diterima',
-        'ditinjau' => 'Sedang ditinjau',
+        'baru' => 'Lamaran',
+        'ditinjau' => 'Tinjau',
+        'kredensial' => 'Kredensial',
         'diterima' => 'Diterima',
         'ditolak' => 'Ditolak',
     ];
+
+    public function tahap(): string
+    {
+        return $this->status;
+    }
+
+    public function statusLabel(): string
+    {
+        return self::STATUS[$this->tahap()] ?? ucfirst($this->status);
+    }
 
     public function user(): BelongsTo
     {

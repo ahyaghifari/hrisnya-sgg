@@ -3,7 +3,9 @@
 namespace App\Filament\Dokter\Pages;
 
 use App\Filament\Dokter\Resources\Doctors\DoctorResource;
+use App\Enum\Doctor\DoctorDocumentType;
 use App\Models\Doctor\Doctor;
+use App\Models\Doctor\DoctorDocument;
 use App\Models\Doctor\Specialty;
 use App\Models\Master\Companies;
 use App\Models\User;
@@ -112,6 +114,15 @@ class Beranda extends Dashboard
             if ($path) {
                 $urls[$doctor->id] = Storage::disk('public')->url($path);
             }
+        }
+
+        // Tanpa foto akun (mis. dokter dari lamaran, akun di-hold): pakai dokumen Pas Foto terbaru
+        // (terenkripsi, dibuka lewat route dokumen panel).
+        $tanpaFoto = $doctors->pluck('id')->diff(array_keys($urls));
+        if ($tanpaFoto->isNotEmpty()) {
+            DoctorDocument::whereIn('doctor_id', $tanpaFoto)->where('document_type', DoctorDocumentType::PAS_FOTO->value)
+                ->orderBy('id')->get()
+                ->each(fn (DoctorDocument $doc) => $urls[$doc->doctor_id] = route('filament.dokter.dokumen.show', $doc));
         }
 
         return $urls;
