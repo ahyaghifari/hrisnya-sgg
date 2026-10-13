@@ -176,7 +176,7 @@
     </tbody>
 </table>
 
-<div class="rangka">Dalam rangka {!! nl2br(e($surat->tugas)) !!} yang akan dilaksanakan pada</div>
+<div class="rangka">Dalam rangka {!! nl2br(e($surat->tugas)) !!} yang akan dilaksanakan pada:</div>
 <table class="info">
     <tr><td class="label">hari/tanggal</td><td class="sep">:</td><td>{!! $tanggalLines !!}</td></tr>
     <tr><td class="label">waktu</td><td class="sep">:</td><td>{{ $surat->waktu ?: '-' }}</td></tr>

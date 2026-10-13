@@ -84,14 +84,10 @@ class SuratTugas extends Model implements Signable
         return $this->status === self::STATUS_TERBIT;
     }
 
-    /** "2 Agustus 2026 s/d 3 Agustus 2026, 5 Agustus 2026 s/d selesai" - tanggal selesai kosong = sampai selesai. */
+    /** Sama dengan baris tanggal di cetakan surat (periodeLinesSurat), dipisah "; " - dipakai verifikasi QR, modal TTD, daftar. */
     public function periodeLabel(): string
     {
-        return $this->periode->map(fn ($p) => match (true) {
-            $p->end_date === null => $p->start_date->translatedFormat('j F Y') . ' s/d selesai',
-            $p->start_date->isSameDay($p->end_date) => $p->start_date->translatedFormat('j F Y'),
-            default => $p->start_date->translatedFormat('j F Y') . ' s/d ' . $p->end_date->translatedFormat('j F Y'),
-        })->implode(', ');
+        return implode('; ', $this->periodeLinesSurat());
     }
 
     /**

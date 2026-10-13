@@ -119,6 +119,9 @@
                     <span class="badge {{ $surat->isTerbit() ? 'badge-approved' : 'badge-pending' }}">
                         {{ $surat->isTerbit() ? 'Terbit' : 'Menunggu TTD' }}
                     </span>
+                    @if (! $surat->isTerbit() && $surat->document && $surat->ttd_user_id === auth()->id())
+                        <a href="{{ route('documents.sign', $surat->document) }}" class="btn-primary btn-xs" title="Tandatangani"><i class="fa-solid fa-signature"></i> TTD</a>
+                    @endif
                     <button type="button" wire:click="toggleAudit('{{ $surat->id }}')" class="btn-ghost btn-xs" title="Riwayat audit"><i class="fa-solid fa-clipboard-list"></i></button>
                 @endif
             </div>

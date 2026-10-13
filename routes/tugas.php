@@ -24,3 +24,6 @@ Route::get('/tugas/papan/{scope}', TaskListPage::class)
 
 Route::get('/tugas/arsip', TaskArchivePage::class)
     ->name('tugas.arsip');
+
+Route::get('/tugas/surat-tugas/{surat}', \App\Livewire\Task\SuratTugasDetailPage::class)
+    ->name('tugas.surat-tugas');
