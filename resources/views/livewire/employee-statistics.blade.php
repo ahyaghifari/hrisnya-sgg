@@ -313,6 +313,55 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
         };
     @endphp
 
+    {{-- Progres kelengkapan Data Diri (field inti yang sama dengan dashboard Kepegawaian). --}}
+    @php $kelengkapan = $this->dataCompleteness; @endphp
+    @if ($kelengkapan['percent'] < 100)
+    @php $kelengkapanWarna = $kelengkapan['percent'] >= 100 ? 'var(--success-text, #15803d)' : 'var(--brand)'; @endphp
+    <style>
+        /* Garis diagonal bergerak terus di dalam bar (selalu tampil, termasuk 100%) + denyut cahaya di ujung bar. */
+        .kelengkapan-stripes { position:absolute; inset:0; background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.28) 0 8px, transparent 8px 16px); background-size:22.63px 22.63px; animation:kelengkapan-stripes .9s linear infinite; }
+        @keyframes kelengkapan-stripes { from { background-position:0 0; } to { background-position:22.63px 0; } }
+        .kelengkapan-glow { position:absolute; top:0; right:0; bottom:0; width:14px; background:linear-gradient(90deg, transparent, rgba(255,255,255,.75)); animation:kelengkapan-glow 1.4s ease-in-out infinite; }
+        @keyframes kelengkapan-glow { 0%,100% { opacity:.25; } 50% { opacity:1; } }
+        @media (prefers-reduced-motion: reduce) { .kelengkapan-stripes, .kelengkapan-glow { animation:none; } }
+    </style>
+    {{-- wire:key ikut persen: remount (animasi ulang) saat angkanya berubah setelah simpan. --}}
+    <div class="card-surface" style="margin-bottom:20px;" wire:key="kelengkapan-{{ $kelengkapan['percent'] }}"
+        x-data="{ target: {{ $kelengkapan['percent'] }}, w: 0, n: 0 }"
+        x-init="
+            requestAnimationFrame(() => requestAnimationFrame(() => w = target));
+            const t0 = performance.now(), dur = 1200;
+            const tick = (now) => {
+                const p = Math.min((now - t0) / dur, 1);
+                n = Math.round(target * (1 - Math.pow(1 - p, 3)));
+                if (p < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        ">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+            <span style="font-size:13px;font-weight:600;color:var(--text-heading);">Kelengkapan Data Diri</span>
+            <span style="font-size:13px;font-weight:700;color:{{ $kelengkapanWarna }};font-variant-numeric:tabular-nums;"><span x-text="n">{{ $kelengkapan['percent'] }}</span>%</span>
+        </div>
+        <div class="progress-track" style="height:10px;">
+            <div class="progress-fill" :style="{ width: w + '%' }"
+                style="position:relative;overflow:hidden;width:0;background:{{ $kelengkapanWarna }};transition:width 1.2s cubic-bezier(.22,1,.36,1);">
+                @if ($kelengkapan['percent'] > 0)
+                    <span class="kelengkapan-stripes"></span>
+                    <span class="kelengkapan-glow"></span>
+                @endif
+            </div>
+        </div>
+        <p style="font-size:11.5px;color:var(--text-muted);margin:8px 0 0;line-height:1.5;">
+            @if ($kelengkapan['missing'])
+                {{ $kelengkapan['filled'] }} dari {{ $kelengkapan['total'] }} data inti terisi. Belum diisi: {{ implode(', ', $kelengkapan['missing']) }}.
+            @else
+                Semua data inti sudah terisi.
+            @endif
+        </p>
+    </div>
+
+    @endif
+
     @if ($isSelf && $editingProfil)
         {{-- Mode edit: Informasi Pribadi + Kontak + Alamat dalam 1 form. Rekening bank TIDAK
         ikut di sini (lihat komentar saveProfil()) - tetap cuma bisa diubah HC/admin. --}}
@@ -505,11 +554,151 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
         meskipun mereka bisa buka Data Diri karyawan itu untuk tab lain. ponytail: cuma tampil
         di mode lihat (bukan form edit). --}}
         @if ($this->canViewProfileDocuments)
+            {{-- Dua kartu: dokumen umum (KTP/KK) & dokumen nakes (STR/SIP/RKK, lihat nakesOnly()). Kartu kosong dilewati. --}}
+            @foreach ([false => ['fa-paperclip', 'Dokumen'], true => ['fa-user-doctor', 'Dokumen Nakes']] as $nakes => [$grpIcon, $grpTitle])
+            @php $grpTypes = collect($this->documentTypeOptions)->filter(fn ($t) => $t->nakesOnly() === (bool) $nakes); @endphp
+            @continue($grpTypes->isEmpty())
+            @if ($nakes)
+            {{-- STR/SIP: nomor + masa berlaku + file (employee_nakes_documents). Baris sama seperti Dokumen; form isi/ubah
+            membuka panel di bawah baris. Tanpa berlaku_sampai = seumur hidup (STR saja). --}}
             <div class="card-surface" style="margin-bottom:20px;">
-                {!! $sectionHeader('fa-paperclip', 'Dokumen') !!}
+                {!! $sectionHeader($grpIcon, $grpTitle) !!}
+                <div class="pwa-list">
+                    @foreach ($grpTypes as $type)
+                        @php
+                            $t = $type->value;
+                            $nd = $this->nakesDocuments->get($t);
+                            $riwayat = $this->nakesHistory->get($t, collect());
+                            $sisa = $nd?->sisaHari();
+                            $belumLengkap = $nd && ! $nd->nomor && ! $nd->berlaku_sampai; // data lama: file saja
+                            $prop = strtolower($t) . 'File';
+                            $fmt = fn ($d) => $d->translatedFormat('d M Y');
+                            $konfirmasi = "Setelah disimpan, nomor dan tanggal {$t} tidak bisa diubah lagi."
+                                . ($nd ? " {$t} yang aktif saat ini akan menjadi riwayat." : '') . ' Lanjutkan?';
+                        @endphp
+                        <div class="pwa-list-row doc-row" x-data="{ open: false, hist: false }"
+                            x-on:nakes-saved.window="if ($event.detail.type === '{{ $t }}') open = false"
+                            wire:loading.class="opacity-60" wire:target="saveNakesDocument,{{ $prop }}">
+                            <div class="doc-row-main">
+                                <div class="pwa-tile-icon {{ $type->tileColor() }}"><i class="{{ $type->icon() }}"></i></div>
+                                <p class="doc-type-label" style="font-size:13px;font-weight:600;color:var(--text-heading);margin:0;">{{ $type->label() }}</p>
+                                <span class="doc-row-time" style="font-size:11.5px;color:var(--text-muted);">
+                                    @if (! $nd)
+                                        Belum diisi
+                                    @elseif ($belumLengkap)
+                                        Data belum dilengkapi
+                                    @else
+                                        No. {{ $nd->nomor ?: '-' }} ·
+                                        @if ($sisa === null)
+                                            Seumur hidup
+                                        @elseif ($sisa < 0)
+                                            <b style="color:var(--danger-text);">Kedaluwarsa {{ $fmt($nd->berlaku_sampai) }}</b>
+                                        @elseif ($sisa <= 90)
+                                            <b style="color:var(--danger-text);">Habis {{ $sisa }} hari lagi</b> ({{ $fmt($nd->berlaku_sampai) }})
+                                        @else
+                                            {{ $nd->berlaku_mulai ? $fmt($nd->berlaku_mulai) . ' s.d. ' : 's.d. ' }}{{ $fmt($nd->berlaku_sampai) }}
+                                        @endif
+                                    @endif
+                                </span>
+                            </div>
+                            <div class="doc-row-actions">
+                                @if ($nd)
+                                    <a href="{{ $nd->file_url }}" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">Lihat berkas</a>
+                                @endif
+                                @if ($riwayat->isNotEmpty())
+                                    <button type="button" x-on:click="hist = ! hist" style="background:none;border:none;font-size:11.5px;color:var(--text-muted);cursor:pointer;white-space:nowrap;padding:6px;">
+                                        <i class="fa-solid fa-clock-rotate-left"></i> Riwayat ({{ $riwayat->count() }})
+                                    </button>
+                                @endif
+                                @if ($isSelf)
+                                    <button type="button" class="btn-ghost" x-on:click="open = ! open" style="font-size:12px;padding:6px 12px;white-space:nowrap;">
+                                        <i class="fa-solid fa-{{ $nd && ! $belumLengkap ? 'arrows-rotate' : 'pen' }}"></i>
+                                        {{ ! $nd ? 'Isi data' : ($belumLengkap ? 'Lengkapi data' : 'Perpanjang') }}
+                                    </button>
+                                @endif
+                            </div>
+
+                            @if ($riwayat->isNotEmpty())
+                                <div x-show="hist" x-cloak style="width:100%;">
+                                    <div style="margin-top:4px;padding:12px 4px 2px;border-top:1px solid var(--border);display:grid;gap:8px;">
+                                        @foreach ($riwayat as $h)
+                                            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);">
+                                                <span>
+                                                    No. {{ $h->nomor ?: '-' }} ·
+                                                    @if ($h->berlaku_sampai)
+                                                        {{ $h->berlaku_mulai ? $fmt($h->berlaku_mulai) . ' s.d. ' : 's.d. ' }}{{ $fmt($h->berlaku_sampai) }}
+                                                    @elseif ($h->nomor)
+                                                        Seumur hidup
+                                                    @else
+                                                        Tanggal tidak tercatat
+                                                    @endif
+                                                </span>
+                                                <a href="{{ $h->file_url }}" target="_blank" rel="noopener" style="white-space:nowrap;">Lihat berkas</a>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if ($isSelf)
+                                <div x-show="open" x-cloak style="width:100%;">
+                                <div style="display:grid;grid-template-columns:1fr;gap:18px;margin-top:4px;padding:18px 4px 6px;border-top:1px solid var(--border);">
+                                    <div>
+                                        <label class="form-label" style="display:block;margin-bottom:6px;">Nomor {{ $t }}</label>
+                                        <input type="text" class="form-input" wire:model="nakesForm.{{ $t }}.nomor" maxlength="100">
+                                        @error("nakesForm.$t.nomor") <p style="color:var(--danger-text);font-size:11px;margin:4px 0 0;">{{ $message }}</p> @enderror
+                                    </div>
+                                    @if ($t === 'STR')
+                                        <label style="font-size:13px;display:flex;gap:10px;align-items:center;color:var(--text-heading);cursor:pointer;">
+                                            <span class="custom-checkbox">
+                                                <input type="checkbox" wire:model="nakesForm.{{ $t }}.seumur_hidup">
+                                                <span class="box"><i class="fa-solid fa-check"></i></span>
+                                            </span>
+                                            Berlaku seumur hidup
+                                        </label>
+                                    @endif
+                                    <div x-show="! $wire.nakesForm.{{ $t }}.seumur_hidup" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px 16px;">
+                                        <div>
+                                            <label class="form-label" style="display:block;margin-bottom:6px;">Berlaku mulai{{ $t === 'SIP' ? '' : ' (opsional)' }}</label>
+                                            <input type="date" class="form-input" wire:model="nakesForm.{{ $t }}.berlaku_mulai">
+                                            @error("nakesForm.$t.berlaku_mulai") <p style="color:var(--danger-text);font-size:11px;margin:4px 0 0;">{{ $message }}</p> @enderror
+                                        </div>
+                                        <div>
+                                            <label class="form-label" style="display:block;margin-bottom:6px;">Berlaku sampai</label>
+                                            <input type="date" class="form-input" wire:model="nakesForm.{{ $t }}.berlaku_sampai">
+                                            @error("nakesForm.$t.berlaku_sampai") <p style="color:var(--danger-text);font-size:11px;margin:4px 0 0;">{{ $message }}</p> @enderror
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" style="display:block;margin-bottom:6px;">File</label>
+                                        <label class="btn-ghost" style="font-size:12.5px;padding:11px 14px;justify-content:center;cursor:pointer;position:relative;overflow:hidden;white-space:nowrap;display:flex;align-items:center;gap:6px;max-width:100%;">
+                                            <i class="fa-solid fa-upload"></i>
+                                            <span style="overflow:hidden;text-overflow:ellipsis;">{{ $this->$prop ? $this->$prop->getClientOriginalName() : 'Pilih file' }}</span>
+                                            <input type="file" wire:model="{{ $prop }}" accept="image/*,.pdf" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+                                        </label>
+                                        @error($prop) <p style="color:var(--danger-text);font-size:11px;margin:4px 0 0;">{{ $message }}</p> @enderror
+                                    </div>
+                                    <p style="font-size:11.5px;color:var(--text-muted);margin:0;">
+                                        Setelah disimpan, nomor dan tanggal tidak bisa diubah. Saat masa berlaku habis, unggah {{ $t }} terbaru lewat tombol Perpanjang; yang lama tersimpan sebagai riwayat.
+                                    </p>
+                                    <div style="display:flex;justify-content:flex-end;gap:8px;">
+                                        <button type="button" class="btn-ghost" x-on:click="open = false" style="font-size:12px;padding:8px 16px;">Batal</button>
+                                        <button type="button" class="btn-primary" wire:click="saveNakesDocument('{{ $t }}')" wire:confirm="{{ $konfirmasi }}" wire:loading.attr="disabled" style="font-size:12px;padding:8px 18px;">Simpan</button>
+                                    </div>
+                                </div>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            @continue
+            @endif
+            <div class="card-surface" style="margin-bottom:20px;">
+                {!! $sectionHeader($grpIcon, $grpTitle) !!}
 
                 <div class="pwa-list">
-                    @foreach ($this->documentTypeOptions as $type)
+                    @foreach ($grpTypes as $type)
                         @php $doc = $this->profileDocuments->firstWhere('label', $type->value); @endphp
                         <div class="pwa-list-row doc-row" wire:loading.class="opacity-60" wire:target="{{ $type->uploadProperty() }}">
                             <div class="doc-row-main">
@@ -540,6 +729,7 @@ Pembinaan). Inline supaya tidak perlu build CSS; desktop (>=768px) tetap pill ho
                     @endforeach
                 </div>
             </div>
+            @endforeach
         @endif
     @endif
 

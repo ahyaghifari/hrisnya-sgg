@@ -39,7 +39,7 @@
         </div>
         <div>
             <p style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Kelengkapan Data Karyawan</p>
-            <p style="font-size:11px;color:var(--text-muted);margin:0;line-height:1.5;">Rata-rata field inti (NIK, KK, BPJS, kontak, rekening, foto) yang sudah terisi per karyawan.</p>
+            <p style="font-size:11px;color:var(--text-muted);margin:0;line-height:1.5;">Rata-rata field inti (NIK, KK, BPJS, kontak, rekening) yang sudah terisi per karyawan.</p>
         </div>
     </button>
 
@@ -70,6 +70,25 @@
         </div>
     </button>
 </div>
+
+{{-- Kelengkapan dokumen nakes: jumlah karyawan nakes per masalah STR/SIP, klik buat daftar nama. --}}
+@php $nakes = $this->nakesCompleteness; @endphp
+@if ($nakes['total'] > 0)
+    <button type="button" wire:click="openModal('nakes')" style="display:block;width:100%;text-align:left;border:none;cursor:pointer;font-family:inherit;background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+            <h3 style="font-size:13px;font-weight:700;color:var(--text-heading);margin:0;"><i class="fa-solid fa-user-doctor" style="color:var(--brand);margin-right:6px;"></i>Kelengkapan Dokumen Nakes</h3>
+            <span style="font-size:11px;color:var(--text-muted);">{{ $nakes['rows']->count() }} dari {{ $nakes['total'] }} nakes perlu tindak lanjut</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+            @foreach (\App\Livewire\Kepegawaian\KepegawaianDashboardPage::NAKES_ISSUES as $key => $label)
+                <div style="border:1px solid var(--border);border-radius:12px;padding:12px;">
+                    <p style="font-size:22px;font-weight:800;margin:0;color:{{ $nakes['counts'][$key] > 0 ? 'var(--danger-text)' : 'var(--text-heading)' }};">{{ $nakes['counts'][$key] }}</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $label }}</p>
+                </div>
+            @endforeach
+        </div>
+    </button>
+@endif
 
 <div class="grid grid-cols-1 md:grid-cols-2" style="gap:16px;align-items:start;">
     <div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-card);padding:18px;">
@@ -150,6 +169,32 @@
                 </div>
             @empty
                 <p style="font-size:12.5px;color:var(--text-muted);">Semua karyawan sudah lengkap datanya. 🎉</p>
+            @endforelse
+
+            <div style="margin-top:16px;text-align:right;">
+                <button type="button" wire:click="closeModal" class="btn-ghost">Tutup</button>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if ($activeModal === 'nakes')
+    <div class="modal-overlay" wire:click="closeModal">
+        <div class="modal-box modal-box-lg" onclick="event.stopPropagation()">
+            <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Dokumen Nakes Perlu Tindak Lanjut</h3>
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">Diurutkan dari yang paling banyak masalah. Hanya dokumen STR/SIP aktif yang dihitung.</p>
+
+            @forelse ($this->nakesCompleteness['rows']->take(50) as $row)
+                <div style="padding:10px 0;border-bottom:1px solid var(--border-soft);">
+                    <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0 0 4px;">{{ $row['user']->name }}</p>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                        @foreach ($row['issues'] as $issue)
+                            <span class="badge badge-rejected" style="font-size:10px;">{{ \App\Livewire\Kepegawaian\KepegawaianDashboardPage::NAKES_ISSUES[$issue] }}</span>
+                        @endforeach
+                    </div>
+                </div>
+            @empty
+                <p style="font-size:12.5px;color:var(--text-muted);">Semua dokumen nakes sudah lengkap dan berlaku.</p>
             @endforelse
 
             <div style="margin-top:16px;text-align:right;">
