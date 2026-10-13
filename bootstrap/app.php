@@ -75,6 +75,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('sp:refresh-balances')
             ->dailyAt('00:25')
             ->withoutOverlapping();
+
+        // Pengingat STR/SIP nakes yang mendekati habis (H-90/30/7/hari-H) ke karyawan & HC.
+        $schedule->command('nakes:notify-expiry')
+            ->dailyAt('07:00')
+            ->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware) {
         // NB: statefulApi() cuma nge-set flag; middleware Sanctum-nya baru masuk ke grup 'api'

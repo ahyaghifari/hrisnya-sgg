@@ -14,6 +14,7 @@ use App\Livewire\Concerns\ResyncsOwnAttendance;
 use App\Models\AuditLog;
 use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
+use App\Models\Employee\EmployeeNakesDocument;
 use App\Models\Master\Religions;
 use App\Models\Payroll\Payroll;
 use App\Models\Setting;
@@ -27,6 +28,7 @@ use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -88,6 +90,12 @@ class EmployeeStatistics extends Component
     public $sipFile = null;
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
     public $rkkFile = null;
+
+    /** Form STR/SIP nakes: [type => [nomor, berlaku_sampai (Y-m-d), seumur_hidup]]. File di $strFile/$sipFile. */
+    public array $nakesForm = [
+        'STR' => ['nomor' => '', 'berlaku_mulai' => '', 'berlaku_sampai' => '', 'seumur_hidup' => false],
+        'SIP' => ['nomor' => '', 'berlaku_mulai' => '', 'berlaku_sampai' => '', 'seumur_hidup' => false],
+    ];
 
     public function mount(?User $record = null): void
     {
@@ -244,6 +252,64 @@ class EmployeeStatistics extends Component
             ->get();
     }
 
+    /**
+     * Kelengkapan Data Diri: field yang sama dengan dashboard Kepegawaian (satu sumber daftar).
+     *
+     * @return array{percent: int, filled: int, total: int, missing: array<int, string>}
+     */
+    public function getDataCompletenessProperty(): array
+    {
+        $profile = $this->record->profile;
+        $fields = \App\Livewire\Kepegawaian\KepegawaianDashboardPage::COMPLETENESS_FIELDS;
+
+        $missing = collect($fields)
+            ->reject(fn (string $label, string $field) => filled($profile?->{$field}))
+            ->values()
+            ->all();
+        $total = count($fields);
+
+        // Jabatan nakes: dokumen KTP & KK, STR, SIP, dan masa berlakunya ikut dihitung.
+        // Cuma cek keberadaan (bukan isi), jadi tidak butuh permission lihat lampiran.
+        if ($this->isNakes) {
+            $docs = UserProfileDocument::where('user_id', $this->record->id)
+                ->whereIn('label', ['KTP', 'KK'])->pluck('label');
+            $nakes = $this->record->employee
+                ? EmployeeNakesDocument::where('employee_id', $this->record->employee->id)
+                    ->where('is_active', true)->get()->keyBy('type')
+                : collect();
+
+            foreach (['KTP' => 'Dokumen KTP', 'KK' => 'Dokumen KK'] as $k => $label) {
+                $total++;
+                $docs->contains($k) || $missing[] = $label;
+            }
+
+            // STR: nomor; masa berlaku ikut dihitung kecuali STR-nya seumur hidup (nomor terisi, tanggal kosong).
+            $str = $nakes->get('STR');
+            $total++;
+            filled($str?->nomor) || $missing[] = 'STR';
+            $strSeumurHidup = filled($str?->nomor) && $str->berlaku_sampai === null;
+            if (! $strSeumurHidup) {
+                $total++;
+                $str?->berlaku_sampai || $missing[] = 'Masa berlaku STR';
+            }
+
+            // SIP: nomor + masa berlaku (mulai & sampai) selalu wajib.
+            $sip = $nakes->get('SIP');
+            $total += 2;
+            filled($sip?->nomor) || $missing[] = 'SIP';
+            ($sip?->berlaku_mulai && $sip?->berlaku_sampai) || $missing[] = 'Masa berlaku SIP';
+        }
+
+        $filled = $total - count($missing);
+
+        return [
+            'percent' => (int) round($filled / $total * 100),
+            'filled' => $filled,
+            'total' => $total,
+            'missing' => $missing,
+        ];
+    }
+
     /** STR/SIP/RKK cuma relevan buat nakes (JobPositions::is_nakes) - dipakai buat filter opsi
      * dropdown lampiran DAN guard server-side di addProfileDocument(). */
     public function getIsNakesProperty(): bool
@@ -268,14 +334,79 @@ class EmployeeStatistics extends Component
         $this->uploadProfileDocument(UserProfileDocumentType::KK, 'kkFile');
     }
 
-    public function updatedStrFile(): void
+    /** STR/SIP yang sedang aktif per tipe (satu per tipe). */
+    public function getNakesDocumentsProperty()
     {
-        $this->uploadProfileDocument(UserProfileDocumentType::STR, 'strFile');
+        if (! $this->canViewProfileDocuments || ! $this->record->employee) {
+            return collect();
+        }
+
+        return EmployeeNakesDocument::where('employee_id', $this->record->employee->id)
+            ->where('is_active', true)->latest()->get()->unique('type')->keyBy('type');
     }
 
-    public function updatedSipFile(): void
+    /** Riwayat STR/SIP (sudah diganti perpanjangan), terbaru dulu, dikelompokkan per tipe. */
+    public function getNakesHistoryProperty()
     {
-        $this->uploadProfileDocument(UserProfileDocumentType::SIP, 'sipFile');
+        if (! $this->canViewProfileDocuments || ! $this->record->employee) {
+            return collect();
+        }
+
+        return EmployeeNakesDocument::where('employee_id', $this->record->employee->id)
+            ->where('is_active', false)->latest()->get()->groupBy('type');
+    }
+
+    /**
+     * Simpan STR/SIP baru = perpanjangan: dokumen aktif sebelumnya jadi riwayat (tetap bisa dilihat),
+     * yang baru jadi aktif. Data yang sudah tersimpan TIDAK bisa diubah (tidak ada edit/hapus).
+     * Konfirmasi ke karyawan dilakukan di blade (wire:confirm).
+     */
+    public function saveNakesDocument(string $type): void
+    {
+        abort_unless($this->record->id === Auth::id() && $this->isNakes, 403);
+        abort_unless(in_array($type, ['STR', 'SIP'], true), 404);
+        $employee = $this->record->employee;
+        abort_unless($employee, 404);
+
+        $prop = strtolower($type) . 'File';
+        $lifetime = $type === 'STR' && (bool) ($this->nakesForm[$type]['seumur_hidup'] ?? false); // SIP selalu ada masa berlaku
+
+        $this->validate([
+            "nakesForm.$type.nomor" => ['required', 'string', 'max:100'],
+            "nakesForm.$type.berlaku_mulai" => [$type === 'SIP' ? 'required' : 'nullable', 'date'],
+            "nakesForm.$type.berlaku_sampai" => [$lifetime ? 'nullable' : 'required', 'date', 'after_or_equal:nakesForm.' . $type . '.berlaku_mulai'],
+            $prop => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ], [], [
+            "nakesForm.$type.nomor" => "Nomor $type",
+            "nakesForm.$type.berlaku_mulai" => 'Berlaku mulai',
+            "nakesForm.$type.berlaku_sampai" => 'Berlaku sampai',
+            $prop => "File $type",
+        ]);
+
+        $file = $this->$prop;
+        $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension());
+        $path = 'profile-documents/' . $this->record->id . '/' . Str::ulid() . '.' . $ext;
+        Storage::disk('local')->put($path, Crypt::encryptString(file_get_contents($file->getRealPath())));
+
+        DB::transaction(function () use ($employee, $type, $lifetime, $path) {
+            EmployeeNakesDocument::where('employee_id', $employee->id)->where('type', $type)
+                ->where('is_active', true)->update(['is_active' => false]);
+
+            EmployeeNakesDocument::create([
+                'employee_id' => $employee->id,
+                'type' => $type,
+                'nomor' => $this->nakesForm[$type]['nomor'],
+                'berlaku_mulai' => $lifetime ? null : ($this->nakesForm[$type]['berlaku_mulai'] ?: null),
+                'berlaku_sampai' => $lifetime ? null : $this->nakesForm[$type]['berlaku_sampai'],
+                'file_path' => $path,
+                'is_active' => true,
+            ]);
+        });
+
+        $this->$prop = null;
+        $this->nakesForm[$type] = ['nomor' => '', 'berlaku_mulai' => '', 'berlaku_sampai' => '', 'seumur_hidup' => false];
+        $this->dispatch('nakes-saved', type: $type);
+        Notification::make()->title("$type tersimpan")->success()->send();
     }
 
     public function updatedRkkFile(): void
@@ -295,7 +426,7 @@ class EmployeeStatistics extends Component
         // Jangan cuma sembunyikan slot STR/SIP/RKK di UI - tolak juga di server, request bisa
         // dimanipulasi manual.
         abort_if($type->nakesOnly() && ! $this->isNakes, 403);
-        abort_if($type === UserProfileDocumentType::RKK, 403);
+        abort_if($type === UserProfileDocumentType::RKK || $type->nakesOnly(), 403); // STR/SIP: saveNakesDocument()
 
         $this->validate([
             $property => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],

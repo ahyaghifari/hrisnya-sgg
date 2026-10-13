@@ -4,6 +4,7 @@ namespace App\Livewire\Kepegawaian;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\UserTransitionStatusEnum;
+use App\Models\Employee\EmployeeNakesDocument;
 use App\Models\Master\Companies;
 use App\Models\Master\JobPositions;
 use App\Models\User;
@@ -27,8 +28,7 @@ class KepegawaianDashboardPage extends Component
     /** Field inti profil yang dipakai sebagai tolok ukur "data karyawan lengkap" — dokumen
      * kependudukan, kontak, dan rekening, yang paling sering dibutuhkan HC/payroll tapi
      * gampang kelewat diisi. Karyawan tanpa profil sama sekali dihitung 0%, bukan dikecualikan. */
-    protected const COMPLETENESS_FIELDS = [
-        'profile_picture' => 'Foto',
+    public const COMPLETENESS_FIELDS = [
         'no_nik' => 'NIK',
         'no_kk' => 'No. KK',
         'no_bpjs_kes' => 'BPJS Kesehatan',
@@ -38,13 +38,9 @@ class KepegawaianDashboardPage extends Component
         'date_of_birth' => 'Tanggal Lahir',
     ];
 
-    /** Field kelengkapan terisi? Foto = atribut akun (users.profile_picture), sisanya kolom profil. */
+    /** Field kelengkapan terisi? Foto sengaja tidak dihitung (instruksi user 2026-10-13). */
     private function completenessFilled(User $user, string $field): bool
     {
-        if ($field === 'profile_picture') {
-            return $user->profilePhotoPath() !== null;
-        }
-
         return filled($user->profile?->{$field});
     }
 
@@ -190,6 +186,67 @@ class KepegawaianDashboardPage extends Component
     public function getVacantPositionsListProperty()
     {
         return $this->jobPositionVacancies();
+    }
+
+    /** Label masalah dokumen nakes, urut tampil. key => label */
+    public const NAKES_ISSUES = [
+        'str_missing' => 'STR belum diunggah',
+        'str_date' => 'STR tanggal belum diisi',
+        'sip_missing' => 'SIP belum diunggah',
+        'sip_date' => 'SIP tanggal belum diisi',
+        'sip_expired' => 'SIP habis masa berlaku',
+    ];
+
+    /**
+     * Kelengkapan dokumen karyawan nakes (jabatan aktif is_nakes), dokumen AKTIF saja:
+     * - STR: belum diunggah; atau tanggalnya belum diisi (STR seumur hidup = nomor terisi & tanggal kosong, aman).
+     * - SIP: belum diunggah; tanggal mulai/sampai belum diisi; atau sudah lewat berlaku_sampai.
+     *
+     * @return array{counts: array<string,int>, rows: \Illuminate\Support\Collection, total: int}
+     */
+    public function getNakesCompletenessProperty(): array
+    {
+        $users = $this->scopedEmployees()
+            ->whereHas('activeJobPosition.jobPosition', fn ($q) => $q->where('is_nakes', true))
+            ->with('employee')
+            ->get();
+
+        $docs = EmployeeNakesDocument::whereIn('employee_id', $users->pluck('employee.id')->filter())
+            ->where('is_active', true)->get()->groupBy('employee_id');
+
+        $today = now()->startOfDay();
+        $counts = array_fill_keys(array_keys(self::NAKES_ISSUES), 0);
+
+        $rows = $users->map(function (User $user) use ($docs, $today, &$counts) {
+            $mine = $docs->get($user->employee?->id, collect())->keyBy('type');
+            $str = $mine->get('STR');
+            $sip = $mine->get('SIP');
+            $issues = [];
+
+            if (! $str) {
+                $issues[] = 'str_missing';
+            } elseif (! filled($str->nomor) && ! $str->berlaku_sampai) { // data lama: file saja
+                $issues[] = 'str_date';
+            }
+
+            if (! $sip) {
+                $issues[] = 'sip_missing';
+            } elseif (! $sip->berlaku_mulai || ! $sip->berlaku_sampai) {
+                $issues[] = 'sip_date';
+            } elseif ($sip->berlaku_sampai->lt($today)) {
+                $issues[] = 'sip_expired';
+            }
+
+            foreach ($issues as $i) {
+                $counts[$i]++;
+            }
+
+            return ['user' => $user, 'issues' => $issues];
+        })->filter(fn (array $r) => $r['issues'] !== [])
+            ->sortByDesc(fn (array $r) => count($r['issues']))
+            ->values();
+
+        return ['counts' => $counts, 'rows' => $rows, 'total' => $users->count()];
     }
 
     public function getDataCompletenessPercentProperty(): int

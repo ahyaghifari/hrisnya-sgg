@@ -82,6 +82,25 @@ Route::get('/profil-saya/lampiran/{document}', function (\App\Models\User\UserPr
     ]);
 })->name('profil-saya.lampiran.show');
 
+// STR/SIP nakes (employee_nakes_documents): file terenkripsi, gerbang izin sama dengan lampiran di atas.
+Route::get('/profil-saya/dokumen-nakes/{document}', function (\App\Models\Employee\EmployeeNakesDocument $document) {
+    $user = \Illuminate\Support\Facades\Auth::user();
+    abort_unless(
+        $document->employee->user_id === $user->id
+            || $user->can(\App\Enum\CustomPermissionEnum::LIHAT_LAMPIRAN_IDENTITAS_KARYAWAN->value),
+        403
+    );
+
+    $ext = strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION));
+    $disk = \Illuminate\Support\Facades\Storage::disk('local');
+    abort_unless($disk->exists($document->file_path), 404);
+
+    return response(\Illuminate\Support\Facades\Crypt::decryptString($disk->get($document->file_path)), 200, [
+        'Content-Type' => $ext === 'pdf' ? 'application/pdf' : ($ext === 'png' ? 'image/png' : 'image/jpeg'),
+        'Content-Disposition' => 'inline; filename="' . $document->type . '.' . $ext . '"',
+    ]);
+})->name('profil-saya.dokumen-nakes.show');
+
 Route::get('/profil-saya/penggajian/{payroll}/preview', function (\App\Models\Payroll\Payroll $payroll) {
     abort_unless(
         $payroll->user_id === \Illuminate\Support\Facades\Auth::id() && $payroll->is_paid,
