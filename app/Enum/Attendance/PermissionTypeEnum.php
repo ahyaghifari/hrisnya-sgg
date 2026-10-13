@@ -9,11 +9,11 @@ use App\Enum\Attendance\Concerns\HasCompanyLabelOverride;
  * 2026-09-20). Nilai enum = key yang dikirim form/API (`type_id`); yang disimpan di
  * attendance_req_permission_details adalah label-nya (`permission_type`) + `category`.
  *
- * Kelompok Meninggalkan Jam Kerja (3 jenis) & Khusus (9 jenis) dipilih user di level 2 form;
+ * Kelompok Meninggalkan Jam Kerja (3 jenis) & Khusus (11 jenis) dipilih user di level 2 form;
  * Tidak Masuk & Sakit flat (tanpa level 2) tapi tetap punya case di sini supaya API/`type_id`
  * seragam dan nama jenis yang tersimpan konsisten ("Izin Tidak Masuk", "Izin Sakit").
  *
- * KELUARGA_INTI_SAKIT company-restricted (2 company override, lihat HasCompanyLabelOverride) -
+ * KELUARGA_INTI_SAKIT, SURAT_TUGAS & WISUDA company-restricted (2 company override, lihat HasCompanyLabelOverride) -
  * instruksi user 2026-09-30, disaring di forGroup().
  */
 enum PermissionTypeEnum: string
@@ -40,6 +40,7 @@ enum PermissionTypeEnum: string
     case IBADAH_HAJI = 'ibadah_haji';
     case KELUARGA_INTI_SAKIT = 'keluarga_inti_sakit';
     case SURAT_TUGAS = 'surat_tugas';
+    case WISUDA = 'wisuda';
 
     /** $companyId null = label default (semua company lain). 2 company override (lihat
      * HasCompanyLabelOverride) pakai penamaan sendiri buat Tidak Masuk/Sakit - instruksi user
@@ -74,6 +75,7 @@ enum PermissionTypeEnum: string
             self::IBADAH_HAJI => 'Izin Ibadah Haji',
             self::KELUARGA_INTI_SAKIT => 'Izin Keluarga Inti Sakit',
             self::SURAT_TUGAS => 'Izin Surat Tugas',
+            self::WISUDA => 'Izin Wisuda',
         };
     }
 
@@ -116,6 +118,7 @@ enum PermissionTypeEnum: string
             self::IBADAH_HAJI => 'Sesuai durasi ibadah haji ditambah 2 hari sebelum keberangkatan dan 2 hari setelah tiba kembali di tanah air. Isi tanggal mulai/selesai sesuai jadwal keberangkatan-kepulangan yang sebenarnya.',
             self::KELUARGA_INTI_SAKIT => 'Suami/istri, orang tua, atau anak sah karyawan sakit - tidak ada jumlah hari baku, lama izin atas pertimbangan atasan/HC. Lampirkan surat rawat/keterangan dokter.',
             self::SURAT_TUGAS => 'Tugas/dinas di luar kantor berdasarkan surat tugas - isi tanggal sesuai surat tugas dan lampirkan scan/foto surat tugas.',
+            self::WISUDA => 'Menghadiri wisuda - isi tanggal sesuai jadwal wisuda dan lampirkan bukti undangan/keterangan wisuda.',
             default => null,
         };
     }
@@ -124,7 +127,7 @@ enum PermissionTypeEnum: string
      * instruksi user 2026-09-30. */
     public function isCompanyRestricted(): bool
     {
-        return in_array($this, [self::KELUARGA_INTI_SAKIT, self::SURAT_TUGAS], true);
+        return in_array($this, [self::KELUARGA_INTI_SAKIT, self::SURAT_TUGAS, self::WISUDA], true);
     }
 
     /**
