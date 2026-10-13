@@ -41,6 +41,34 @@ class QuizAttempt extends Model
         return $this->hasMany(QuizAnswer::class);
     }
 
+    /**
+     * SEMUA soal kuis dikelompokkan per subtest (urut subtest, lalu urut soal), lengkap dengan
+     * jawaban kandidat (null = tidak dijawab). Baris `answers` hanya ada untuk soal yang dijawab,
+     * jadi `answers->count()` BUKAN jumlah soal - pakai ini untuk total/ringkasan.
+     *
+     * @return \Illuminate\Support\Collection<int, array{name:?string,total:int,answered:int,correct:int,items:\Illuminate\Support\Collection}>
+     */
+    public function questionsBySection(): \Illuminate\Support\Collection
+    {
+        $this->loadMissing(['quiz.questions.section', 'answers']);
+        $answers = $this->answers->keyBy('quiz_question_id');
+
+        return $this->quiz->questions
+            ->sortBy(fn ($q) => $q->section?->sort_order ?? -1)->values()
+            ->groupBy(fn ($q) => $q->quiz_section_id ?? '')
+            ->map(function ($questions) use ($answers) {
+                $items = $questions->map(fn ($q) => ['question' => $q, 'answer' => $answers->get($q->id)]);
+
+                return [
+                    'name' => $questions->first()->section?->name,
+                    'total' => $items->count(),
+                    'answered' => $items->filter(fn ($i) => filled($i['answer']?->selected_option))->count(),
+                    'correct' => $items->filter(fn ($i) => $i['answer']?->is_correct)->count(),
+                    'items' => $items,
+                ];
+            })->values();
+    }
+
     public function durationLabel(): ?string
     {
         if (! $this->started_at || ! $this->submitted_at) {

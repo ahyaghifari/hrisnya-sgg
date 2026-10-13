@@ -500,18 +500,28 @@ class TesOnlinePage extends Page implements HasActions, HasForms, HasTable
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Tutup')
             ->schema(function ($record) {
-                return $record->quizAttempts()->where('status', 'submitted')->with(['quiz', 'answers'])->get()
+                return $record->quizAttempts()->where('status', 'submitted')->with(['quiz.questions.section', 'answers'])->get()
                     ->map(function ($attempt) {
-                        $correct = $attempt->answers->where('is_correct', true)->count();
-                        $total = $attempt->answers->count();
+                        // Total = semua soal kuis (baris answers hanya ada untuk soal yang dijawab).
+                        $sections = $attempt->questionsBySection();
+                        $correct = $sections->sum('correct');
+                        $total = $sections->sum('total');
+                        $perSubtest = $sections->count() > 1 || ($sections->first()['name'] ?? null)
+                            ? '<ul style="margin:6px 0 0;padding-left:18px;font-size:.85em;">'
+                                . $sections->map(fn ($s) => '<li>' . e($s['name'] ?? 'Tanpa subtest') . ': ' . $s['correct'] . ' benar dari ' . $s['total']
+                                    . ' (' . $s['answered'] . ' dijawab)</li>')->implode('')
+                                . '</ul>'
+                            : '';
 
                         return \Filament\Forms\Components\Placeholder::make('a_' . $attempt->id)
                             ->label($attempt->quiz->name)
                             ->content(new HtmlString(
                                 '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">'
                                 . '<span>' . $correct . ' dari ' . $total . ' benar'
+                                . ' &middot; skor ' . (float) $attempt->score . '/100'
+                                . ($total > 0 ? ' (' . round(100 / $total, 2) . ' poin/soal)' : '')
                                 . ($attempt->durationLabel() ? ' &middot; ' . $attempt->durationLabel() : '')
-                                . ' &middot; ' . $attempt->submitted_at?->translatedFormat('d M Y, H:i') . '</span>'
+                                . ' &middot; ' . $attempt->submitted_at?->translatedFormat('d M Y, H:i') . $perSubtest . '</span>'
                                 . '<a href="' . \App\Filament\Rekrutmen\Pages\HasilTesDetailPage::getUrl() . '?attempt=' . $attempt->id . '" style="font-weight:700;">Detail &rarr;</a>'
                                 . '</div>'
                             ));
