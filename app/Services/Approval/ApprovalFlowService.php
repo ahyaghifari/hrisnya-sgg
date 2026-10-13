@@ -6,6 +6,7 @@ use App\Enum\Approval\ApprovalModuleEnum;
 use App\Enum\AttendanceReqStatus;
 use App\Enum\Task\TaskStatus;
 use App\Models\Attendance\AttendanceRequestCancellations;
+use App\Models\LMS\LmsCourseAbsence;
 use App\Models\LMS\TrainingClaim;
 use App\Models\LMS\TrainingRequests;
 use App\Models\Shift\ScheduleRosterChangeRequest;
@@ -147,6 +148,15 @@ class ApprovalFlowService
                     ]);
                 }
 
+                // Izin Tidak Hadir Pelatihan
+                if ($snapshot->module_type === ApprovalModuleEnum::TRAINING_ABSENCE->value) {
+                    LmsCourseAbsence::where('id', $snapshot->module_id)->update([
+                        'status' => 'rejected',
+                        'rejected_by' => $actorId,
+                        'rejected_at' => now(),
+                    ]);
+                }
+
                 // Perubahan Jadwal Shift (Kepala Ruangan) - ditolak, buang draft_* yang nempel di
                 // baris schedule_shift_assignments (kolom approved TIDAK disentuh sama sekali,
                 // tidak pernah ditulis draft ke situ - lihat ScheduleRosterChangeService::discardDrafts()).
@@ -205,6 +215,15 @@ class ApprovalFlowService
                 // modul terpisah SHIFT_SWAP_REQUEST_CANCELLATION (resolveShiftSwapCancellationRequest()).
                 if ($snapshot->module_type === ApprovalModuleEnum::SWAP_SHIFT_REQUEST->value) {
                     ShiftSwapRequests::where('id', $snapshot->module_id)->update([
+                        'status' => 'cancelled',
+                        'cancelled_by' => $actorId,
+                        'cancelled_at' => now(),
+                    ]);
+                }
+
+                // Izin Tidak Hadir Pelatihan - dibatalkan peserta selagi masih diproses.
+                if ($snapshot->module_type === ApprovalModuleEnum::TRAINING_ABSENCE->value) {
+                    LmsCourseAbsence::where('id', $snapshot->module_id)->update([
                         'status' => 'cancelled',
                         'cancelled_by' => $actorId,
                         'cancelled_at' => now(),
@@ -350,6 +369,15 @@ class ApprovalFlowService
                         'status' => 'approved',
                         'reviewed_by' => $actorId,
                         'reviewed_at' => now(),
+                    ]);
+                }
+
+                // Izin Tidak Hadir Pelatihan
+                if ($snapshot->module_type === ApprovalModuleEnum::TRAINING_ABSENCE->value) {
+                    LmsCourseAbsence::where('id', $snapshot->module_id)->update([
+                        'status' => 'approved',
+                        'approved_by' => $actorId,
+                        'approved_at' => now(),
                     ]);
                 }
 

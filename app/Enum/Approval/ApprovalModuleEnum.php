@@ -18,6 +18,7 @@ enum ApprovalModuleEnum: string
     case SHIFT_SWAP_REQUEST_CANCELLATION = 'shift_swap_request_cancellation';
     case SCHEDULE_ROSTER_CHANGE = 'schedule_roster_change';
     case TRAINING_CLAIM = 'training_claim';
+    case TRAINING_ABSENCE = 'training_absence';
 
     /** Label deskriptif — dropdown & kolom "Modul" di /admin/approval-flows. */
     public function label(): string
@@ -37,6 +38,7 @@ enum ApprovalModuleEnum: string
             self::SHIFT_SWAP_REQUEST_CANCELLATION => 'Pembatalan Tukar Shift',
             self::SCHEDULE_ROSTER_CHANGE => 'Perubahan Jadwal Shift (Kepala Ruangan)',
             self::TRAINING_CLAIM => 'Pengajuan Pelatihan (Sudah Terlaksana)',
+            self::TRAINING_ABSENCE => 'Izin Tidak Hadir Pelatihan',
         };
     }
 
@@ -58,6 +60,7 @@ enum ApprovalModuleEnum: string
             self::SHIFT_SWAP_REQUEST_CANCELLATION => 'Pengajuan pembatalan tukar shift',
             self::SCHEDULE_ROSTER_CHANGE => 'Pengajuan perubahan jadwal shift',
             self::TRAINING_CLAIM => 'Pengajuan pelatihan terlaksana',
+            self::TRAINING_ABSENCE => 'Pengajuan izin tidak hadir pelatihan',
         };
     }
 
@@ -67,7 +70,7 @@ enum ApprovalModuleEnum: string
         // Pembatalan tukar shift tidak punya alur master: approver-nya Kepala Ruangan jadwal
         // (lihat ShiftSwapCancellationService), jadi tidak ditawarkan di pengaturan alur.
         return collect(self::cases())
-            ->reject(fn (self $case) => $case === self::SHIFT_SWAP_REQUEST_CANCELLATION)
+            ->reject(fn (self $case) => in_array($case, [self::SHIFT_SWAP_REQUEST_CANCELLATION, self::TRAINING_ABSENCE], true))
             ->mapWithKeys(fn (self $case) => [$case->value => $case->label()])->all();
     }
 }

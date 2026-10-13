@@ -11,6 +11,7 @@ use App\Enum\ManpowerRequestType;
 use App\Models\Attendance\AttendanceRequestCancellations;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Job\ManpowerRequests;
+use App\Models\LMS\LmsCourseAbsence;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\LMS\TrainingClaim;
 use App\Models\LMS\TrainingRequests;
@@ -293,6 +294,43 @@ class PendingApprovalsCard extends Component
                     'user_name' => $claim->user->name,
                     'created_at' => $claim->created_at,
                     'url' => route('pelatihan.klaim.show', ['record' => $claim->id]),
+                    'modal' => false,
+                    'external' => false,
+                ]);
+        }
+
+        // Tolak lewat halaman pelatihan (url) - approve juga bisa massal dari sini.
+        $courseAbsences = collect();
+        if ($this->wants('training_absence')) {
+            $absenceIds = $permissionService
+                ->pendingApprovalsFor(Auth::user(), ApprovalModuleEnum::TRAINING_ABSENCE->value)
+                ->pluck('snapshot.module_id')->filter()->values();
+
+            $courseAbsences = LmsCourseAbsence::with(['user', 'course', 'meeting'])
+                ->whereIn('id', $absenceIds)
+                ->whereHas('user')
+                ->get()
+                ->map(fn ($absence) => (object) [
+                    'id' => $absence->id,
+                    'dispatch' => 'training_absence',
+                    'bulk_supported' => true,
+                    'module' => 'training_absence',
+                    'badge' => 'purple',
+                    'label' => 'Izin Tidak Hadir Pelatihan',
+                    'icon' => 'fa-user-clock',
+                    'tile' => 'neutral',
+                    // Satu baris: pelatihan, pertemuan + tanggal, lalu alasan (dipotong) - approver
+                    // bisa menilai tanpa membuka halaman pelatihan.
+                    'keterangan' => collect([
+                        $absence->course?->title,
+                        $absence->meeting?->title . ($absence->meeting?->start_date
+                            ? ' (' . \Illuminate\Support\Carbon::parse($absence->meeting->start_date)->translatedFormat('d M Y') . ')'
+                            : ''),
+                        'Alasan: ' . \Illuminate\Support\Str::limit($absence->reason, 80),
+                    ])->filter()->implode(' · '),
+                    'user_name' => $absence->user->name,
+                    'created_at' => $absence->created_at,
+                    'url' => route('pelatihan.show', ['course' => $absence->course_id]),
                     'modal' => false,
                     'external' => false,
                 ]);
@@ -743,7 +781,7 @@ class PendingApprovalsCard extends Component
                 ]);
         }
 
-        $requests = $attendanceRequests->concat($taskReviews)->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($trainingClaims)->concat($cancellationRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($shiftSwapCancellationRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->concat($scheduleRosterChanges)->sortByDesc('created_at')->values();
+        $requests = $attendanceRequests->concat($taskReviews)->concat($transitions)->concat($courseEnrollments)->concat($trainingRequests)->concat($trainingClaims)->concat($courseAbsences)->concat($cancellationRequests)->concat($jabatanKuota)->concat($manpowerRequests)->concat($shiftSwapRequests)->concat($shiftSwapCancellationRequests)->concat($sikartapRequests)->concat($orientationRequests)->concat($contractRequests)->concat($presentationApprovals)->concat($ideInovasiDirektur)->concat($scheduleRosterChanges)->sortByDesc('created_at')->values();
 
         foreach ($requests as $request) {
             $request->key = $request->dispatch . ':' . $request->id;
@@ -814,6 +852,12 @@ class PendingApprovalsCard extends Component
             ),
             'training_request' => app(ApprovalFlowService::class)->advanceStep(
                 TrainingRequests::findOrFail($row->id)->approvalSnapshot,
+                Auth::id(),
+                $note,
+                'approved',
+            ),
+            'training_absence' => app(ApprovalFlowService::class)->advanceStep(
+                LmsCourseAbsence::findOrFail($row->id)->approvalSnapshot,
                 Auth::id(),
                 $note,
                 'approved',
