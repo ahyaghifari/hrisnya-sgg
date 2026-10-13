@@ -49,6 +49,18 @@ class JobPositions extends Model
 
     protected $casts = ['is_nakes' => 'boolean'];
 
+    protected static function booted(): void
+    {
+        // Lowongan Rekrutmen menyimpan salinan is_nakes (JobOpening::booted) - sinkronkan saat jabatan
+        // ditandai/dilepas nakes supaya lowongan yang sudah ada ikut berubah. Tabel beda DB, tanpa FK.
+        static::saved(function (self $position) {
+            if ($position->wasChanged('is_nakes')) {
+                \App\Models\Rekrutmen\JobOpening::where('job_position_id', $position->id)
+                    ->update(['is_nakes' => $position->is_nakes]);
+            }
+        });
+    }
+
     public function competencies(): BelongsToMany
     {
         return $this->belongsToMany(

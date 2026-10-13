@@ -19,6 +19,7 @@ class Company extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'requires_mcu' => 'boolean',
+        'requires_agreement' => 'boolean',
         'offering_letter_template' => OfferingLetterTemplate::class,
     ];
 

@@ -81,6 +81,8 @@ class CompanyResource extends Resource
             Section::make('Alur & Tampilan')->schema([
                 Toggle::make('requires_mcu')->label('Wajib MCU')
                     ->helperText('Kalau nonaktif, kandidat lolos wawancara langsung ke Onboarding (lompati MCU).'),
+                Toggle::make('requires_agreement')->label('Wajib Persetujuan Onboarding')
+                    ->helperText('Kalau nonaktif, kandidat langsung mengisi Data Diri tanpa persetujuan (naskah persetujuan tidak ditampilkan).'),
                 Toggle::make('is_active')->label('Perusahaan Aktif')
                     ->helperText('Nonaktif = lowongan disembunyikan dari halaman publik.'),
                 ColorPicker::make('brand_color')->label('Warna Brand'),
@@ -171,6 +173,7 @@ class CompanyResource extends Resource
                 TextColumn::make('name')->label('Nama')->searchable()->sortable(),
                 TextColumn::make('hris_code')->label('Kode HRIS')->badge(),
                 IconColumn::make('requires_mcu')->label('Wajib MCU')->boolean(),
+                IconColumn::make('requires_agreement')->label('Persetujuan')->boolean(),
                 IconColumn::make('is_active')->label('Aktif')->boolean(),
                 TextColumn::make('email')->label('Email')->searchable()->placeholder('—'),
                 TextColumn::make('phone')->label('Telepon')->placeholder('—'),
