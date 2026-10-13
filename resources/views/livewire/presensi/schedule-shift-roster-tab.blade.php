@@ -103,6 +103,21 @@
                     <i class="fa-solid fa-hourglass-half"></i>
                     Ada perubahan jadwal diajukan <strong>{{ $this->openRosterChangeRequest->requester?->name }}</strong>, menunggu persetujuan.
                     Sel yang diajukan ditandai dim di grid.
+                    @php $pendingChanges = $this->pendingChanges; @endphp
+                    {{-- Sedikit -> langsung terbuka sebagai list; banyak -> collapse biar banner tidak
+                    memanjang. --}}
+                    <details style="margin-top:6px;" @if (count($pendingChanges) <= 8) open @endif>
+                        <summary style="cursor:pointer;font-weight:700;">{{ count($pendingChanges) }} perubahan (dari &rarr; ke)</summary>
+                        <ul style="margin:6px 0 0;padding-left:18px;max-height:240px;overflow:auto;">
+                            @foreach ($pendingChanges as $c)
+                                <li>{{ $c['name'] }} &middot; {{ \Carbon\Carbon::parse($c['date'])->locale('id')->translatedFormat('d M Y') }}: <strong>{{ $c['from'] }}</strong> &rarr; <strong>{{ $c['to'] }}</strong>
+                                    @if ($c['reason'])
+                                        <span style="font-style:italic;">&mdash; {{ $c['reason'] }}</span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    </details>
                 </div>
                 @if ($this->canReviewRosterChange)
                     <div style="display:flex;gap:8px;">
@@ -181,6 +196,11 @@
                         :style="history.length ? '' : 'opacity:0.45;cursor:not-allowed;'">
                         <i class="fa-solid fa-rotate-left"></i> Undo<span x-show="history.length" x-text="' (' + history.length + ')'"></span>
                     </button>
+                    @unless ($this->canEditPastDates)
+                        {{-- Perubahan diajukan ke approver (bukan tersimpan langsung) -> wajib alasan. --}}
+                        <input type="text" wire:model="changeReason" maxlength="255" placeholder="Alasan perubahan (wajib)"
+                            style="font-size:11px;padding:7px 10px;min-width:220px;border:1px solid var(--border-soft);border-radius:8px;background:var(--surface);color:var(--text-body);">
+                    @endunless
                     <button type="button" wire:click="cancelEdit" class="btn-ghost" style="font-size:11px;padding:7px 12px;white-space:nowrap;">
                         Batal
                     </button>
