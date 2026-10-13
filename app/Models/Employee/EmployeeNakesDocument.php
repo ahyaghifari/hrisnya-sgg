@@ -17,6 +17,9 @@ class EmployeeNakesDocument extends Model
 
     protected $table = 'employee_nakes_documents';
 
+    /** SIP lengkap baru boleh diperpanjang mulai sekian hari sebelum habis (atau setelah habis). */
+    public const PERPANJANG_SIP_HARI = 30;
+
     protected $fillable = ['employee_id', 'type', 'nomor', 'file_path', 'berlaku_mulai', 'berlaku_sampai', 'is_active'];
 
     protected $casts = ['berlaku_mulai' => 'date', 'berlaku_sampai' => 'date', 'is_active' => 'boolean'];
