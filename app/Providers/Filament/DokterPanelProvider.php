@@ -3,8 +3,10 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Dokter\Pages\Beranda;
+use App\Filament\Dokter\Pages\LamaranDokter;
 use App\Models\AuditLog;
 use App\Models\Doctor\DoctorDocument;
+use App\Models\Rekrutmen\DoctorApplication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -43,13 +45,13 @@ class DokterPanelProvider extends PanelProvider
             ->topNavigation()
             ->maxContentWidth(Width::Full)
             ->font('Source Sans 3')
-            // Primary (tombol Filament) = navy, sengaja bukan teal supaya tidak menyatu dengan latar teal.
+            // Primary (tombol Filament) = teal gelap: satu hue dengan latar, tapi cukup gelap supaya tombol terbaca.
             ->colors(['primary' => [
-                50 => '#eff4ff', 100 => '#dbe5fe', 200 => '#bfd0fd', 300 => '#93aefa', 400 => '#6082f4',
-                500 => '#3a5fd9', 600 => '#1e3a8a', 700 => '#1a3274', 800 => '#172a5c', 900 => '#122046', 950 => '#0c1630',
+                50 => '#f0fdfa', 100 => '#ccfbf1', 200 => '#99f6e4', 300 => '#5eead4', 400 => '#2dd4bf',
+                500 => '#14b8a6', 600 => '#0f766e', 700 => '#115e59', 800 => '#134e4a', 900 => '#0f3d3a', 950 => '#042f2e',
             ]])
             ->renderHook(PanelsRenderHook::BODY_START, fn () => view('filament.dokter.background'))
-            ->pages([Beranda::class])
+            ->pages([Beranda::class, LamaranDokter::class])
             // Lihat/unduh dokumen: file terenkripsi di disk privat, didekripsi di memory. Route ini
             // sudah di balik auth panel (canAccessPanel -> Admin/Super Admin/kelola_dokter).
             ->authenticatedRoutes(function () {
@@ -67,6 +69,15 @@ class DokterPanelProvider extends PanelProvider
                         'X-Content-Type-Options' => 'nosniff',
                     ]);
                 })->name('dokumen.show');
+
+                // Berkas lamaran (disk `rekrutmen`, tidak terenkripsi). Hanya path yang tercatat di lamaran yang boleh dibuka.
+                Route::get('/lamaran/{application}/berkas', function (Request $request, DoctorApplication $application) {
+                    $path = (string) $request->query('path');
+                    $name = $application->allFiles()[$path] ?? null;
+                    abort_unless($name && Storage::disk('rekrutmen')->exists($path), 404);
+
+                    return Storage::disk('rekrutmen')->response($path, $name);
+                })->name('lamaran.berkas');
             })
             ->discoverResources(in: app_path('Filament/Dokter/Resources'), for: 'App\Filament\Dokter\Resources')
             ->middleware([

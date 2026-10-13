@@ -22,8 +22,8 @@
         .dk-search svg { width: 1.25rem; height: 1.25rem; margin-left: .75rem; flex-shrink: 0; color: #6b7280; }
         .dk-search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; box-shadow: none; padding: .5rem .75rem; font-size: .875rem; color: #1f2937; }
         .dk-search input:focus { box-shadow: none; outline: none; }
-        .dk-btn { border: 0; cursor: pointer; border-radius: 9999px; background: #1e3a8a; color: #fff; padding: .5rem 1.5rem; font-size: .875rem; font-weight: 500; }
-        .dk-btn:hover { background: #172554; }
+        .dk-btn { border: 0; cursor: pointer; border-radius: 9999px; background: #0f766e; color: #fff; padding: .5rem 1.5rem; font-size: .875rem; font-weight: 500; }
+        .dk-btn:hover { background: #115e59; }
         @media (min-width: 768px) {
             .dk-search { padding: .375rem; }
             .dk-search svg { width: 1.375rem; height: 1.375rem; margin-left: 1rem; }
@@ -31,16 +31,13 @@
             .dk-search .dk-btn { padding: .75rem 1.75rem; font-size: 1rem; }
         }
 
-        .dk-add { margin-top: 1rem; display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-radius: .75rem; background: #1e3a8a; color: #fff;
-            text-decoration: none; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,.12); transition: background .15s; }
-        .dk-add:hover { background: #172554; }
-        .dk-add-ico { width: 3.5rem; height: 3.5rem; border-radius: 9999px; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .dk-add-ico svg { width: 1.5rem; height: 1.5rem; }
-        .dk-add b { display: block; font-size: 1rem; }
-        .dk-add span { font-size: .8125rem; opacity: .9; }
-        .dk-add .dk-chev { margin-left: auto; width: 1.25rem; height: 1.25rem; }
+        .dk-listtitle { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+        .dk-add { display: inline-flex; align-items: center; gap: .375rem; height: 2.5rem; padding: 0 1rem; border-radius: 9999px; background: #0f766e; color: #fff;
+            font-size: .8125rem; font-weight: 600; text-decoration: none; transition: background .15s; }
+        .dk-add:hover { background: #115e59; }
+        .dk-add svg { width: 1rem; height: 1rem; }
 
-        .dk-listhead { margin-top: 3rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
+        .dk-listhead { margin-top: 7rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
         .dk-listhead h2 { margin: 0; font-size: 1.125rem; font-weight: 700; color: #fff; }
         .dk-filters { display: flex; flex-wrap: wrap; gap: .5rem; }
         .dk-sel { height: 2.5rem; padding: 0 2rem 0 .875rem; border: 1px solid rgba(255,255,255,.55); border-radius: 9999px; background-color: rgba(255,255,255,.22);
@@ -90,7 +87,7 @@
         .dk-doc .grow { flex: 1; min-width: 0; }
         .dk-doc .grow b { display: block; color: #0f172a; }
         .dk-doc .grow small { color: #64748b; }
-        .dk-link { color: #1e3a8a; font-weight: 600; text-decoration: none; font-size: .8125rem; }
+        .dk-link { color: #0f766e; font-weight: 600; text-decoration: none; font-size: .8125rem; }
         .dk-link:hover { text-decoration: underline; }
         .dk-badge { padding: .125rem .5rem; border-radius: 9999px; font-size: .6875rem; font-weight: 700; background: #dcfce7; color: #166534; }
         .dk-badge.expired { background: #fee2e2; color: #991b1b; }
@@ -113,18 +110,18 @@
                 <input type="search" wire:model="q" placeholder="Cari nama, NIP, atau spesialisasi…" aria-label="Cari dokter" autofocus>
                 <button type="submit" class="dk-btn">Cari</button>
             </form>
-
-            <a href="{{ $this->tambahUrl() }}" class="dk-add">
-                <span class="dk-add-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
-                <span><b>Tambah Dokter</b><span>Daftarkan dokter baru sekaligus buat akun HRIS-nya.</span></span>
-                <svg class="dk-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </a>
         </div>
 
         <div class="dk-listhead">
-            <h2>Daftar Dokter ({{ $data['total'] }})
-                @if ($kataCari !== '') <span style="font-weight:500;opacity:.9;">— "{{ $kataCari }}"</span> @endif
-            </h2>
+            <div class="dk-listtitle">
+                <h2>Daftar Dokter ({{ $data['total'] }})
+                    @if ($kataCari !== '') <span style="font-weight:500;opacity:.9;">— "{{ $kataCari }}"</span> @endif
+                </h2>
+                <a href="{{ $this->tambahUrl() }}" class="dk-add" title="Daftarkan dokter baru sekaligus buat akun HRIS-nya">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    Tambah Dokter
+                </a>
+            </div>
             <div class="dk-filters">
                 <select wire:model.live="filterSpesialisasi" class="dk-sel" aria-label="Filter spesialisasi">
                     <option value="">Semua spesialisasi</option>
@@ -246,14 +243,29 @@
                                 </div>
                                 <span class="dk-badge {{ $h->status === 'aktif' ? '' : 'nonaktif' }}">{{ $statusLabel[$h->status] ?? $h->status }}</span>
                             </div>
+                            {{-- SIP terikat penempatan ini --}}
+                            @foreach ($d->licenses->where('doctor_hospital_id', $h->id) as $sip)
+                                @php $ss = $sip->status_efektif; @endphp
+                                <div class="dk-doc" style="margin-left:1rem;">
+                                    <div class="grow">
+                                        <b>SIP{{ $sip->nomor ? ' · '.$sip->nomor : '' }}</b>
+                                        <small>{{ $sip->tanggal_berlaku?->translatedFormat('j M Y') ?: '?' }} – {{ $sip->tanggal_berakhir?->translatedFormat('j M Y') ?: 'tanpa batas' }}</small>
+                                    </div>
+                                    <span class="dk-badge {{ $ss === 'aktif' ? '' : ($ss === 'akan_expired' ? 'soon' : ($ss === 'expired' ? 'expired' : 'nonaktif')) }}">{{ \App\Filament\Dokter\Resources\Doctors\RelationManagers\LicensesRelationManager::STATUS_LABELS[$ss] ?? $ss }}</span>
+                                    @if ($sip->doctor_document_id)
+                                        <a href="{{ route('filament.dokter.dokumen.show', $sip->doctor_document_id) }}" target="_blank" class="dk-link">Lihat</a>
+                                    @endif
+                                </div>
+                            @endforeach
                         @empty
                             <p style="margin:0;color:#64748b;font-size:.875rem;">Belum ada penempatan.</p>
                         @endforelse
                     </section>
 
                     <section class="dk-sec dk-full">
-                        <h4>Lisensi (SIP / STR / STR-KT)</h4>
-                        @forelse ($d->licenses->sortBy('jenis') as $lic)
+                        <h4>Lisensi (STR / STR-KT)</h4>
+                        {{-- SIP yang sudah punya penempatan tampil di bawah penempatannya; sisanya (data lama) tetap di sini. --}}
+                        @forelse ($d->licenses->whereNull('doctor_hospital_id')->sortBy('jenis') as $lic)
                             @php $ls = $lic->status_efektif; @endphp
                             <div class="dk-doc">
                                 <div class="grow">
@@ -296,7 +308,7 @@
 
                     <section class="dk-sec dk-full">
                         <h4>Dokumen</h4>
-                        @forelse ($d->documents->sortByDesc('created_at') as $doc)
+                        @forelse ($d->documents->where('document_type', '!=', 'SIP')->sortByDesc('created_at') as $doc)
                             @php $st = $doc->status_efektif; @endphp
                             <div class="dk-doc">
                                 <div class="grow">

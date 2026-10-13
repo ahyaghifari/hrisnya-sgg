@@ -2,7 +2,12 @@
 
 namespace App\Livewire\Pelatihan;
 
+use App\Models\LMS\LmsCourseAbsence;
 use App\Models\LMS\LmsCourseFeedbacks;
+use App\Services\Approval\ApprovalFlowService;
+use App\Services\Approval\ApprovalPermissionService;
+use App\Services\LMS\CourseAbsenceService;
+use Filament\Notifications\Notification;
 use App\Models\LMS\LmsCourses;
 use App\Models\LMS\LmsMeetingQuizzes;
 use App\Models\LMS\LmsRespondent;
@@ -173,6 +178,150 @@ class TrainingDetail extends Component
 
         return $respondentId
             && app(QuizRepository::class)->findUserResultByMeetingQuizId($meetingQuizId, $respondentId) !== null;
+    }
+
+    public bool $showIzin = false;
+    public ?string $izinMeetingId = null;
+    public ?string $izinReason = null;
+    public ?string $izinNote = null;
+
+    /** Pengajuan izin user ini untuk course ini (terbaru dulu). */
+    public function getIzinRequestsProperty()
+    {
+        return LmsCourseAbsence::query()
+            ->where('course_id', $this->course->id)
+            ->where('user_id', Auth::id())
+            ->with('meeting')
+            ->latest()
+            ->get();
+    }
+
+    /** Pertemuan yang belum lewat dan belum punya izin aktif — pilihan untuk izin tidak hadir. */
+    public function getIzinMeetingsProperty()
+    {
+        // Dibatalkan juga dihitung: sekali batal, pertemuan itu tidak bisa diajukan izin lagi.
+        // Ditolak boleh diajukan ulang.
+        $taken = $this->izinRequests->whereIn('status', ['in_review', 'approved', 'cancelled'])->pluck('meeting_id');
+
+        return $this->course->meetings
+            ->reject(fn ($m) => $taken->contains($m->id))
+            ->filter(fn ($m) => ($m->start_date ?? $m->meeting_date)
+                && \Carbon\Carbon::parse($m->start_date ?? $m->meeting_date)->toDateString() >= now()->toDateString())
+            ->sortBy('start_date');
+    }
+
+    /** Izin peserta lain di course ini yang sedang menunggu giliran persetujuan user login. */
+    public function getIzinApprovalsProperty()
+    {
+        return LmsCourseAbsence::query()
+            ->where('course_id', $this->course->id)
+            ->where('status', 'in_review')
+            ->where('user_id', '!=', Auth::id())
+            ->with(['user', 'meeting', 'approvalSnapshot'])
+            ->get()
+            ->filter(fn ($a) => $a->approvalSnapshot
+                && app(ApprovalPermissionService::class)->canApprove($a->approvalSnapshot->id, Auth::user()));
+    }
+
+    /** Rantai persetujuan satu izin (Diajukan -> tiap approver), format ApprovalTimelineService. */
+    public function izinTimeline(LmsCourseAbsence $absence): array
+    {
+        return app(\App\Services\Approval\ApprovalTimelineService::class)->build($absence);
+    }
+
+    /** Peserta membatalkan izinnya sendiri selagi masih diproses. */
+    public function cancelIzin(string $absenceId): void
+    {
+        $absence = $this->izinRequests->firstWhere('id', $absenceId);
+        abort_unless($absence && $absence->canBeCancelled(), 403);
+
+        if ($absence->status === 'in_review') {
+            $this->advanceIzin($absence, 'cancelled', 'Dibatalkan oleh peserta', 'Pengajuan izin dibatalkan');
+
+            return;
+        }
+
+        // Sudah disetujui final: batal langsung (tidak ada efek samping yang perlu dibalik),
+        // dicatat di riwayat approval & approver yang menyetujui diberi tahu.
+        $approverId = $absence->approved_by;
+        $absence->update(['status' => 'cancelled', 'cancelled_by' => Auth::id(), 'cancelled_at' => now()]);
+
+        app(\App\Repositories\Approval\ApprovalHistoryRepository::class)->create([
+            'requestable_type' => \App\Enum\Approval\ApprovalModuleEnum::TRAINING_ABSENCE->value,
+            'requestable_id' => $absence->id,
+            'snapshot_id' => $absence->approvalSnapshot?->id,
+            'action' => 'cancelled',
+            'actor_id' => Auth::id(),
+            'actor_name' => Auth::user()->name,
+            'note' => 'Dibatalkan oleh peserta setelah disetujui',
+        ]);
+
+        \App\Models\User::find($approverId)?->notify(new \App\Notifications\RequestStatusChanged(
+            \App\Enum\Approval\ApprovalModuleEnum::TRAINING_ABSENCE->value, $absence->id, 'cancelled', Auth::user()->name
+        ));
+
+        Notification::make()->title('Izin dibatalkan')->success()->send();
+    }
+
+    public function approveIzin(string $absenceId): void
+    {
+        $this->advanceIzin($this->izinApprovals->firstWhere('id', $absenceId), 'approved', $this->izinNote ?: 'Disetujui', 'Izin disetujui');
+    }
+
+    public function rejectIzin(string $absenceId): void
+    {
+        $this->advanceIzin($this->izinApprovals->firstWhere('id', $absenceId), 'rejected', $this->izinNote ?: 'Ditolak', 'Izin ditolak');
+    }
+
+    private function advanceIzin(?LmsCourseAbsence $absence, string $action, string $note, string $successMessage): void
+    {
+        abort_unless($absence, 403);
+
+        try {
+            app(ApprovalFlowService::class)->advanceStep($absence->approvalSnapshot, Auth::id(), $note, $action);
+        } catch (\Exception $e) {
+            Notification::make()->title('Gagal: ' . $e->getMessage())->danger()->send();
+
+            return;
+        }
+
+        $this->izinNote = null;
+        Notification::make()->title($successMessage)->success()->send();
+    }
+
+    /** Alur persetujuan = alur izin Tidak Masuk berdasarkan jabatan (lihat CourseAbsenceService). */
+    public function submitIzin(): void
+    {
+        abort_unless($this->isFollowed && in_array($this->courseUserStatus, ['approved', 'in_progress'], true), 403);
+
+        // Pilihan tinggal satu pertemuan: tidak ada yang perlu dipilih peserta.
+        if ($this->izinMeetings->count() === 1) {
+            $this->izinMeetingId = $this->izinMeetings->first()->id;
+        }
+
+        $this->validate([
+            'izinMeetingId' => ['required', \Illuminate\Validation\Rule::in($this->izinMeetings->pluck('id')->all())],
+            'izinReason' => ['required', 'string', 'max:1000'],
+        ], [
+            'izinMeetingId.required' => 'Pilih pertemuan.',
+            'izinMeetingId.in' => 'Pertemuan tidak valid.',
+            'izinReason.required' => 'Alasan wajib diisi.',
+        ]);
+
+        try {
+            app(CourseAbsenceService::class)->store(
+                $this->course->meetings->firstWhere('id', $this->izinMeetingId),
+                Auth::user(),
+                $this->izinReason,
+            );
+        } catch (\Exception $e) {
+            $this->addError('izinReason', 'Gagal mengajukan: ' . $e->getMessage());
+
+            return;
+        }
+
+        $this->reset('showIzin', 'izinMeetingId', 'izinReason');
+        Notification::make()->title('Pengajuan izin berhasil dikirim')->success()->send();
     }
 
     public function followCourse(): void

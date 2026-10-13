@@ -164,4 +164,157 @@
     {{ $members->links('livewire.partials.pagination') }}
 @endif
 
+@php $izinList = $this->izinRequests->where('status', '!=', 'cancelled'); @endphp
+@if ($izinList->isNotEmpty())
+    <div class="course-members-header" style="margin-top:20px;"><span class="course-members-title">Izin Tidak Hadir</span></div>
+    <div class="pwa-list" style="padding:4px 12px;">
+        @foreach ($izinList as $izin)
+            @php
+                [$izinLabel, $izinClass] = match ($izin->status) {
+                    'approved' => ['Disetujui', 'is-approved'],
+                    'rejected' => ['Ditolak', 'is-canceled'],
+                    default => ['Menunggu', 'is-pending'],
+                };
+            @endphp
+            <div x-data="{ open: false }" wire:key="izin-{{ $izin->id }}">
+                <div class="course-member-row" style="flex-wrap:wrap;gap:8px;cursor:pointer;" @click="open = !open">
+                    <span class="course-member-name">
+                        {{ $izin->meeting?->title }}
+                        <small style="display:block;color:var(--text-muted);font-weight:400;">{{ $izin->meeting?->start_date ? \Carbon\Carbon::parse($izin->meeting->start_date)->translatedFormat('d M Y') : '' }}</small>
+                    </span>
+                    <span class="course-member-status {{ $izinClass }}">{{ $izinLabel }}</span>
+                    @if ($izin->canBeCancelled())
+                        <button type="button" @click.stop wire:click="cancelIzin('{{ $izin->id }}')" wire:confirm="Batalkan izin ini?" style="background:none;border:0;padding:4px;font-size:12px;color:var(--text-muted);text-decoration:underline;cursor:pointer;">Batalkan</button>
+                    @endif
+                    <i class="fa-solid fa-chevron-down course-session-chevron" :class="{ 'is-open': open }"></i>
+                </div>
+                <div x-show="open" x-transition x-cloak>
+                    <div style="padding:6px 4px 16px;font-size:13px;line-height:1.5;">
+                        <dl style="display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0;">
+                            <dt style="color:var(--text-muted);">Pelatihan</dt>
+                            <dd style="margin:0;color:var(--text-heading);">{{ $course->title }}</dd>
+
+                            <dt style="color:var(--text-muted);">Pertemuan</dt>
+                            <dd style="margin:0;color:var(--text-heading);">
+                                {{ $izin->meeting?->title }}
+                                <span style="display:block;color:var(--text-muted);font-size:12px;">
+                                    @if ($izin->meeting?->start_date)
+                                        {{ \Carbon\Carbon::parse($izin->meeting->start_date)->translatedFormat('l, d M Y') }}
+                                    @endif
+                                    @if ($izin->meeting?->start_time)
+                                        &middot; {{ \Carbon\Carbon::parse($izin->meeting->start_time)->format('H:i') }}{{ $izin->meeting->end_time ? '–' . \Carbon\Carbon::parse($izin->meeting->end_time)->format('H:i') : '' }}
+                                    @endif
+                                </span>
+                            </dd>
+
+                            <dt style="color:var(--text-muted);">Alasan</dt>
+                            <dd style="margin:0;color:var(--text-heading);white-space:pre-line;">{{ $izin->reason }}</dd>
+
+                            <dt style="color:var(--text-muted);">Diajukan</dt>
+                            <dd style="margin:0;color:var(--text-heading);">{{ $izin->created_at->translatedFormat('d M Y, H:i') }}</dd>
+                        </dl>
+
+                        @php $tl = $this->izinTimeline($izin); @endphp
+                        @if (count($tl) > 1)
+                            <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-soft);">
+                                <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);">Status Persetujuan</p>
+                                <ol style="list-style:none;margin:0;padding:0;display:grid;gap:12px;">
+                                    @foreach ($tl as $node)
+                                        @php
+                                            $nodeColor = match ($node['state']) {
+                                                'approved', 'done' => '#15803d',
+                                                'rejected' => '#b91c1c',
+                                                'cancelled' => '#475569',
+                                                'current' => '#042c6c',
+                                                default => '#cbd5e1',
+                                            };
+                                            $nodeText = match ($node['state']) {
+                                                'approved', 'done' => 'Selesai',
+                                                'rejected' => 'Ditolak',
+                                                'cancelled' => 'Dibatalkan',
+                                                'current' => 'Sedang diproses',
+                                                default => 'Menunggu',
+                                            };
+                                        @endphp
+                                        <li style="display:flex;align-items:flex-start;gap:10px;">
+                                            <span style="flex-shrink:0;width:10px;height:10px;margin-top:5px;border-radius:50%;background:{{ $nodeColor }};"></span>
+                                            <span style="flex:1;min-width:0;">
+                                                <span style="display:block;color:var(--text-heading);font-weight:600;">{{ $node['label'] }}</span>
+                                                @if ($node['actor'])
+                                                    <span style="display:block;color:var(--text-muted);font-size:12px;">{{ $node['actor'] }}</span>
+                                                @endif
+                                            </span>
+                                            <span style="flex-shrink:0;font-size:12px;color:{{ $node['date'] ? 'var(--text-muted)' : $nodeColor }};{{ $node['date'] ? '' : 'font-weight:600;' }}">
+                                                {{ $node['date']?->translatedFormat('d M Y, H:i') ?? $nodeText }}
+                                            </span>
+                                        </li>
+                                    @endforeach
+                                </ol>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    </div>
+@endif
+
+@php $izinApprovals = $this->izinApprovals; @endphp
+@if ($izinApprovals->isNotEmpty())
+    <div class="course-members-header" style="margin-top:20px;"><span class="course-members-title">Izin Menunggu Persetujuan Anda</span></div>
+    <div class="pwa-list" style="padding:4px 12px;">
+        @foreach ($izinApprovals as $a)
+            <div class="course-member-row" style="flex-wrap:wrap;gap:8px;">
+                <span class="course-member-name">
+                    {{ $a->user->name }} — {{ $a->meeting?->title }}
+                    <small style="display:block;color:var(--text-muted);font-weight:400;">{{ $a->reason }}</small>
+                </span>
+                <button type="button" wire:click="approveIzin('{{ $a->id }}')" wire:confirm="Setujui izin ini?" style="background:none;border:0;padding:4px;font-size:12px;color:var(--text-muted);text-decoration:underline;cursor:pointer;">Setujui</button>
+                <button type="button" wire:click="rejectIzin('{{ $a->id }}')" wire:confirm="Tolak izin ini?" style="background:none;border:0;padding:4px;font-size:12px;color:var(--text-muted);text-decoration:underline;cursor:pointer;">Tolak</button>
+            </div>
+        @endforeach
+    </div>
+    <input type="text" class="form-input" wire:model="izinNote" placeholder="Catatan (opsional)" style="margin-top:8px;">
+@endif
+
+@if ($this->isFollowed && in_array($courseUserStatus, ['approved', 'in_progress'], true) && $this->izinMeetings->isNotEmpty())
+    <div style="margin-top:20px;text-align:center;">
+        <button type="button" wire:click="$toggle('showIzin')" style="background:none;border:0;padding:6px;font-size:13px;color:var(--text-muted);text-decoration:underline;cursor:pointer;">
+            Tidak bisa hadir? Ajukan izin
+        </button>
+    </div>
+    @if ($showIzin)
+        <form wire:submit="submitIzin" class="form-card" style="margin-top:8px;">
+            <div style="display:flex;flex-direction:column;gap:18px;">
+                @if ($this->izinMeetings->count() > 1)
+                    <div>
+                        <label class="form-label">Pertemuan <span style="color:var(--danger-text);">*</span></label>
+                        <select class="form-input" wire:model="izinMeetingId">
+                            <option value="">Pilih pertemuan...</option>
+                            @foreach ($this->izinMeetings as $m)
+                                <option value="{{ $m->id }}">{{ $m->title }} — {{ \Carbon\Carbon::parse($m->start_date ?? $m->meeting_date)->translatedFormat('d M Y') }}</option>
+                            @endforeach
+                        </select>
+                        @error('izinMeetingId') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                    </div>
+                @else
+                    @php $onlyMeeting = $this->izinMeetings->first(); @endphp
+                    <p style="margin:0;font-size:13px;color:var(--text-muted);">
+                        {{ $onlyMeeting->title }} — {{ \Carbon\Carbon::parse($onlyMeeting->start_date ?? $onlyMeeting->meeting_date)->translatedFormat('d M Y') }}
+                    </p>
+                @endif
+                <div>
+                    <label class="form-label">Alasan <span style="color:var(--danger-text);">*</span></label>
+                    <textarea class="form-input" rows="3" maxlength="1000" placeholder="Masukkan alasan tidak dapat hadir..." wire:model="izinReason"></textarea>
+                    @error('izinReason') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                </div>
+                <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="submitIzin">
+                    <span wire:loading.remove wire:target="submitIzin"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i> Ajukan Izin</span>
+                    <span wire:loading wire:target="submitIzin"><i class="fa-solid fa-spinner fa-spin" style="font-size:12px;"></i> Diajukan...</span>
+                </button>
+            </div>
+        </form>
+    @endif
+@endif
+
 </div>

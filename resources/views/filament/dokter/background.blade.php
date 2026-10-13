@@ -6,7 +6,7 @@
     .fi-topbar-ctn { position: relative !important; }
     .fi-topbar, .fi-topbar > nav { background: transparent !important; box-shadow: none !important; --tw-ring-shadow: 0 0 #0000 !important; }
     .fi-topbar .fi-logo, .fi-topbar-item-label, .fi-topbar-item-icon { color: #fff !important; }
-    .fi-topbar-item.fi-active .fi-topbar-item-btn { background: #1e3a8a !important; }
+    .fi-topbar-item.fi-active .fi-topbar-item-btn { background: #134e4a !important; }
     .fi-topbar-item:not(.fi-active) .fi-topbar-item-btn:hover { background: rgba(255,255,255,.15) !important; }
     .fi-header-heading { color: #fff !important; }
     /* Breadcrumb & subjudul halaman (bawaan abu-abu) tidak terbaca di atas latar teal. */

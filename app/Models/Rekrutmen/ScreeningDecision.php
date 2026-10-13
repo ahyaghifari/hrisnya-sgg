@@ -24,17 +24,31 @@ class ScreeningDecision extends Model
         return $this->belongsTo(JobApplication::class);
     }
 
-    /** Simpan draft keputusan 1 lowongan — hapus draft lama, tulis baru. */
+    /**
+     * Simpan draft keputusan 1 lowongan — hapus draft lama, tulis baru. Satu transaksi + kunci baris
+     * lamaran lowongan itu, jadi gagal di tengah tidak meninggalkan draft setengah jadi dan dua
+     * recruiter yang simpan bersamaan diserialkan (yang terakhir menang, tapi utuh).
+     */
     public static function saveDraftForOpening(string $jobOpeningId, array $passedIds, array $allScreeningIds): void
     {
-        static::whereHas('jobApplication', fn ($q) => $q->where('job_opening_id', $jobOpeningId))->delete();
+        (new static)->getConnection()->transaction(function () use ($jobOpeningId, $passedIds, $allScreeningIds) {
+            // Hanya id yang memang berstatus screening di lowongan ini (abaikan id sisipan dari client).
+            $validIds = JobApplication::where('job_opening_id', $jobOpeningId)
+                ->where('status', 'screening')
+                ->whereIn('id', $allScreeningIds)
+                ->lockForUpdate()
+                ->pluck('id')
+                ->all();
 
-        foreach ($allScreeningIds as $appId) {
-            static::create([
-                'job_application_id' => $appId,
-                'decision' => in_array($appId, $passedIds) ? 'passed' : 'rejected',
-            ]);
-        }
+            static::whereHas('jobApplication', fn ($q) => $q->where('job_opening_id', $jobOpeningId))->delete();
+
+            foreach ($validIds as $appId) {
+                static::create([
+                    'job_application_id' => $appId,
+                    'decision' => in_array($appId, $passedIds) ? 'passed' : 'rejected',
+                ]);
+            }
+        });
     }
 
     /**

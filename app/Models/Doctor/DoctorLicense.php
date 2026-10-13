@@ -25,6 +25,12 @@ class DoctorLicense extends Model
         return $this->belongsTo(Doctor::class);
     }
 
+    /** Penempatan tempat praktik - hanya untuk SIP (null untuk STR/STR-KT). */
+    public function hospital(): BelongsTo
+    {
+        return $this->belongsTo(DoctorHospital::class, 'doctor_hospital_id');
+    }
+
     public function document(): BelongsTo
     {
         return $this->belongsTo(DoctorDocument::class, 'doctor_document_id');

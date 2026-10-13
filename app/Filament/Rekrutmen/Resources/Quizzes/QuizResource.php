@@ -8,6 +8,7 @@ use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
@@ -67,6 +68,23 @@ class QuizResource extends Resource
                     ->rows(2)
                     ->columnSpanFull(),
             ])->columns(2),
+
+            Section::make('Subtest')->schema([
+                Repeater::make('sections')
+                    ->relationship()
+                    ->orderColumn('sort_order')
+                    ->label('Daftar Subtest')
+                    ->schema([
+                        TextInput::make('name')->label('Nama Subtest')->required()->maxLength(255)
+                            ->helperText('Contoh: "Subtest 1 – Series".'),
+                        Textarea::make('instructions')->label('Instruksi Subtest')->rows(2),
+                    ])
+                    ->itemLabel(fn (array $state): ?string => $state['name'] ?? 'Subtest baru')
+                    ->collapsible()
+                    ->addActionLabel('Tambah Subtest')
+                    ->helperText('Opsional. Tanpa subtest, soal tampil satu daftar. Soal diatur ke subtest di "Kelola Soal".')
+                    ->columnSpanFull(),
+            ]),
         ]);
     }
 

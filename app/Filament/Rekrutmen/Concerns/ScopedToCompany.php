@@ -22,6 +22,12 @@ trait ScopedToCompany
     {
         if (! $this->canFilterByCompany()) {
             $this->companyId = $this->ownCompanyId();
+
+            // $jobOpeningId juga dari client - tanpa ini user bisa menyuntik lowongan perusahaan lain.
+            if (property_exists($this, 'jobOpeningId') && $this->jobOpeningId
+                && ! \App\Models\Rekrutmen\JobOpening::whereKey($this->jobOpeningId)->where('company_id', $this->companyId)->exists()) {
+                $this->jobOpeningId = null;
+            }
         }
     }
 

@@ -22,6 +22,11 @@ class Quiz extends Model
         return $this->hasMany(QuizQuestion::class)->orderBy('sort_order');
     }
 
+    public function sections(): HasMany
+    {
+        return $this->hasMany(QuizSection::class)->orderBy('sort_order');
+    }
+
     public function jobOpenings(): BelongsToMany
     {
         return $this->belongsToMany(JobOpening::class, 'job_opening_quiz');
