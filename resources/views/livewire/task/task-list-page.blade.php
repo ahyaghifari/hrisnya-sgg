@@ -1575,7 +1575,7 @@
                                         </span>
                                         <span style="font-size:13px;font-weight:700;color:var(--text-heading);" x-text="drag ? 'Lepaskan file di sini' : 'Tarik & lepas file di sini'"></span>
                                         <span style="font-size:12px;color:var(--text-muted);">atau <span style="color:var(--brand-fill);font-weight:600;text-decoration:underline;">pilih dari perangkat</span></span>
-                                        <span style="font-size:11px;color:var(--text-faint);">Foto dikompres otomatis &middot; PDF maks. 2 MB &middot; file lain maks. 10 MB</span>
+                                        <span style="font-size:11px;color:var(--text-faint);">Foto dikompres otomatis &middot; file maks. 10 MB</span>
                                         <input type="file" x-ref="attFile" wire:model="newAttachmentFile" style="display:none;">
                                     </label>
                                 @endif

@@ -1249,7 +1249,7 @@ class TaskService
         }
 
         // PDF terlalu besar ditolak sebelum komentar dibuat, supaya tidak ada komentar tanpa lampirannya.
-        abort_if($file && TaskAttachment::isPdf($file) && $file->getSize() > TaskAttachment::PDF_MAX_BYTES, 422, 'Ukuran file PDF maksimal 2 MB.');
+        abort_if($file && TaskAttachment::isPdf($file) && $file->getSize() > TaskAttachment::PDF_MAX_BYTES, 422, 'Ukuran file PDF maksimal 10 MB.');
 
         $created = $task->comments()->create([
             'user_id' => $user->id,
@@ -1358,7 +1358,7 @@ class TaskService
         abort_if(
             TaskAttachment::isPdf($file) && $file->getSize() > TaskAttachment::PDF_MAX_BYTES,
             422,
-            'Ukuran file PDF maksimal 2 MB.'
+            'Ukuran file PDF maksimal 10 MB.'
         );
 
         // Gambar (jpg/png/webp) otomatis diperkecil & dikompres sebelum disimpan; file lain apa adanya.

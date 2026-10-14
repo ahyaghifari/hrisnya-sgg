@@ -857,7 +857,7 @@ class TaskListPage extends Component
                 // PDF tidak dikompres otomatis seperti foto, jadi dibatasi lebih kecil.
                 function (string $attribute, $value, \Closure $fail) {
                     if (\App\Models\Task\TaskAttachment::isPdf($value) && $value->getSize() > \App\Models\Task\TaskAttachment::PDF_MAX_BYTES) {
-                        $fail('Ukuran file PDF maksimal 2 MB.');
+                        $fail('Ukuran file PDF maksimal 10 MB.');
                     }
                 },
             ],
