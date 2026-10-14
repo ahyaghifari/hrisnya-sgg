@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  */
 class BackfillEmployees extends Command
 {
-    protected $signature = 'identity:backfill {--dry-run : Hitung & laporkan saja, tanpa menulis} {--user= : Batasi ke satu NIP}';
+    protected $signature = 'identity:backfill {--dry-run : Hitung & laporkan saja, tanpa menulis} {--user= : Batasi ke satu NIP} {--company= : Batasi ke satu perusahaan (nama atau kode)}';
 
     /** Nama lama (sebelum persons dilebur ke employees) tetap jalan. */
     protected $aliases = ['identity:backfill-employees'];
@@ -31,8 +31,26 @@ class BackfillEmployees extends Command
     {
         $dry = (bool) $this->option('dry-run');
 
+        $companyId = null;
+
+        if ($input = $this->option('company')) {
+            $companyId = \App\Models\Master\Companies::where('name', $input)->orWhere('code', $input)->value('id');
+
+            if (! $companyId) {
+                $this->error("Perusahaan '{$input}' tidak ditemukan.");
+                return self::FAILURE;
+            }
+        }
+
+        // users.company_id (masa transisi) masih jadi sumber bagi user yang belum punya employee.
+        $legacyColumn = \Illuminate\Support\Facades\Schema::hasColumn('users', 'company_id');
+
         $users = User::withoutGlobalScopes()->withTrashed()
-            ->when($this->option('user'), fn ($q, $nip) => $q->whereNip($nip));
+            ->when($this->option('user'), fn ($q, $nip) => $q->whereNip($nip))
+            ->when($companyId, fn ($q, $id) => $q->where(function ($w) use ($id, $legacyColumn) {
+                $w->whereCompany($id);
+                $legacyColumn && $w->orWhere('users.company_id', $id);
+            }));
 
         $total = (clone $users)->count();
         $existing = Employee::whereIn('user_id', (clone $users)->select('id'))->count();
