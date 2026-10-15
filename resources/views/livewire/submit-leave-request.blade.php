@@ -42,45 +42,23 @@
             <div style="width:36px;height:36px;background:var(--info-soft-bg);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <i class="fa-solid fa-circle-info" style="color:var(--info-soft-text);font-size:14px;"></i>
             </div>
-            @if ($this->substituteEnabled)
-                @php
-                    $ketType = \App\Enum\Attendance\LeaveTypeCategoryEnum::tryFrom($leave_type);
-                    $ketWindow = match ($ketType?->usageWindow()) { 'monthly' => 'per bulan', 'per_request' => 'per kejadian', default => 'per tahun' };
-                @endphp
-                <div>
-                    <p style="font-size:12.5px;font-weight:700;color:var(--info-soft-text);margin:0 0 6px;">Ketentuan {{ $ketType?->label() }}</p>
-                    <p style="font-size:12px;color:var(--info-soft-text);margin:0;line-height:1.55;">
-                        Berdasarkan ketentuan, {{ $ketType?->label() }} diberikan sebanyak <strong>{{ $balance['quota'] }} hari {{ $ketWindow }}</strong>@if ($periode && $periode['max'] > 0), dengan batas pengambilan paling banyak {{ $periode['max'] }} hari dalam satu periode ({{ $periode['period_start']->translatedFormat('d M') }} – {{ $periode['period_end']->translatedFormat('d M Y') }})@endif.
-                        Cuti diberikan sebagai sarana untuk memulihkan kondisi kerja. Gunakan secara bijaksana dan bertanggung jawab serta tetap berkoordinasi dengan atasan Anda.
-                        @if ($ketType?->usageWindow() !== 'per_request')
-                            @php $ketPeriod = $ketType?->usageWindow() === 'monthly' ? 'bulan ini' : 'tahun ini'; @endphp
-                            @if ($balance['used'] > 0)
-                                Anda telah menggunakan {{ $ketType?->label() }} sebanyak <strong>{{ $balance['used'] }} hari</strong> pada {{ $ketPeriod }}.
-                            @else
-                                Anda belum pernah menggunakan {{ $ketType?->label() }} pada {{ $ketPeriod }}.
-                            @endif
-                        @endif
-                    </p>
-                </div>
-            @else
+            @php
+                $ketType = \App\Enum\Attendance\LeaveTypeCategoryEnum::tryFrom($leave_type);
+                $ketPeriod = $ketType?->usageWindow() === 'monthly' ? 'bulan ini' : 'tahun ini';
+            @endphp
             <div>
-                <p style="font-size:12.5px;font-weight:700;color:var(--info-soft-text);margin:0 0 6px;">Saldo Cuti Tersedia</p>
-                <span class="saldo-pill"><i class="fa-solid fa-sun" style="font-size:10px;"></i> Sisa <strong>{{ $balance['available'] }} hari</strong> dari {{ $balance['quota'] }} hari (tahun ini)</span>
-
-                @if ($periode)
-                    <div style="margin-top:8px;">
-                        @if ($periode['max'] > 0)
-                            <span class="saldo-pill" style="flex-direction:column;align-items:flex-start;gap:2px;border-radius:12px;">
-                                <span><i class="fa-solid fa-calendar-days" style="font-size:10px;"></i> Sisa <strong>{{ $periode['available'] }} hari</strong> dari {{ $periode['max'] }} hari</span>
-                                <span style="font-weight:500;">Periode {{ $periode['period_start']->translatedFormat('d M') }} – {{ $periode['period_end']->translatedFormat('d M Y') }}</span>
-                            </span>
+                <p style="font-size:12.5px;font-weight:700;color:var(--info-soft-text);margin:0 0 6px;">Ketentuan {{ $ketType?->label() }}</p>
+                <p style="font-size:12px;color:var(--info-soft-text);margin:0;line-height:1.55;">
+                    @if ($ketType?->usageWindow() !== 'per_request')
+                        @if ($balance['used'] > 0)
+                            Pada {{ $ketPeriod }}, Anda sudah menggunakan {{ $ketType?->label() }} sebanyak <strong>{{ $balance['used'] }} hari</strong>.
                         @else
-                            <span style="font-size:11.5px;color:var(--text-muted);">Batas per periode: tidak dibatasi.</span>
+                            Pada {{ $ketPeriod }}, Anda belum pernah menggunakan {{ $ketType?->label() }}.
                         @endif
-                    </div>
-                @endif
+                    @endif
+                    Cuti diajukan sesuai kebutuhan, jadi mohon gunakan dengan bijak dan tetap koordinasikan dengan atasan Anda.
+                </p>
             </div>
-            @endif
         </div>
     @endif
 
