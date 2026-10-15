@@ -29,7 +29,7 @@ use Livewire\WithPagination;
 #[Layout('components.layout', ['title' => 'Rekap Cuti'])]
 class CutiRecapPage extends Component
 {
-    use WithPagination, GatesCompanyFilterBySystem, FiltersByDepartmentDivision;
+    use WithPagination, GatesCompanyFilterBySystem, FiltersByDepartmentDivision, \App\Livewire\Concerns\FiltersByApprovalTab;
 
     #[Url]
     public string $mode = 'matrix';
@@ -138,7 +138,7 @@ class CutiRecapPage extends Component
 
         $requests = AttendanceRequests::query()
             ->where('type', 'leave')
-            ->where('status', 'approved')
+            ->whereIn('status', $this->tabStatuses())
             ->whereHas('user', function ($q2) {
                 $q2->when($this->companyId, fn ($q3) => $q3->whereCompany($this->companyId));
                 $this->applyDepartmentDivisionFilter($q2);
@@ -236,7 +236,7 @@ class CutiRecapPage extends Component
         return AttendanceRequestLeaveDetails::query()
             ->whereHas('request', function ($q) {
                 $q->where('type', 'leave')
-                    ->where('status', 'approved')
+                    ->whereIn('status', $this->tabStatuses())
                     ->whereHas('user', function ($q2) {
                         $q2->when($this->companyId, fn ($q3) => $q3->whereCompany($this->companyId));
                         $this->applyDepartmentDivisionFilter($q2);

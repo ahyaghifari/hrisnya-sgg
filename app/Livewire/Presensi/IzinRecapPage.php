@@ -26,7 +26,7 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Rekap Izin'])]
 class IzinRecapPage extends Component
 {
-    use GatesCompanyFilterBySystem, FiltersByDepartmentDivision;
+    use GatesCompanyFilterBySystem, FiltersByDepartmentDivision, \App\Livewire\Concerns\FiltersByApprovalTab;
 
     public ?string $companyId = null;
     public ?string $date_from = null;
@@ -130,7 +130,7 @@ class IzinRecapPage extends Component
             ->whereIn('request_id', AttendanceRequests::query()
                 ->select('id')
                 ->where('type', 'permission')
-                ->where('status', 'approved')
+                ->whereIn('status', $this->tabStatuses())
                 ->whereHas('user', function ($q2) {
                     $q2->when($this->companyId, fn ($q3) => $q3->whereCompany($this->companyId));
                     $this->applyDepartmentDivisionFilter($q2);

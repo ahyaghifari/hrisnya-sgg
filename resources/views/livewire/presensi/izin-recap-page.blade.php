@@ -126,6 +126,8 @@ di lebar berapa pun (bukan numpuk vertikal di kartu lebar). --}}
 
 </div>
 
+@include('livewire.presensi.partials.approval-tabs')
+
 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
     <div style="padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
         <h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Rincian per Karyawan</h4>
