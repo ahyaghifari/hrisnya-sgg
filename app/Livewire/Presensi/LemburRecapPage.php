@@ -76,6 +76,16 @@ class LemburRecapPage extends Component
         $this->selectedUserId = null;
     }
 
+    public function export()
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value), 403);
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\Presensi\LemburRecapExport($this->recap['rows']),
+            "rekap-lembur_{$this->date_from}_{$this->date_to}.xlsx",
+        );
+    }
+
     public function getCanRecheckProperty(): bool
     {
         return Auth::user()->can(CustomPermissionEnum::SYNC_DATA_ABSENSI->value);
