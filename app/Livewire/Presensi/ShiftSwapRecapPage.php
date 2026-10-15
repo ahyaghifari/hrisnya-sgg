@@ -22,7 +22,7 @@ use Livewire\Component;
 #[Layout('components.layout', ['title' => 'Rekap Tukar Shift'])]
 class ShiftSwapRecapPage extends Component
 {
-    use GatesCompanyFilterBySystem, FiltersByDepartmentDivision;
+    use GatesCompanyFilterBySystem, FiltersByDepartmentDivision, \App\Livewire\Concerns\FiltersByApprovalTab;
 
     public const STATUSES = [
         'approved' => 'Disetujui',
@@ -129,6 +129,12 @@ class ShiftSwapRecapPage extends Component
         // Scope company global dibuka - difilter lewat company pengaju di bawah (pola ExtraShiftRecapPage).
         $swaps = ShiftSwapRequests::withoutGlobalScope('company')
             ->whereBetween('req_date', [$this->date_from, $this->date_to])
+            // Status swap tak seragam dgn attendance_requests: tab proses = semua selain final (termasuk 'pending' lama).
+            ->when(
+                $this->tab === 'approved',
+                fn ($q) => $q->where('status', 'approved'),
+                fn ($q) => $q->whereNotIn('status', ['approved', 'rejected', 'cancelled']),
+            )
             ->whereHas('requester', function ($q) {
                 $q->when($this->companyId, fn ($q2) => $q2->whereCompany($this->companyId));
                 $this->applyDepartmentDivisionFilter($q);

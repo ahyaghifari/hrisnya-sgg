@@ -71,6 +71,8 @@
     @endif
 </div>
 
+@include('livewire.presensi.partials.approval-tabs')
+
 @if ($mode === 'table')
     @php $history = $this->history; @endphp
     <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
