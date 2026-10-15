@@ -101,6 +101,7 @@
 <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;">
     <div style="padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
         <h4 style="font-size:13.5px;font-weight:700;color:var(--text-heading);margin:0;">Rincian per Karyawan (kali)</h4>
+        <button type="button" wire:click="export" wire:loading.attr="disabled" wire:target="export" class="btn-ghost" style="font-size:12px;"><i class="fa-solid fa-file-excel"></i> Export Excel</button>
         <div style="position:relative;min-width:220px;">
             <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:12px;"></i>
             <input type="search" wire:model.live.debounce.300ms="search" class="form-input" placeholder="Cari nama atau NIP..." style="padding-left:32px;">

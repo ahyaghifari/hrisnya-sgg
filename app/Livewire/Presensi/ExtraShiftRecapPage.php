@@ -3,6 +3,7 @@
 namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
+use App\Exports\Presensi\RecapDetailExport;
 use App\Enum\ShiftType;
 use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
@@ -81,6 +82,31 @@ class ExtraShiftRecapPage extends Component
     public function closeDetail(): void
     {
         $this->selectedUserId = null;
+    }
+
+    public function export()
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value), 403);
+
+        $categories = $this->recap['categories'];
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new RecapDetailExport(
+                $this->recap['rows'],
+                ['Tanggal', 'Kategori', 'Shift', 'Waktu', 'Jadwal Reguler', 'Presensi', 'Keterangan'],
+                fn ($i) => [
+                    RecapDetailExport::date($i['date']),
+                    $categories[$i['category']] ?? $i['category'],
+                    $i['shift_name'],
+                    RecapDetailExport::time($i['start_time']) . ' - ' . RecapDetailExport::time($i['end_time']),
+                    $i['regular'],
+                    RecapDetailExport::presensi($i['check_in'], $i['check_out']),
+                    $i['reason'] ?: '-',
+                ],
+                'Rekap Extra Shift',
+            ),
+            "rekap-extra-shift_{$this->date_from}_{$this->date_to}.xlsx",
+        );
     }
 
     /** Label jenis shift (modal rincian); nilai di luar enum (data lama) jatuh ke ucfirst. */

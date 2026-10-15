@@ -3,6 +3,7 @@
 namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
+use App\Exports\Presensi\RecapDetailExport;
 use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Attendance\AttendanceRecords;
@@ -81,7 +82,18 @@ class LemburRecapPage extends Component
         abort_unless(Auth::user()->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value), 403);
 
         return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\Presensi\LemburRecapExport($this->recap['rows']),
+            new RecapDetailExport(
+                $this->recap['rows'],
+                ['Tanggal', 'Tugas', 'Waktu', 'Total Jam', 'Presensi'],
+                fn ($i) => [
+                    RecapDetailExport::date($i['date']),
+                    mb_strtoupper($i['type_name']),
+                    RecapDetailExport::time($i['start_time']) . ' - ' . RecapDetailExport::time($i['end_time']),
+                    rtrim(rtrim(number_format($i['total_hours'], 1), '0'), '.') . ' JAM',
+                    RecapDetailExport::presensi($i['presensi'][0] ?? null, $i['presensi'][1] ?? null),
+                ],
+                'Rekap Lembur',
+            ),
             "rekap-lembur_{$this->date_from}_{$this->date_to}.xlsx",
         );
     }

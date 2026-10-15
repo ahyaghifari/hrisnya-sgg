@@ -4,6 +4,7 @@ namespace App\Livewire\Presensi;
 
 use App\Enum\Attendance\PermissionTypeCategoryEnum;
 use App\Enum\CustomPermissionEnum;
+use App\Exports\Presensi\RecapDetailExport;
 use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Attendance\AttendanceRequestPermissionDetails;
@@ -74,6 +75,28 @@ class IzinRecapPage extends Component
     public function closeDetail(): void
     {
         $this->selectedUserId = null;
+    }
+
+    public function export()
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value), 403);
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new RecapDetailExport(
+                $this->recap['rows'],
+                ['Tanggal', 'Jenis Izin', 'Kategori', 'Waktu', 'Total Hari', 'Keperluan'],
+                fn ($i) => [
+                    RecapDetailExport::date($i['date']) . ($i['end_date'] && $i['end_date'] != $i['date'] ? ' s/d ' . RecapDetailExport::date($i['end_date']) : ''),
+                    $i['type_name'],
+                    $i['category_label'],
+                    $i['start_time'] ? RecapDetailExport::time($i['start_time']) . ' - ' . RecapDetailExport::time($i['end_time']) : '-',
+                    $i['total_days'] !== null ? $i['total_days'] . ' HARI' : '-',
+                    $i['purpose'] ?: '-',
+                ],
+                'Rekap Izin',
+            ),
+            "rekap-izin_{$this->date_from}_{$this->date_to}.xlsx",
+        );
     }
 
     /**

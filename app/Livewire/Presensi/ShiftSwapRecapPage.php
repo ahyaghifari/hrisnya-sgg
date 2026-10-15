@@ -3,6 +3,7 @@
 namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
+use App\Exports\Presensi\RecapDetailExport;
 use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
@@ -79,6 +80,29 @@ class ShiftSwapRecapPage extends Component
     public function closeDetail(): void
     {
         $this->selectedUserId = null;
+    }
+
+    public function export()
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value), 403);
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new RecapDetailExport(
+                $this->recap['rows'],
+                ['Tanggal', 'Jenis', 'Rekan', 'Shift Pengaju', 'Tanggal Tujuan', 'Shift Tujuan', 'Status'],
+                fn ($i) => [
+                    RecapDetailExport::date($i['date']),
+                    $i['kind'],
+                    $i['partner'],
+                    $i['req_shift'] ?? '-',
+                    RecapDetailExport::date($i['target_date']),
+                    $i['target_shift'] ?? '-',
+                    self::STATUSES[$i['status']] ?? $i['status'],
+                ],
+                'Rekap Tukar Shift',
+            ),
+            "rekap-tukar-shift_{$this->date_from}_{$this->date_to}.xlsx",
+        );
     }
 
     /** Status di luar daftar (mis. 'pending' lama) dihitung sebagai Diproses. */
