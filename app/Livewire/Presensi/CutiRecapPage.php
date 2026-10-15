@@ -3,6 +3,7 @@
 namespace App\Livewire\Presensi;
 
 use App\Enum\CustomPermissionEnum;
+use App\Exports\Presensi\RecapDetailExport;
 use App\Livewire\Concerns\FiltersByDepartmentDivision;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Attendance\AttendanceRequestLeaveDetails;
@@ -99,6 +100,26 @@ class CutiRecapPage extends Component
     public function closeDetail(): void
     {
         $this->selectedUserId = null;
+    }
+
+    public function export()
+    {
+        abort_unless(Auth::user()->can(CustomPermissionEnum::VIEW_REPORT_DATA_ABSENSI->value), 403);
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new RecapDetailExport(
+                $this->recap['rows'],
+                ['Jenis Cuti', 'Tanggal Mulai', 'Tanggal Selesai', 'Total Hari'],
+                fn ($i) => [
+                    $i['type_name'],
+                    RecapDetailExport::date($i['start_date']),
+                    RecapDetailExport::date($i['end_date'] ?? $i['start_date']),
+                    rtrim(rtrim(number_format($i['total_days'], 1), '0'), '.') . ' HARI',
+                ],
+                'Rekap Cuti',
+            ),
+            "rekap-cuti_{$this->date_from}_{$this->date_to}.xlsx",
+        );
     }
 
     /**
