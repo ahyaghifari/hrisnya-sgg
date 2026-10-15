@@ -452,6 +452,52 @@ disetujui/ditolak/dibatalkan, kuota ini tidak lagi jadi pertimbangan apa pun, ja
                 {!! $sectionHeader('fa-user-group', 'Pengganti Tugas') !!}
                 {!! $renderField('Pengganti', $leave->substitutes->pluck('name')->join(', ') ?: null) !!}
                 {!! $renderField('Tugas yang Diberikan', $leave->substitute_task, false) !!}
+
+                @if ($this->canAddSubstitutes)
+                    <div style="padding:12px 0 0;">
+                        <label class="form-label">Pengganti</label>
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            @foreach ($substituteIds as $i => $selectedId)
+                                <div wire:key="substitute-row-{{ $i }}" style="display:flex;align-items:center;gap:8px;">
+                                    <div style="flex:1;min-width:0;">
+                                        <select class="form-input" wire:model.live="substituteIds.{{ $i }}" data-tom-select data-placeholder="Cari nama pengganti..." @disabled($confirmingSubstitutes)>
+                                            {{-- `selected` eksplisit: lihat catatan di submit-leave-request.blade.php. --}}
+                                            <option value="" @selected($selectedId === '' || $selectedId === null)>Pilih pengganti</option>
+                                            @foreach ($this->substituteOptions as $id => $name)
+                                                {{-- Orang yang sudah dipilih di baris lain disembunyikan supaya tidak dobel. --}}
+                                                @continue($id !== $selectedId && in_array($id, $substituteIds, true))
+                                                <option value="{{ $id }}" @selected($id === $selectedId)>{{ $name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    @if (count($substituteIds) > 1 && ! $confirmingSubstitutes)
+                                        <button type="button" class="btn-ghost" wire:click="removeSubstituteRow({{ $i }})" title="Hapus pengganti"><i class="fa-solid fa-xmark"></i></button>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                        @if (count($substituteIds) < 5 && ! $confirmingSubstitutes)
+                            <button type="button" class="btn-ghost" style="margin-top:8px;" wire:click="addSubstituteRow"><i class="fa-solid fa-plus" style="font-size:12px;"></i> Tambah Pengganti</button>
+                        @endif
+                        <label class="form-label" style="margin-top:12px;">Tugas yang Diberikan</label>
+                        <textarea class="form-input" rows="2" placeholder="Deskripsikan tugas yang dikerjakan pengganti..." wire:model="substituteTask" @disabled($confirmingSubstitutes)></textarea>
+                        <p style="font-size:11.5px;color:var(--text-muted);margin:5px 0 0;">Maksimal 5 orang. Hanya bisa diisi 1 kali.</p>
+                        @error('substituteIds') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('substituteIds.*') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
+
+                        @if ($confirmingSubstitutes)
+                            <div style="margin-top:10px;padding:12px;border-radius:10px;background:var(--warning-bg, #fff8e1);">
+                                <p style="font-size:12.5px;margin:0 0 10px;">Pengganti hanya bisa diisi 1 kali dan tidak bisa diubah. Yakin sudah benar?</p>
+                                <div style="display:flex;gap:8px;">
+                                    <button type="button" class="btn-primary" wire:click="confirmSubstitutes" wire:loading.attr="disabled">Ya, simpan</button>
+                                    <button type="button" class="btn-ghost" wire:click="$set('confirmingSubstitutes', false)">Periksa lagi</button>
+                                </div>
+                            </div>
+                        @else
+                            <button type="button" class="btn-primary" style="margin-top:10px;" wire:click="askSubstitutes" wire:loading.attr="disabled">Simpan Pengganti</button>
+                        @endif
+                    </div>
+                @endif
             </div>
         @endif
     @endif

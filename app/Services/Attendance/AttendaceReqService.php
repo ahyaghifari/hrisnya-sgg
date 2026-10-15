@@ -229,6 +229,40 @@ class AttendaceReqService
         return $query->whereHas('activeJobPosition', fn ($q) => $q->whereIn('job_position_id', $direct->select('id')));
     }
 
+    /** Pengganti cuti susulan setelah diajukan: 1 kali saja (selama belum ada pengganti), pemilik
+     *  pengajuan, status in_review/approved. Aturan calon pengganti sama dengan saat submit. */
+    public function addLeaveSubstitutes(AttendanceRequests $request, User $user, array $ids, ?string $task): void
+    {
+        $detail = $request->leaveDetails()->first();
+
+        if ($request->user_id !== $user->id || ! $detail || ! in_array($request->status, ['in_review', 'approved'], true)) {
+            throw new \Exception('Pengganti tidak dapat ditambahkan pada pengajuan ini.');
+        }
+
+        if (! $this->leaveSubstituteEnabled($user)) {
+            throw new \Exception('Fitur pengganti cuti tidak tersedia untuk perusahaan Anda.');
+        }
+
+        if ($detail->substitutes()->exists()) {
+            throw new \Exception('Pengganti sudah pernah diisi dan tidak bisa diubah.');
+        }
+
+        $ids = array_values(array_unique(array_filter($ids)));
+
+        if (! $ids || count($ids) > 5) {
+            throw new \Exception('Pilih 1 sampai 5 pengganti.');
+        }
+
+        if ($this->unitMates($user)->whereKey($ids)->count() !== count($ids)) {
+            throw new \Exception('Pengganti harus karyawan lain di unit yang sama.');
+        }
+
+        DB::transaction(function () use ($detail, $ids, $task) {
+            $detail->substitutes()->sync($ids);
+            $detail->update(['substitute_task' => $task ?: null]);
+        });
+    }
+
     public function storeLeaveRequest(array $data, ?User $actingUser = null, bool $skipApproval = false, ?string $note = null, ?User $createdBy = null): object
     {
         $actingUser ??= auth('sanctum')->user();
