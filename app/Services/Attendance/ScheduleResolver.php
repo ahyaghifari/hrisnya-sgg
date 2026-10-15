@@ -90,6 +90,16 @@ class ScheduleResolver
         $schedule  = $assignment->schedule;
         $dayOfWeek = Carbon::parse($date)->dayOfWeek;
 
+        // IBS: tidak punya baris per hari dan tidak punya hari libur terjadwal - tanpa 'config'.
+        if ($schedule->schedule_type === 'ibs') {
+            return [
+                'type'       => 'ibs',
+                'is_off_day' => false,
+                'schedule'   => $schedule,
+                'label'      => "IBS - {$schedule->name}",
+            ];
+        }
+
         if ($schedule->schedule_type === 'fixed') {
             $day = ScheduleFixedDay::where('schedule_id', $schedule->id)->where('day_of_week', $dayOfWeek)->first();
             if (! $day) {

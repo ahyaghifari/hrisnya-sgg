@@ -287,11 +287,18 @@ class RekapPresensiPage extends Component
             $shiftCount++;
         }
 
+        $ibsCount = 0;
+        foreach ((new \App\Services\Attendance\Calculators\IbsScheduleCalculator())->calculate($filterCompany($result['buckets']['ibs'])) as $r) {
+            $record = $repo->saveCalculatedResult($r, 'access_logs_ibs');
+            $this->collectIfNew($record, $r['user'], $newRecords);
+            $ibsCount++;
+        }
+
         \App\Models\Attendance\OvertimeAttendanceRecord::saveEntries($filterCompany($result['buckets']['overtime']), 'access_logs');
 
         $this->syncNewRecords = $newRecords;
         $this->syncResultType = 'success';
-        $this->syncResultMessage = "Sync selesai: {$fixedCount} jadwal tetap, {$flexibleCount} jadwal fleksibel, {$shiftCount} jadwal shift diproses, "
+        $this->syncResultMessage = "Sync selesai: {$fixedCount} jadwal tetap, {$flexibleCount} jadwal fleksibel, {$shiftCount} jadwal shift, {$ibsCount} jadwal IBS diproses, "
             . count($newRecords) . ' presensi baru tercatat.';
     }
 
@@ -549,7 +556,7 @@ class RekapPresensiPage extends Component
 
     public function setScheduleFilter(string $type): void
     {
-        $this->scheduleFilter = ($type === $this->scheduleFilter || ! in_array($type, ['fixed', 'flexible', 'shift'], true)) ? '' : $type;
+        $this->scheduleFilter = ($type === $this->scheduleFilter || ! in_array($type, ['fixed', 'flexible', 'shift', 'ibs'], true)) ? '' : $type;
         $this->resetPage();
     }
 
@@ -578,7 +585,7 @@ class RekapPresensiPage extends Component
      */
     protected function applyScheduleTypeFilter(Builder $query, ?string $from = null, ?string $to = null): void
     {
-        if (! in_array($this->scheduleFilter, ['fixed', 'flexible', 'shift'], true)) {
+        if (! in_array($this->scheduleFilter, ['fixed', 'flexible', 'shift', 'ibs'], true)) {
             return;
         }
 

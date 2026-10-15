@@ -33,6 +33,7 @@ class AttendanceRecords extends Model
         'work_day_weight',
         'meets_target',
         'out_of_window',
+        'scan_sessions',
     ];
 
     protected $casts = [
@@ -40,6 +41,7 @@ class AttendanceRecords extends Model
         'work_day_weight'    => 'decimal:1',
         'meets_target'       => 'boolean',
         'out_of_window'      => 'boolean',
+        'scan_sessions'      => 'array',
     ];
 
     /** Merit Point otomatis "Terlambat": satu record telat = satu transaksi (idempotent per record);

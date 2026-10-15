@@ -6,6 +6,7 @@ use App\Models\Attendance\AttendanceRecords;
 use App\Repositories\Attendance\AttendanceRecordRepository;
 use App\Services\Attendance\Calculators\FixedScheduleCalculator;
 use App\Services\Attendance\Calculators\FlexibleScheduleCalculator;
+use App\Services\Attendance\Calculators\IbsScheduleCalculator;
 use App\Services\Attendance\Calculators\ShiftScheduleCalculator;
 
 /**
@@ -53,6 +54,17 @@ class AccessLogResweepService
                 $this->repo->saveCalculatedResult($r, 'access_logs_' . $type);
                 $saved++;
             }
+        }
+
+        foreach ((new IbsScheduleCalculator())->calculate($result['buckets']['ibs']) as $r) {
+            if ($this->isManuallyCorrected($r['user']->nip, $r['date'])) {
+                $skippedManual++;
+
+                continue;
+            }
+
+            $this->repo->saveCalculatedResult($r, 'access_logs_ibs');
+            $saved++;
         }
 
         $saved += \App\Models\Attendance\OvertimeAttendanceRecord::saveEntries($result['buckets']['overtime'], 'access_logs');

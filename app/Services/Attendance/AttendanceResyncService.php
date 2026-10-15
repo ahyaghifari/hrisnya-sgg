@@ -66,6 +66,15 @@ class AttendanceResyncService
                 }
             }
 
+            foreach ((new \App\Services\Attendance\Calculators\IbsScheduleCalculator())->calculate($result['buckets']['ibs']) as $r) {
+                if ($r['user']->id !== $user->id) {
+                    continue;
+                }
+
+                $repo->saveCalculatedResult($r, 'access_logs_ibs');
+                $counts['logs']++;
+            }
+
             $counts['logs'] += \App\Models\Attendance\OvertimeAttendanceRecord::saveEntries(
                 array_filter($result['buckets']['overtime'], fn ($e) => $e['user']->id === $user->id),
                 'access_logs'

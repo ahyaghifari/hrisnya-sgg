@@ -31,6 +31,7 @@ class AttendanceRecordRepository
             'work_day_weight'     => $data['work_day_weight'] ?? null,
             'meets_target'        => $data['meets_target'] ?? null,
             'out_of_window'       => $data['out_of_window'] ?? false,
+            'scan_sessions'       => $data['scan_sessions'] ?? null,
         ];
 
         // Sengaja TIDAK ada log per-simpan di sini: dipanggil tiap scan oleh cron presensi dan
@@ -81,6 +82,7 @@ class AttendanceRecordRepository
             // key ini sama sekali di array hasilnya (konsepnya memang tidak berlaku untuk Fixed).
             'meets_target'        => $r['meets_target'] ?? null,
             'out_of_window'       => $r['out_of_window'] ?? false,
+            'scan_sessions'       => $r['scan_sessions'] ?? null,
             'status'              => $r['status'],
             'source'              => $source,
             'is_auto_calculated'  => true,

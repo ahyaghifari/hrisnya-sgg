@@ -97,7 +97,7 @@ class CreateSchedulePage extends Component
 
         if ($this->scheduleType === ScheduleType::SHIFT->value) {
             $this->mountShiftSchedule($schedule);
-        } else {
+        } elseif ($this->scheduleType !== ScheduleType::IBS->value) {
             $this->mountDaySchedule($schedule);
         }
     }
@@ -175,7 +175,8 @@ class CreateSchedulePage extends Component
             if (empty($this->shiftTypes)) {
                 $this->addShiftType();
             }
-        } else {
+        } elseif ($this->scheduleType !== ScheduleType::IBS->value) {
+            // IBS tidak punya tabel hari - cukup nama jadwal, jam kerja mengikuti scan.
             $this->initDays();
         }
 
@@ -243,7 +244,7 @@ class CreateSchedulePage extends Component
 
                 // Snapshot dulu (baca kondisi lama) SEBELUM header di-update — Shift belum
                 // punya tab Riwayat jadi dilewati.
-                if ($this->scheduleType !== ScheduleType::SHIFT->value) {
+                if (! in_array($this->scheduleType, [ScheduleType::SHIFT->value, ScheduleType::IBS->value], true)) {
                     $this->snapshotDayScheduleChangeLog($schedule);
                 }
 
@@ -265,7 +266,7 @@ class CreateSchedulePage extends Component
 
             if ($this->scheduleType === ScheduleType::SHIFT->value) {
                 $this->saveShiftSchedule($schedule);
-            } else {
+            } elseif ($this->scheduleType !== ScheduleType::IBS->value) {
                 $this->saveDaySchedule($schedule);
             }
 

@@ -107,6 +107,19 @@ class SyncAccessLogsAttendance extends Command
             $shiftCount++;
         }
 
+        // Jadwal IBS: tiap hari bisa banyak masuk-pulang, jadi TANPA notifikasi per scan (spam), dan baris
+        // koreksi manual HC tidak ditimpa (jam kerjanya dihitung penuh dari pasangan scan).
+        $ibsCount = 0;
+        foreach ((new \App\Services\Attendance\Calculators\IbsScheduleCalculator())->calculate($result['buckets']['ibs']) as $r) {
+            if ($repo->findByEmployeeCodeAndDate($r['user']->nip, $r['date'])?->is_auto_calculated === false) {
+                continue;
+            }
+
+            $repo->saveCalculatedResult($r, 'access_logs_ibs');
+            $log->info("[{$runId}] diproses (ibs): nip={$r['user']->nip} nama={$r['user']->name} tanggal={$r['date']} sesi=" . count($r['scan_sessions']) . " menit={$r['working_minutes']}");
+            $ibsCount++;
+        }
+
         // Scan di hari libur jadwal yang ada pengajuan lembur - bukti lembur, bukan masuk/telat.
         $overtimeCount = OvertimeAttendanceRecord::saveEntries($result['buckets']['overtime'], 'access_logs');
         if ($overtimeCount > 0) {
@@ -168,14 +181,14 @@ class SyncAccessLogsAttendance extends Command
         $newWatermark = max($result['max_synced_at'], $previousWatermark ?? $result['max_synced_at']);
         $watermark->update(['last_synced_at' => $newWatermark]);
 
-        $summary = "[{$runId}] selesai: fixed={$fixedCount} flexible={$flexibleCount} shift={$shiftCount} extra_shift={$extraShiftCount} "
+        $summary = "[{$runId}] selesai: fixed={$fixedCount} flexible={$flexibleCount} shift={$shiftCount} ibs={$ibsCount} extra_shift={$extraShiftCount} "
             . 'jadwal_tidak_ditemukan=' . count($result['unresolved_schedule']) . ' '
             . 'device_tidak_dikenal=' . count($result['rejected_device']) . ' '
             . 'nip_tidak_dikenal=' . count($result['unmatched_users']) . ' '
             . "watermark_baru={$newWatermark}";
         $log->info($summary);
 
-        $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible, {$shiftCount} shift, {$extraShiftCount} extra_shift disimpan. Watermark -> {$result['max_synced_at']}.");
+        $this->info("Sync selesai: {$fixedCount} fixed, {$flexibleCount} flexible, {$shiftCount} shift, {$ibsCount} ibs, {$extraShiftCount} extra_shift disimpan. Watermark -> {$result['max_synced_at']}.");
 
         return Command::SUCCESS;
     }

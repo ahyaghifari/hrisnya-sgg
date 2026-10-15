@@ -105,6 +105,11 @@
     @if ($tab === 'jam-kerja' || $tab === 'kantor')
         @if ($schedule->schedule_type === 'shift')
             @include('livewire.presensi.partials.schedule-shift-detail')
+        @elseif ($schedule->schedule_type === 'ibs' && $tab === 'jam-kerja')
+            <div style="background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:22px;font-size:13px;line-height:1.7;color:var(--text-body);">
+                <p style="margin:0 0 8px;font-weight:700;color:var(--text-heading);">Jadwal IBS</p>
+                <p style="margin:0;">Tidak ada jam baku per hari. Scan dipasangkan berurutan (masuk, pulang, masuk, pulang), jam kerja adalah jumlah durasi tiap pasangan. Scan masuk tanpa pulang tampil belum pulang. Target 40 jam per minggu.</p>
+            </div>
         @else
             @include('livewire.presensi.partials.schedule-day-detail')
         @endif

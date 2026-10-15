@@ -140,6 +140,7 @@ class AccessLogScheduleReader
         foreach ($withUser->groupBy('employee_id') as $userRows) {
             $user = $userRows->first()->user;
             $shiftDates = [];
+            $ibsDays = [];
 
             foreach ($userRows->groupBy('access_date') as $date => $dayScans) {
                 $resolved = $this->scheduleResolver->resolveForUserDate($user, (string) $date, ignoreEffectiveDate: true);
@@ -150,12 +151,22 @@ class AccessLogScheduleReader
                     continue;
                 }
 
+                if ($resolved && $resolved['type'] === 'ibs') {
+                    $ibsDays[(string) $date] = $resolved;
+
+                    continue;
+                }
+
                 // Shift, atau jadwal kosong/gagal ('libur' - tetap boleh extra shift).
                 $shiftDates[] = (string) $date;
             }
 
             if ($shiftDates !== []) {
                 $entries = array_merge($entries, $this->shiftReader->read($user, $shiftDates));
+            }
+
+            if ($ibsDays !== []) {
+                $entries = array_merge($entries, $this->ibsEntries($user, $ibsDays));
             }
         }
 
@@ -186,10 +197,63 @@ class AccessLogScheduleReader
         ]);
     }
 
+    /**
+     * Jadwal IBS: scan SEMUA hari dipasangkan berurutan lintas tanggal (IbsScheduleCalculator::pair),
+     * lalu sesi dikelompokkan ke tanggal scan MASUK - pasangan yang melewati tengah malam jadi milik
+     * hari masuknya. Scan sehari sebelum & sesudah rentang ikut dibaca hanya sebagai konteks
+     * (menutup pasangan terbuka kemarin / menyelesaikan pasangan malam ini).
+     *
+     * @param  array<string, array>  $daysResolved  tanggal => hasil ScheduleResolver (type ibs)
+     * @return array<int, array>
+     */
+    private function ibsEntries(User $user, array $daysResolved): array
+    {
+        $dates = array_keys($daysResolved);
+        sort($dates);
+
+        $scans = $this->scans->forUser(
+            $user,
+            \Carbon\Carbon::parse($dates[0])->subDay()->toDateString(),
+            \Carbon\Carbon::parse(end($dates))->addDay()->toDateString(),
+        );
+
+        $sessionsByDate = collect(\App\Services\Attendance\Calculators\IbsScheduleCalculator::pair(
+            $scans->map(fn ($s) => $s->access_date . ' ' . $s->access_time)->all()
+        ))->groupBy('date');
+
+        $entries = [];
+
+        foreach ($dates as $date) {
+            $sessions = $sessionsByDate->get($date);
+
+            if (! $sessions) {
+                continue;
+            }
+
+            $dayScans = $scans->where('access_date', $date);
+
+            $entries[] = array_merge([
+                'employee_id'  => $user->nip,
+                'date'         => $date,
+                'check_in'     => $sessions->first()['in'],
+                'check_out'    => null,
+                'scan_count'   => $dayScans->count(),
+                'device_names' => $dayScans->pluck('device_name')->filter()->unique()->values()->all(),
+                'user'         => $user,
+                'sessions'     => $sessions->values()->all(),
+            ], $daysResolved[$date], [
+                'bucket'             => 'ibs',
+                'overtime_candidate' => false,
+            ]);
+        }
+
+        return $entries;
+    }
+
     private function emptyResult(): array
     {
         return [
-            'buckets' => ['fixed' => [], 'flexible' => [], 'shift' => [], 'off' => [], 'extra_shift' => [], 'overtime' => []],
+            'buckets' => ['fixed' => [], 'flexible' => [], 'shift' => [], 'ibs' => [], 'off' => [], 'extra_shift' => [], 'overtime' => []],
             'unmatched_users' => [],
             'unresolved_schedule' => [],
             'rejected_device' => [],
@@ -261,7 +325,7 @@ class AccessLogScheduleReader
      */
     private function completeWithStoredRecords(array $buckets): array
     {
-        $types = ['fixed', 'flexible', 'shift'];
+        $types = ['fixed', 'flexible', 'shift', 'ibs'];
         $entries = collect($types)->flatMap(fn ($type) => $buckets[$type]);
 
         if ($entries->isEmpty()) {
@@ -279,7 +343,7 @@ class AccessLogScheduleReader
                 $record = $stored->get($entry['employee_id'] . '|' . $entry['date']);
 
                 if ($record && ! $record->is_auto_calculated) {
-                    if ($entry['config']->is_overnight ?? false) {
+                    if (($entry['config'] ?? null)?->is_overnight ?? false) {
                         // Shift lewat tengah malam: jam pulang < jam masuk, min/max tidak berlaku.
                         $entry['check_in'] = $record->check_in_time && $entry['check_in']
                             ? min($record->check_in_time, $entry['check_in'])

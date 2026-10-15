@@ -90,7 +90,7 @@ class ShiftAttendanceReader
 
             $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
 
-            if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
+            if ($resolved && in_array($resolved['type'], ['fixed', 'flexible', 'ibs'], true)) {
                 continue;
             }
 
@@ -233,7 +233,7 @@ class ShiftAttendanceReader
     {
         $resolved = $this->scheduleResolver->resolveForUserDate($user, $date, ignoreEffectiveDate: true);
 
-        if ($resolved && in_array($resolved['type'], ['fixed', 'flexible'], true)) {
+        if ($resolved && in_array($resolved['type'], ['fixed', 'flexible', 'ibs'], true)) {
             return null;
         }
 

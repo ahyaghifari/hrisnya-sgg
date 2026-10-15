@@ -137,6 +137,7 @@ trait ResolvesTodayAttendanceStatus
             'fixed'    => 'Jadwal Tetap',
             'flexible' => 'Jadwal Fleksibel',
             'shift'    => 'Jadwal Shift',
+            'ibs'      => 'Jadwal IBS',
             default    => null,
         };
 

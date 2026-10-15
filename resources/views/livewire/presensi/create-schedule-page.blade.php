@@ -99,6 +99,7 @@
             'flexible' => ['icon' => 'jadwal-flexible.png', 'desc' => 'Karyawan boleh datang & pulang kapan pun, yang dihitung total jam kerjanya per hari.'],
             'fixed' => ['icon' => 'jadwal-fixed.png', 'desc' => 'Jam masuk & pulang sama setiap hari kerja, cocok untuk jadwal kantor normal.'],
             'shift' => ['icon' => 'jadwal-shift.png', 'desc' => 'Rotasi kerja (Pagi/Siang/Malam, dst) yang dijadwalkan per periode, biasanya bulanan.'],
+            'ibs' => ['icon' => null, 'fa' => 'fa-user-nurse', 'desc' => 'Beberapa kali masuk-pulang dalam sehari tanpa jam baku (mis. perawat IBS), jam kerja dihitung dari pasangan scan masuk-pulang.'],
         ];
     @endphp
 
@@ -114,7 +115,11 @@
                     <button type="button" wire:click="selectType('{{ $type->value }}')"
                         style="background:none;border:none;padding:0;cursor:pointer;text-align:center;font-family:inherit;">
                         <div style="width:100%;max-width:260px;aspect-ratio:1;margin:0 auto 18px;border-radius:28px;border:2px solid {{ $isSelected ? '#042c6c' : 'var(--border)' }};background:{{ $isSelected ? 'rgba(4,44,108,0.06)' : 'var(--surface)' }};display:flex;align-items:center;justify-content:center;transition:all 0.15s;">
-                            <img src="{{ asset('assets/' . $typeMeta[$type->value]['icon']) }}" alt="{{ $type->getLabel() }}" style="width:75%;height:75%;object-fit:contain;">
+                             ($typeMeta[$type->value]['icon'])
+                                <img src="{{ asset('assets/' . $typeMeta[$type->value]['icon']) }}" alt="{{ $type->getLabel() }}" style="width:75%;height:75%;object-fit:contain;">
+                            
+                                <i class="fa-solid {{ $typeMeta[$type->value]['fa'] }}" style="font-size:96px;color:#042c6c;" aria-hidden="true"></i>
+                            
                         </div>
 
                         <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;">
@@ -153,7 +158,11 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;">
                     <div style="display:flex;align-items:center;gap:10px;">
                         <div style="width:38px;height:38px;border-radius:10px;background:rgba(4,44,108,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <img src="{{ asset('assets/' . $typeMeta[$scheduleType]['icon']) }}" alt="" style="width:26px;height:26px;object-fit:contain;">
+                             ($typeMeta[$scheduleType]['icon'])
+                                <img src="{{ asset('assets/' . $typeMeta[$scheduleType]['icon']) }}" alt="" style="width:26px;height:26px;object-fit:contain;">
+                            
+                                <i class="fa-solid {{ $typeMeta[$scheduleType]['fa'] }}" style="font-size:18px;color:#042c6c;" aria-hidden="true"></i>
+                            
                         </div>
                         <div>
                             <p style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin:0;">{{ \App\Enum\ScheduleType::from($scheduleType)->getLabel() }}</p>
@@ -254,6 +263,17 @@
             {{-- Form-nya dipecah per tipe jadwal — lihat resources/views/livewire/presensi/partials/. --}}
             @if ($scheduleType === 'shift')
                 @include('livewire.presensi.partials.schedule-shift-form')
+            @elseif ($scheduleType === 'ibs')
+                <div style="padding:22px;font-size:13px;line-height:1.7;color:var(--text-body);">
+                    <p style="margin:0 0 8px;font-weight:700;color:var(--text-heading);">Cara kerja Jadwal IBS</p>
+                    <ul style="margin:0;padding-left:18px;">
+                        <li>Tidak ada jam baku dan tidak ada tabel hari: karyawan bebas masuk-pulang beberapa kali dalam sehari.</li>
+                        <li>Scan dipasangkan berurutan (masuk, pulang, masuk, pulang, dst). Jam kerja = jumlah durasi tiap pasangan, jeda antar pasangan tidak dihitung.</li>
+                        <li>Scan masuk tanpa pulang ditandai belum pulang (0 menit). Pasangan yang melewati tengah malam dihitung di tanggal scan masuk.</li>
+                        <li>Tidak ada hitung telat atau pulang cepat. Lembur tetap lewat pengajuan lembur.</li>
+                        <li>Target 40 jam per minggu. Jabatan yang memakai jadwal ini diatur di "Atur Pengguna Jadwal" setelah disimpan.</li>
+                    </ul>
+                </div>
             @else
                 @include('livewire.presensi.partials.schedule-day-form')
             @endif

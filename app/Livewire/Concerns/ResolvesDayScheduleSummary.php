@@ -65,6 +65,14 @@ trait ResolvesDayScheduleSummary
                 'type' => 'flexible',
                 'code' => null,
             ],
+            'ibs' => [
+                'state' => 'scheduled',
+                'label' => $resolved['schedule']->name ?? 'Jadwal IBS',
+                'detail' => 'Mengikuti scan',
+                'color' => null,
+                'type' => 'ibs',
+                'code' => null,
+            ],
             default => ['state' => 'none', 'label' => null, 'detail' => null, 'color' => null, 'type' => null, 'code' => null],
         };
     }

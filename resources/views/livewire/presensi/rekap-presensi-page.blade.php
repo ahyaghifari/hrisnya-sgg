@@ -126,10 +126,10 @@
     </button>
 </div>
 
-{{-- Filter tipe jadwal (berlaku untuk mode harian maupun periode): Fixed / Flexible / Shift. Klik lagi = semua. --}}
+{{-- Filter tipe jadwal (berlaku untuk mode harian maupun periode): Fixed / Flexible / Shift / IBS. Klik lagi = semua. --}}
 <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px;">
     <span style="font-size:12px;font-weight:700;color:var(--text-muted);"><i class="fa-regular fa-calendar-days"></i> Tipe jadwal:</span>
-    @foreach ([['', 'Semua'], ['fixed', 'Fixed'], ['flexible', 'Flexible'], ['shift', 'Shift']] as [$type, $typeLabel])
+    @foreach ([['', 'Semua'], ['fixed', 'Fixed'], ['flexible', 'Flexible'], ['shift', 'Shift'], ['ibs', 'IBS']] as [$type, $typeLabel])
         @php $typeActive = $scheduleFilter === $type; @endphp
         <button type="button" wire:click="setScheduleFilter('{{ $type }}')"
             style="padding:6px 14px;border-radius:99px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.15s ease;{{ $typeActive ? 'background:var(--brand-fill);color:#fff;border:1.5px solid var(--brand-fill);' : 'background:var(--surface);color:var(--text-muted);border:1.5px solid var(--border);' }}">

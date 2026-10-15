@@ -69,6 +69,7 @@ class SchedulesPage extends Component
             ScheduleType::FIXED => ['bg' => 'rgba(4,44,108,0.1)', 'text' => '#042c6c'],
             ScheduleType::FLEXIBLE => ['bg' => 'rgba(4,124,84,0.1)', 'text' => '#047C54'],
             ScheduleType::SHIFT => ['bg' => 'rgba(217,119,6,0.1)', 'text' => '#d97706'],
+            ScheduleType::IBS => ['bg' => 'rgba(124,58,237,0.1)', 'text' => '#7c3aed'],
             default => ['bg' => 'var(--info-soft-bg)', 'text' => 'var(--info-soft-text)'],
         };
     }

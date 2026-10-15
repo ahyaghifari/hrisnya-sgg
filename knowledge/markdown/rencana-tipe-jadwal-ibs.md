@@ -1,6 +1,6 @@
 # Rencana: Tipe Jadwal IBS (Instalasi Bedah Sentral)
 
-Status: **rencana, belum diimplementasi** (2026-10-15). Dokumen ini merangkum kebutuhan, rancangan, dan
+Status: **rencana, belum diimplementasi** (2026-10-15; keputusan #1, #2, #4 sudah diambil, tersisa #3). Dokumen ini merangkum kebutuhan, rancangan, dan
 keputusan yang masih terbuka sebelum coding dimulai.
 
 ## 1. Latar belakang
@@ -53,6 +53,7 @@ dilakukan kapan saja tanpa mengubah laporan total.
 
 ## 4. Laporan yang dihasilkan
 
+- Per karyawan per minggu: total jam kerja vs target 40 jam (2400 menit), selisih kurang/lebih.
 - Per karyawan per periode: total jam kerja, jumlah hari hadir, rata-rata jam per hari.
 - Per hari: daftar pasangan masuk-pulang beserta durasinya.
 
@@ -67,14 +68,14 @@ dilakukan kapan saja tanpa mengubah laporan total.
 4. **Migrasi**: kolom `scan_sessions` di `attendance_records`.
 5. **Tampilan**: rincian sesi di modal rekap presensi, serta laporan total jam kerja IBS.
 
-## 6. Keputusan terbuka
+## 6. Keputusan
 
-| # | Pertanyaan | Usulan |
+| # | Pertanyaan | Keputusan |
 |---|---|---|
-| 1 | Pasangan yang melewati tengah malam masuk ke tanggal mana? | Tanggal scan **masuk** |
-| 2 | Scan ganjil | Pasangan terbuka, 0 menit, tampil "belum pulang" |
-| 3 | `work_day_weight` payroll: 1 hari penuh = berapa jam? | **Perlu jawaban.** Usulan default 8 jam, di-set per jadwal |
-| 4 | Siapa yang memakai tipe ini | Di-assign per jabatan atau personal lewat `ScheduleAssignment` |
+| 1 | Pasangan yang melewati tengah malam masuk ke tanggal mana? | **Diputuskan:** tanggal scan **masuk** |
+| 2 | Scan ganjil | **Diputuskan:** pasangan terbuka, 0 menit, tampil "belum pulang" |
+| 3 | `work_day_weight` payroll: 1 hari penuh = berapa jam? | **Sebagian dijawab (2026-10-15):** 1 hari kerja normal = **7 jam** (420 menit), target **40 jam per minggu** (2400 menit), penilaian jam kerja **per minggu**. Masih terbuka: batas minggu (Senin-Minggu?) dan perlakuan payroll bila total minggu < 40 jam |
+| 4 | Siapa yang memakai tipe ini | **Diputuskan:** di-assign **per jabatan** lewat `ScheduleAssignment` (`job_position_id`), sama seperti Fixed/Flexible |
 
 ## 7. Rencana kerja bertahap
 
