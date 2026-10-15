@@ -253,11 +253,9 @@ class AttendaceReqService
 
         $leaveType = LeaveTypeCategoryEnum::from($data['type_id']);
 
-        // ponytail: enforcement blokir submit dimatikan sementara atas permintaan user — kuota
-        // tetap dihitung & ditampilkan ke approver (getCutiTahunanPeriodeUsage), cuma tidak lagi
-        // mencegah pemohon submit. Nyalakan lagi dengan uncomment baris di bawah kalau kuota mau
-        // jadi hard block lagi.
-        // $this->assertWithinCutiTahunanMonthlyLimit($actingUser, $leaveType, $data);
+        // Batas Cuti Tahunan per bulan kalender dinyalakan lagi atas permintaan user (sebelumnya
+        // sempat dimatikan): pemohon diblokir kalau akumulasi hari melewati batas bulan itu.
+        $this->assertWithinCutiTahunanMonthlyLimit($actingUser, $leaveType, $data);
 
         // Cuti khusus (haid/melahirkan/keguguran) TETAP diblokir kalau lewat kuota — ini hak
         // yang dibatasi UU, bukan kuota kebijakan yang boleh dilanggar seperti Cuti Tahunan.
@@ -383,7 +381,7 @@ class AttendaceReqService
     /**
      * Pemakaian kuota Cuti Tahunan per BULAN KALENDER (AttendanceSettingEnum::CUTI_TAHUNAN_MAX_PER_BULAN)
      * untuk 1 leave type pada bulan yang mengandung $referenceDate — dipakai bareng oleh
-     * assertWithinCutiTahunanMonthlyLimit (validasi submit, saat ini dimatikan sementara) DAN
+     * assertWithinCutiTahunanMonthlyLimit (validasi submit) DAN
      * info kuota pemohon di halaman approval (§8). Null kalau leave type ini bukan kategori
      * Tahunan (aturan ini memang tidak berlaku). "used" menghitung HANYA status approved
      * (konsisten dengan getLeaveUserBalance) — in_review belum mengurangi.
@@ -529,8 +527,8 @@ class AttendaceReqService
     }
 
     /**
-     * Jendela pengajuan Cuti Tahunan dibuka 2 BULAN sebelum tanggal eligible (awalnya 1 bulan,
-     * diubah user 2026-10-12; contoh: masa kerja minimal 12 bulan, gabung 3 Nov -> eligible
+     * Jendela pengajuan Cuti Tahunan dibuka 1 BULAN sebelum tanggal eligible (sempat 2 bulan sejak 2026-10-12,
+     * dikembalikan ke 1 bulan atas permintaan user; contoh: masa kerja minimal 12 bulan, gabung 3 Nov -> eligible
      * 3 Nov tahun depan, form baru boleh diisi mulai 3 Sep tahun depan) - tapi tanggal MULAI cuti yang
      * dipilih tetap wajib >= tanggal eligible (submit boleh lebih awal, cutinya sendiri
      * tidak boleh). Dropdown jenis cuti di form (SubmitLeaveRequest::getLeaveTypesProperty())
@@ -549,10 +547,10 @@ class AttendaceReqService
             return;
         }
 
-        $windowOpen = $eligibleDate->copy()->subMonths(2);
+        $windowOpen = $eligibleDate->copy()->subMonths(1);
 
         if (Carbon::now()->lt($windowOpen)) {
-            throw new \Exception("Cuti Tahunan baru bisa diajukan mulai {$windowOpen->translatedFormat('d M Y')} (2 bulan sebelum masa kerja minimal terpenuhi pada {$eligibleDate->translatedFormat('d M Y')}).");
+            throw new \Exception("Cuti Tahunan baru bisa diajukan mulai {$windowOpen->translatedFormat('d M Y')} (1 bulan sebelum masa kerja minimal terpenuhi pada {$eligibleDate->translatedFormat('d M Y')}).");
         }
 
         if (Carbon::parse($data['start_date'])->lt($eligibleDate)) {

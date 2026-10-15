@@ -171,14 +171,6 @@ class SubmitPermissionRequest extends Component
         }
     }
 
-    /** 2 company override (Banjarbaru/Barabai) TIDAK menampilkan "sisa kuota" - diganti penjelasan
-     * ketentuan + ajakan memakai izin dengan bijak, supaya karyawan tidak terdorong menghabiskan
-     * jatah (instruksi user 2026-10-01). */
-    public function getKetentuanModeProperty(): bool
-    {
-        return PermissionGroupEnum::usesLabelOverride(Auth::user()->company_id);
-    }
-
     public function getGroupLabelProperty(): string
     {
         return $this->group ? PermissionGroupEnum::from($this->group)->label(Auth::user()->company_id) : '';
