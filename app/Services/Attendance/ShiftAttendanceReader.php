@@ -206,7 +206,12 @@ class ShiftAttendanceReader
             }
 
             foreach ($shiftConfigs as $config) {
-                if ($t >= $this->checkInWindowStart($config) && ($config->is_overnight || $t <= $this->checkOutWindowEnd($config))) {
+                // Pakai jam shift +/- toleransi, BUKAN jendela buffer check-in (bisa 3 jam: Malam
+                // 20:00 buffer 180 -> mulai 17:00, jadi scan pulang lembur 17:00 ikut terambil).
+                $from = Carbon::parse($config->start_time)->subMinutes(self::OVERTIME_SCAN_TOLERANCE_MINUTES)->format('H:i:s');
+                $to = Carbon::parse($config->end_time)->addMinutes(self::OVERTIME_SCAN_TOLERANCE_MINUTES)->format('H:i:s');
+
+                if ($t >= $from && ($config->is_overnight || $t <= $to)) {
                     return false;
                 }
             }
