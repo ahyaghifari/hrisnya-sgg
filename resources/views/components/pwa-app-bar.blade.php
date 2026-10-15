@@ -9,6 +9,7 @@
         <div class="pwa-app-bar-actions">
             <x-theme-toggle variant="bar" />
             <livewire:notification-bell variant="mobile" :key="'notif-bell-mobile'" />
+            <x-mascot-guide variant="bar" />
         </div>
     </div>
 </header>
