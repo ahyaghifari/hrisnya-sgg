@@ -37,7 +37,9 @@ selama pengumuman masih berlaku (banner_until); pengumuman baru selalu muncul. -
         box-shadow: -150px 120px 0 -60px currentColor; }
     .ann-mark { position: absolute !important; right: 64px; bottom: -14px; font-size: 76px; line-height: 1; color: var(--ann-accent); opacity: .09; transform: rotate(-12deg); pointer-events: none; transition: color .6s ease; }
     .ann-icon img { width: 100%; height: 100%; object-fit: contain; }
-    .ann-icon { flex-shrink: 0; width: 52px; height: 52px; padding: 3px; border-radius: 14px; background: color-mix(in srgb, var(--ann-accent) 16%, transparent); color: var(--ann-accent); display: flex; align-items: center; justify-content: center; font-size: 17px; transition: background .6s ease, color .6s ease; }
+    /* Maskot langsung tanpa kotak; margin negatif vertikal supaya banner tidak ikut membengkak. */
+    .ann-icon { flex-shrink: 0; width: 84px; height: 84px; margin: -12px 0; display: flex; align-items: center; justify-content: center; }
+    @media (max-width: 480px) { .ann-icon { width: 64px; height: 64px; margin: -6px 0; } }
     .ann-body { flex: 1; min-width: 0; display: grid; align-items: center; }
     .ann-link { grid-area: 1 / 1; min-width: 0; text-decoration: none; color: inherit; opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity .6s ease, transform .6s ease; }
     .ann-link.on { opacity: 1; transform: none; pointer-events: auto; }
