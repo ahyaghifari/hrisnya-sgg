@@ -2,6 +2,7 @@
 
 namespace App\Services\Attendance;
 
+use App\Models\Attendance\AttendanceRequestOvertimeDetails;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ScheduleShiftType;
 use App\Enum\ShiftType;
@@ -23,6 +24,9 @@ class ShiftAttendanceReader
 {
     /** Batas mundur rantai shift lewat tengah malam berturut2. */
     private const MAX_OVERNIGHT_CHAIN_DAYS = 31;
+
+    /** Toleransi scan lembur sebelum jam mulai / sesudah jam selesai pengajuan. */
+    private const OVERTIME_SCAN_TOLERANCE_MINUTES = 30;
 
     public function __construct(
         private ScheduleResolver $scheduleResolver,
@@ -94,6 +98,13 @@ class ShiftAttendanceReader
                 ? $resolved['config']
                 : null;
 
+            // Scan jam lembur (di luar jam shift) bukan bukti shift - jangan jadi masuk/pulang shift.
+            $dayScans = $this->withoutOvertimeScans($user, $date, $dayScans);
+
+            if ($dayScans->isEmpty()) {
+                continue;
+            }
+
             foreach ($this->pairDay($user, $date, $dayScans, $normalConfig, $byDate, $consumedFirstScan) as $entry) {
                 $entries[] = $this->classifyShiftEntry($entry);
             }
@@ -150,6 +161,58 @@ class ShiftAttendanceReader
         }
 
         return false;
+    }
+
+    /**
+     * Buang scan yang jatuh di jendela pengajuan lembur aktif (menunggu/disetujui, toleransi
+     * OVERTIME_SCAN_TOLERANCE_MINUTES) DAN di luar jendela shift hari itu. Contoh: jadwal malam
+     * 20:00-08:00 + lembur siang 14:00-17:00 -> scan 14:00/17:00 bukan masuk/pulang shift malam.
+     * Scan yang juga jendela shift (mis. lembur menyambung jam masuk) tetap milik shift; scan pulang
+     * shift malam kemarin tidak pernah dibuang.
+     */
+    private function withoutOvertimeScans(User $user, string $date, Collection $dayScans): Collection
+    {
+        $ranges = AttendanceRequestOvertimeDetails::query()
+            ->where('date', $date)
+            ->whereHas('attendanceRequest', fn ($q) => $q->where('user_id', $user->id)->whereIn('status', ['in_review', 'approved']))
+            ->get(['start_time', 'end_time'])
+            ->map(function ($d) {
+                $start = Carbon::parse($d->start_time);
+                $end = Carbon::parse($d->end_time);
+
+                return [
+                    $start->copy()->subMinutes(self::OVERTIME_SCAN_TOLERANCE_MINUTES)->format('H:i:s'),
+                    // Lembur lewat tengah malam: batas akhir dipotong di akhir hari (sisanya tanggal berikut).
+                    $end->gt($start) ? $end->copy()->addMinutes(self::OVERTIME_SCAN_TOLERANCE_MINUTES)->format('H:i:s') : '23:59:59',
+                ];
+            });
+
+        if ($ranges->isEmpty()) {
+            return $dayScans;
+        }
+
+        $shiftConfigs = array_filter([$this->normalShiftConfigFor($user, $date), $this->find($user, $date)?->shiftType]);
+        $prevConfig = $this->overnightConfigFor($user, Carbon::parse($date)->subDay()->toDateString());
+
+        return $dayScans->reject(function ($scan) use ($ranges, $shiftConfigs, $prevConfig) {
+            $t = $scan->access_time;
+
+            if (! $ranges->contains(fn ($r) => $t >= $r[0] && $t <= $r[1])) {
+                return false;
+            }
+
+            if ($prevConfig && $this->isOvernightCheckoutScan($t, $prevConfig)) {
+                return false;
+            }
+
+            foreach ($shiftConfigs as $config) {
+                if ($t >= $this->checkInWindowStart($config) && ($config->is_overnight || $t <= $this->checkOutWindowEnd($config))) {
+                    return false;
+                }
+            }
+
+            return true;
+        })->values();
     }
 
     /** Termasuk overnight kalau jadwal NORMAL hari itu overnight, ATAU extra shift approved
