@@ -36,7 +36,8 @@ selama pengumuman masih berlaku (banner_until); pengumuman baru selalu muncul. -
     .ann-bg::after { content: ''; position: absolute; right: -50px; top: -70px; width: 190px; height: 190px; border-radius: 50%; border: 24px solid currentColor; opacity: .08;
         box-shadow: -150px 120px 0 -60px currentColor; }
     .ann-mark { position: absolute !important; right: 64px; bottom: -14px; font-size: 76px; line-height: 1; color: var(--ann-accent); opacity: .09; transform: rotate(-12deg); pointer-events: none; transition: color .6s ease; }
-    .ann-icon { flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--ann-accent) 16%, transparent); color: var(--ann-accent); display: flex; align-items: center; justify-content: center; font-size: 17px; transition: background .6s ease, color .6s ease; }
+    .ann-icon img { width: 100%; height: 100%; object-fit: contain; }
+    .ann-icon { flex-shrink: 0; width: 52px; height: 52px; padding: 3px; border-radius: 14px; background: color-mix(in srgb, var(--ann-accent) 16%, transparent); color: var(--ann-accent); display: flex; align-items: center; justify-content: center; font-size: 17px; transition: background .6s ease, color .6s ease; }
     .ann-body { flex: 1; min-width: 0; display: grid; align-items: center; }
     .ann-link { grid-area: 1 / 1; min-width: 0; text-decoration: none; color: inherit; opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity .6s ease, transform .6s ease; }
     .ann-link.on { opacity: 1; transform: none; pointer-events: auto; }
@@ -71,7 +72,7 @@ selama pengumuman masih berlaku (banner_until); pengumuman baru selalu muncul. -
      x-show="items.length" x-cloak x-on:mouseenter="stop()" x-on:mouseleave="play()" x-on:touchstart.passive="stop()">
     <template x-for="t in ['info', 'success', 'warning']"><div class="ann-bg" :class="'ann-bg-' + t + ((items[i]?.tone || 'info') === t ? ' on' : '')"></div></template>
     <i class="fa-solid fa-bullhorn ann-mark" aria-hidden="true"></i>
-    <span class="ann-icon"><i class="fa-solid fa-bullhorn"></i></span>
+    <span class="ann-icon"><img src="{{ asset('assets/mascot/announcement.png') }}" alt="" aria-hidden="true"></span>
     <div class="ann-body">
         <template x-for="(a, n) in items" :key="a.id">
             <a class="ann-link" :class="{ on: n === i }" :href="a.url" wire:navigate :tabindex="n === i ? 0 : -1">

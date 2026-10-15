@@ -102,6 +102,31 @@ class LeaveSubstituteTest extends TestCase
         $this->assertNull(AttendanceRequestLeaveDetails::first()->substitute_task);
     }
 
+    public function test_substitutes_can_be_added_once_after_submit(): void
+    {
+        $employee = $this->employeeIn($this->unitA, 'Pemohon');
+        $mate = $this->employeeIn($this->unitA, 'Rekan Unit');
+        $other = $this->employeeIn($this->unitB, 'Orang Lain');
+        $svc = app(AttendaceReqService::class);
+
+        $this->submit($employee, []);
+        $request = AttendanceRequestLeaveDetails::first()->request;
+
+        try {
+            $svc->addLeaveSubstitutes($request, $employee, [$other->id], null);
+            $this->fail('Pengganti beda unit seharusnya ditolak.');
+        } catch (\Exception $e) {
+            $this->assertSame('Pengganti harus karyawan lain di unit yang sama.', $e->getMessage());
+        }
+
+        $svc->addLeaveSubstitutes($request, $employee, [$mate->id], 'Jaga IGD');
+        $this->assertSame([$mate->id], $this->substituteIds());
+        $this->assertSame('Jaga IGD', AttendanceRequestLeaveDetails::first()->substitute_task);
+
+        $this->expectExceptionMessage('Pengganti sudah pernah diisi dan tidak bisa diubah.');
+        $svc->addLeaveSubstitutes($request, $employee, [$mate->id], null);
+    }
+
     public function test_more_than_five_substitutes_is_rejected(): void
     {
         $employee = $this->employeeIn($this->unitA, 'Pemohon');

@@ -101,6 +101,7 @@
         <div class="nav-right">
             <x-theme-toggle variant="icon" />
             <livewire:notification-bell variant="desktop" :key="'notif-bell-desktop'" />
+            <x-mascot-guide variant="icon" />
             <div class="dropdown">
                 @if ($navPhotoUrl)
                     <img src="{{ $navPhotoUrl }}" alt="{{ auth()->user()->full_name }}" class="nav-avatar" style="object-fit:cover;">

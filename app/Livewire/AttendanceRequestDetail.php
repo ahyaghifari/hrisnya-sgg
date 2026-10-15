@@ -29,6 +29,11 @@ class AttendanceRequestDetail extends Component
     public array $lampiran = [];
     public bool $confirmingUpload = false;
 
+    /** Pengganti cuti susulan - 1 kali saja (lihat getCanAddSubstitutesProperty()). */
+    public array $substituteIds = [''];
+    public ?string $substituteTask = null;
+    public bool $confirmingSubstitutes = false;
+
     /** Tambah lampiran/bukti Lembur (lihat getCanAddOvertimeAttachmentProperty()). */
     public array $overtimeFiles = [];
     public ?string $overtimeLink = null;
@@ -148,6 +153,71 @@ class AttendanceRequestDetail extends Component
         unset($this->canUploadAttachment);
 
         Notification::make()->title('Lampiran berhasil diunggah')->success()->send();
+    }
+
+    /** Pemilik boleh mengisi pengganti cuti susulan 1 kali saja, selama belum ada pengganti (RS saja). */
+    public function getCanAddSubstitutesProperty(): bool
+    {
+        return $this->record->user_id === Auth::id()
+            && $this->record->type === 'leave'
+            && in_array($this->record->status, ['in_review', 'approved'], true)
+            && app(AttendaceReqService::class)->leaveSubstituteEnabled(Auth::user())
+            && ! $this->record->leaveDetails()->first()?->substitutes()->exists();
+    }
+
+    public function getSubstituteOptionsProperty()
+    {
+        return app(AttendaceReqService::class)->unitMates(Auth::user())->orderByName()->get()->pluck('name', 'id');
+    }
+
+    public function addSubstituteRow(): void
+    {
+        if (count($this->substituteIds) < 5) {
+            $this->substituteIds[] = '';
+        }
+    }
+
+    public function removeSubstituteRow(int $index): void
+    {
+        unset($this->substituteIds[$index]);
+        $this->substituteIds = array_values($this->substituteIds) ?: [''];
+    }
+
+    public function askSubstitutes(): void
+    {
+        abort_unless($this->canAddSubstitutes, 403);
+
+        // Baris kosong (belum dipilih) dibuang dulu sebelum divalidasi.
+        $this->substituteIds = array_values(array_filter($this->substituteIds)) ?: [''];
+
+        $this->validate([
+            'substituteIds' => ['required', 'array', 'min:1', 'max:5'],
+            'substituteIds.*' => ['required', 'string'],
+            'substituteTask' => ['nullable', 'string'],
+        ], ['substituteIds.*.required' => 'Pilih minimal 1 pengganti.', 'substituteIds.max' => 'Pengganti maksimal 5 orang.']);
+
+        $this->confirmingSubstitutes = true;
+    }
+
+    public function confirmSubstitutes(): void
+    {
+        abort_unless($this->canAddSubstitutes, 403);
+
+        try {
+            app(AttendaceReqService::class)->addLeaveSubstitutes($this->record, Auth::user(), $this->substituteIds, $this->substituteTask);
+        } catch (\Exception $e) {
+            $this->confirmingSubstitutes = false;
+            $this->addError('substituteIds', $e->getMessage());
+
+            return;
+        }
+
+        $this->reset('substituteTask', 'confirmingSubstitutes');
+        $this->substituteIds = [''];
+        $this->record->load('leaveDetails.substitutes');
+        unset($this->canAddSubstitutes);
+
+        Notification::make()->title('Pengganti berhasil disimpan')->success()->send();
     }
 
     /** Tambah lampiran/bukti lembur oleh pengaju: selama pengajuan masih hidup (in_review/approved) dan hari ini
