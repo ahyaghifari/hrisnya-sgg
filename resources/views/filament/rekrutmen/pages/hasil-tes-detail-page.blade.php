@@ -53,6 +53,34 @@ $hasSections = $sections->contains(fn ($s) => $s['name']);
     @php $q = $item['question']; $ans = $item['answer']; $no++; $isCorrect = (bool) $ans?->is_correct; @endphp
     <x-filament::section>
         <div class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">{{ $no }}. {{ $q->question }}</div>
+        @if($img = \App\Models\Rekrutmen\QuizQuestion::imageUri($q->image_path))
+            <img src="{{ $img }}" alt="Gambar soal {{ $no }}" class="mb-3 max-h-72 rounded-lg border border-gray-200 dark:border-white/10">
+        @endif
+        @if(filled($q->option_images))
+            @php
+                $picked = array_map('trim', explode(',', (string) $ans?->selected_option));
+                $rights = array_map('trim', explode(',', (string) $q->correct_option));
+            @endphp
+            <div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                @foreach($q->options ?? [] as $opt)
+                    @php
+                        $isRight = in_array($opt, $rights, true);
+                        $isPicked = in_array($opt, $picked, true);
+                    @endphp
+                    <div @class([
+                        'rounded-lg border p-2 text-center text-xs',
+                        'border-success-500 bg-success-50 dark:bg-success-500/10' => $isRight,
+                        'border-danger-500 bg-danger-50 dark:bg-danger-500/10' => $isPicked && ! $isRight,
+                        'border-gray-200 dark:border-white/10' => ! $isRight && ! $isPicked,
+                    ])>
+                        @if($optImg = \App\Models\Rekrutmen\QuizQuestion::imageUri($q->option_images[$opt] ?? null))
+                            <img src="{{ $optImg }}" alt="Pilihan {{ $opt }}" class="mx-auto mb-1 max-h-32 rounded">
+                        @endif
+                        <div class="font-semibold">{{ $opt }}{{ $isPicked ? ' (dipilih)' : '' }}{{ $isRight ? ' ✓' : '' }}</div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
         <div class="flex flex-wrap gap-x-5 gap-y-1 text-xs">
             <x-filament::badge :color="$isCorrect ? 'success' : 'danger'" :icon="$isCorrect ? 'heroicon-m-check' : 'heroicon-m-x-mark'">
                 Jawaban: {{ filled($ans?->selected_option) ? $ans->selected_option : '(tidak dijawab)' }}
@@ -61,6 +89,18 @@ $hasSections = $sections->contains(fn ($s) => $s['name']);
                 <span class="self-center text-gray-500 dark:text-gray-400">Jawaban benar: {{ $q->correct_option }}</span>
             @endif
         </div>
+        @if(! $isCorrect)
+            <div class="mt-2 flex flex-wrap gap-3">
+                @foreach(array_map('trim', explode(',', (string) $q->correct_option)) as $rightOpt)
+                    @if($rightImg = \App\Models\Rekrutmen\QuizQuestion::imageUri($q->option_images[$rightOpt] ?? null))
+                        <div class="rounded-lg border border-success-500 bg-success-50 p-2 text-center text-xs dark:bg-success-500/10">
+                            <img src="{{ $rightImg }}" alt="Jawaban benar {{ $rightOpt }}" class="mx-auto mb-1 max-h-32 rounded">
+                            <div class="font-semibold">{{ $rightOpt }} ✓</div>
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+        @endif
     </x-filament::section>
     @endforeach
 @endforeach
