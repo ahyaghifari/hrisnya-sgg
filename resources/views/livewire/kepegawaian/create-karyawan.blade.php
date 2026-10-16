@@ -106,11 +106,6 @@
                 <label class="form-label">Nama Panggilan</label>
                 <input type="text" wire:model="nickname" class="form-input">
             </div>
-            <div style="display:flex;align-items:flex-end;">
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding-bottom:9px;">
-                    <input type="checkbox" wire:model="is_dokter"> Dokter
-                </label>
-            </div>
             <div>
                 <label class="form-label">Email Pribadi</label>
                 <input type="email" wire:model="email_pribadi" class="form-input" maxlength="255" placeholder="nama@email.com">
@@ -310,6 +305,15 @@
             <div>
                 <label class="form-label">Tanggal Bergabung</label>
                 <input type="date" wire:model="joining_date" class="form-input">
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+                <label style="display:flex;align-items:center;gap:9px;font-size:16px;font-weight:600;color:var(--text-body);cursor:pointer;padding-bottom:9px;">
+                    <span class="custom-checkbox" style="width:26px;height:26px;">
+                        <input type="checkbox" wire:model="is_dokter">
+                        <span class="box"><i class="fa-solid fa-check" style="font-size:14px;"></i></span>
+                    </span>
+                    Dokter
+                </label>
             </div>
         </div>
     </div>
