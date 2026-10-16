@@ -57,6 +57,13 @@ class QuizResource extends Resource
                     ->maxLength(255)
                     ->helperText('Satu kuis bisa dipakai di banyak lowongan.'),
 
+                Select::make('type')
+                    ->label('Jenis Tes')
+                    ->options(Quiz::TYPES)
+                    ->default('bidang')
+                    ->required()
+                    ->helperText('Tes Psikotes: export hasil menghitung IQ (norma CFIT). Tes Bidang: skor biasa.'),
+
                 TextInput::make('duration_minutes')
                     ->label('Batas Waktu (menit)')
                     ->numeric()
@@ -93,6 +100,7 @@ class QuizResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')->label('Nama Kuis')->searchable()->sortable(),
+                TextColumn::make('type')->label('Jenis')->badge()->formatStateUsing(fn ($state) => Quiz::TYPES[$state] ?? $state),
                 TextColumn::make('questions_count')->label('Jumlah Soal')->counts('questions')->alignCenter(),
                 TextColumn::make('job_openings_count')->label('Dipakai di Lowongan')->counts('jobOpenings')->alignCenter(),
                 TextColumn::make('duration_minutes')->label('Durasi')->suffix(' menit')->placeholder('—'),

@@ -35,6 +35,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\Url;
+use Maatwebsite\Excel\Facades\Excel;
 use UnitEnum;
 
 /**
@@ -187,6 +188,27 @@ class TesOnlinePage extends Page implements HasActions, HasForms, HasTable
                 $this->getSelectedJobOpening()?->quizzes()->sync($data['quiz_ids'] ?? []);
                 Notification::make()->title('Kuis lowongan tersimpan')->success()->send();
             });
+    }
+
+    public function exportTesAction(): Action
+    {
+        return Action::make('exportTes')
+            ->label('Export Hasil Tes')
+            ->icon('heroicon-m-arrow-down-tray')
+            ->color('gray')
+            ->visible(fn () => (bool) $this->jobOpeningId)
+            ->schema([
+                Select::make('quiz_id')
+                    ->label('Kuis')
+                    ->options(fn () => $this->getSelectedJobOpening()?->quizzes->pluck('name', 'id') ?? [])
+                    ->required(),
+            ])
+            ->modalHeading('Export Hasil Tes')
+            ->modalSubmitActionLabel('Unduh')
+            ->action(fn (array $data) => Excel::download(
+                new \App\Exports\Rekrutmen\CfitResultExport($this->jobOpeningId, $data['quiz_id'], Quiz::find($data['quiz_id'])?->type === 'psikotes'),
+                'hasil-tes-' . \Illuminate\Support\Str::slug($this->getSelectedJobOpening()?->title ?? 'lowongan') . '-' . now()->format('Ymd') . '.xlsx',
+            ));
     }
 
     public function pilihTesOfflineAction(): Action
