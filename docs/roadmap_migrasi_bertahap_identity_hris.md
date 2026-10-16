@@ -39,7 +39,7 @@ menyebut `persons`/`person_*` adalah catatan sejarah sebelum peleburan.
 | Approval membaca jabatan dari employees (`EmployeeContext`) | ✅ selesai (Slice 0, bagian 8) |
 | Pembacaan `name`/`nip`/`company_id` dari employees (accessor di `User`) | ✅ selesai (bagian 8) |
 | Query ke scope employees, penulisan lewat mutator, audit pindah ke `Employee`, foto pindah ke `users.profile_picture` | ✅ di kode (rilis transisi, commit `6919baa2`); **status deploy/migrate di produksi belum tercatat di sini, isi saat dikonfirmasi** |
-| Pencabutan kolom `users.name/nip/company_id` | ⏸ disiapkan di `database/migrations-pending/`, **belum aktif** (rilis kedua, bagian 8) |
+| Pencabutan kolom `users.name/nip/company_id` | ✅ migration dipindah ke `database/migrations/` 2026-10-16 (rilis kedua, bagian 8); dijalankan di lokal, produksi menyusul |
 | `identity:purge-users` (hapus permanen akun demo + salinannya) | ✅ selesai, sudah dipakai untuk akun demo (bagian 5b) |
 | Fase 0 (audit data: NIK kosong/ganda, selisih jabatan, jabatan aktif ganda) | ❓ hasilnya belum tercatat; **wajib sebelum Slice C dan unique NIK** |
 | Slice A (izin/cuti/lembur), B (jadwal/absensi), C (layar edit dibalik), D (payroll) | ⏳ belum dimulai |
