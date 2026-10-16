@@ -205,10 +205,13 @@ class TesOnlinePage extends Page implements HasActions, HasForms, HasTable
             ])
             ->modalHeading('Export Hasil Tes')
             ->modalSubmitActionLabel('Unduh')
-            ->action(fn (array $data) => Excel::download(
-                new \App\Exports\Rekrutmen\CfitResultExport($this->jobOpeningId, $data['quiz_id'], Quiz::find($data['quiz_id'])?->type === 'psikotes'),
-                'hasil-tes-' . \Illuminate\Support\Str::slug($this->getSelectedJobOpening()?->title ?? 'lowongan') . '-' . now()->format('Ymd') . '.xlsx',
-            ));
+            ->action(function (array $data) {
+                $filename = 'hasil-tes-' . \Illuminate\Support\Str::slug($this->getSelectedJobOpening()?->title ?? 'lowongan') . '-' . now()->format('Ymd') . '.xlsx';
+
+                return Quiz::find($data['quiz_id'])?->type === 'psikotes'
+                    ? (new \App\Exports\Rekrutmen\PsikotesResultExport($this->jobOpeningId, $data['quiz_id']))->download($filename)
+                    : Excel::download(new \App\Exports\Rekrutmen\TesBidangResultExport($this->jobOpeningId, $data['quiz_id']), $filename);
+            });
     }
 
     public function pilihTesOfflineAction(): Action
