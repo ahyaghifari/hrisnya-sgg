@@ -1225,6 +1225,9 @@
                     </div>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;">
+                    @if ($task->created_by === auth()->id() && ! $task->is_self_assigned && in_array($task->status, [\App\Enum\Task\TaskStatus::TODO->value, \App\Enum\Task\TaskStatus::IN_PROGRESS->value], true))
+                        <button type="button" wire:click="moveTaskStatus('{{ $task->id }}', '{{ \App\Enum\Task\TaskStatus::COMPLETE->value }}')" wire:confirm="Selesaikan tugas ini tanpa menunggu pelaksana?" class="btn-primary btn-sm"><i class="fa-solid fa-check"></i> Selesaikan</button>
+                    @endif
                     @if ($canRevertComplete)
                         <button type="button" wire:click="moveTaskStatus('{{ $task->id }}', '{{ \App\Enum\Task\TaskStatus::IN_PROGRESS->value }}')" class="btn-ghost btn-sm" title="Kembalikan ke Sedang Dalam Proses (masih < 24 jam)"><i class="fa-solid fa-rotate-left"></i> Kembalikan</button>
                     @endif
