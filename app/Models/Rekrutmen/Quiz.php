@@ -13,9 +13,11 @@ class Quiz extends Model
 
     protected $connection = 'recruitment';
 
-    protected $fillable = ['name', 'duration_minutes', 'instructions'];
+    protected $fillable = ['name', 'type', 'duration_minutes', 'instructions'];
 
     protected $casts = ['duration_minutes' => 'integer'];
+
+    public const TYPES = ['psikotes' => 'Tes Psikotes (CFIT)', 'bidang' => 'Tes Bidang'];
 
     public function questions(): HasMany
     {
