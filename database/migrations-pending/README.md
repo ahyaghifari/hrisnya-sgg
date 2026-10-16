@@ -22,3 +22,5 @@ Audit perubahan nama/NIP/perusahaan SUDAH dipindah ke `Employee` (kunci `{user_i
 `data_karyawan` sama dengan catatan lama, jadi riwayat di halaman Data Diri tetap satu aliran) dan berjalan sejak
 rilis transisi, sehingga tidak ada langkah audit tambahan saat kolom dicabut. `User` kini hanya mengaudit
 `email` dan `is_active`.
+
+> **Dipindah 2026-10-16:** migration di atas sudah masuk `database/migrations/` (folder ini kosong). Syarat 1-3 di atas tetap berlaku sebelum `migrate` di produksi.

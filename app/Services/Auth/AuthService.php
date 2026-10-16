@@ -4,6 +4,7 @@ namespace App\Services\Auth;
 
 use App\Models\User;
 use App\Repositories\User\UserRepository;
+use App\Services\Keycloak\KeycloakAdmin;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -75,17 +76,14 @@ class AuthService
 
         $user->password = bcrypt($newPassword);
         $this->userRepository->save($user);
+        $this->syncKeycloakPassword($user, $newPassword);
 
         DB::table('password_reset_tokens')->where('email', $record->email)->delete();
 
         return true;
     }
 
-    /**
-     * Password LOKAL HRIS saja - beda dari password SSO Keycloak, yang diganti terpisah lewat
-     * UbahAkunLogin (halaman "Username & Password SSO", instruksi user 2026-09-17: dua akun
-     * dipisah jelas, jangan disamakan/disinkron otomatis).
-     */
+    /** Password HRIS = password SSO (instruksi user 2026-10-16): ikut disinkron ke Keycloak. */
     public function changePassword(User $user, string $currentPassword, string $newPassword): bool
     {
         if (!password_verify($currentPassword, $user->password)) {
@@ -94,8 +92,26 @@ class AuthService
 
         $user->password = bcrypt($newPassword);
         $this->userRepository->save($user);
+        $this->syncKeycloakPassword($user, $newPassword);
 
         return true;
+    }
+
+    /**
+     * Best-effort: gagal sync tidak membatalkan ganti password HRIS. Kalau drift, user bisa
+     * menyamakan lagi lewat halaman Akun > SSO.
+     */
+    private function syncKeycloakPassword(User $user, string $plain): void
+    {
+        if (! $user->keycloak_sub || ! KeycloakAdmin::isConfigured()) {
+            return;
+        }
+
+        try {
+            app(KeycloakAdmin::class)->setPassword($user->keycloak_sub, $plain, false);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function logout($user): void

@@ -8,10 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-/** Password akun LOKAL HRIS - beda dari password SSO Keycloak (lihat UbahAkunLogin, "Username &
- * Password SSO"). Judul halaman ini sengaja polos "Ubah Password" TANPA embel-embel "HRIS" -
- * yang perlu dibedakan cuma pas 2 pilihan ini berdampingan (kartu di halaman Akun), bukan di
- * judul halamannya sendiri (instruksi user 2026-09-17). */
+/** Password HRIS; kalau akun SSO sudah aktif, ikut disinkron ke Keycloak (AuthService). Judul
+ * halaman sengaja polos "Ubah Password" (instruksi user 2026-09-17). */
 #[Layout('components.layout', ['title' => 'Ubah Password'])]
 class UbahPassword extends Component
 {
