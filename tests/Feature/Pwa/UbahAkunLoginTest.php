@@ -6,16 +6,14 @@ use App\Livewire\Pwa\UbahAkunLogin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Halaman self-service ganti username & password SSO (instruksi user 2026-09-17). Terpisah
- * total dari password akun lokal HRIS (UbahPassword, tidak lagi sync ke Keycloak - lihat
- * revisi instruksi user 2026-09-17 yang sama). Email TIDAK bisa diubah di sini, dan akun SSO
- * sendiri tidak bisa dibuat sendiri - kalau belum tersambung cuma ditampilkan keterangan
- * suruh lapor ke IT, tidak ada form sama sekali.
+ * Aktivasi SSO self-service (instruksi user 2026-10-16): password SSO = password HRIS, username = NIP.
+ * User cukup ketik password HRIS; nilainya diverifikasi lalu dipakai sebagai password Keycloak.
  */
 class UbahAkunLoginTest extends TestCase
 {
@@ -35,109 +33,58 @@ class UbahAkunLoginTest extends TestCase
         Cache::flush();
     }
 
-    public function test_user_without_keycloak_link_sees_notice_instead_of_form(): void
+    public function test_wrong_hris_password_is_rejected_and_nothing_is_sent(): void
     {
-        $user = User::factory()->create(['keycloak_sub' => null]);
+        $user = User::factory()->create(['keycloak_sub' => 'kc-sub-1', 'password' => Hash::make('rahasia123')]);
+
+        Http::fake();
 
         Livewire::actingAs($user)->test(UbahAkunLogin::class)
-            ->assertSet('ssoLinked', false)
-            ->assertSee('Belum punya akun SSO')
-            ->assertDontSee('Simpan');
+            ->set('hrisPassword', 'salah')
+            ->call('save')
+            ->assertHasErrors(['hrisPassword']);
 
         Http::assertNothingSent();
     }
 
-    public function test_sso_linked_user_can_change_username_without_touching_password(): void
+    public function test_linked_user_syncs_keycloak_password_to_hris_password(): void
     {
-        $user = User::factory()->create(['keycloak_sub' => 'kc-sub-1']);
+        $user = User::factory()->create(['keycloak_sub' => 'kc-sub-2', 'password' => Hash::make('rahasia123')]);
 
         Http::fake([
             'kc.test/realms/hris/protocol/openid-connect/token' => Http::response(['access_token' => 'tok']),
-            'kc.test/admin/realms/hris/users/kc-sub-1' => Http::sequence()
-                ->push(['id' => 'kc-sub-1', 'username' => 'lama.username'])
-                ->push(null, 204),
-        ]);
-
-        Livewire::actingAs($user)->test(UbahAkunLogin::class)
-            ->assertSet('ssoLinked', true)
-            ->assertSet('username', 'lama.username')
-            ->set('username', 'baru.username')
-            ->call('save')
-            ->assertHasNoErrors();
-
-        Http::assertSent(fn ($req) => $req->url() === 'https://kc.test/admin/realms/hris/users/kc-sub-1'
-            && $req->method() === 'PUT'
-            && $req['username'] === 'baru.username');
-
-        // Password TIDAK disentuh kalau field password dikosongkan.
-        Http::assertNotSent(fn ($req) => str_ends_with($req->url(), '/reset-password'));
-    }
-
-    public function test_filling_password_also_calls_keycloak_reset_password(): void
-    {
-        $user = User::factory()->create(['keycloak_sub' => 'kc-sub-2']);
-
-        Http::fake([
-            'kc.test/realms/hris/protocol/openid-connect/token' => Http::response(['access_token' => 'tok']),
-            'kc.test/admin/realms/hris/users/kc-sub-2' => Http::response(['id' => 'kc-sub-2', 'username' => 'user2']),
             'kc.test/admin/realms/hris/users/kc-sub-2/reset-password' => Http::response(null, 204),
         ]);
 
         Livewire::actingAs($user)->test(UbahAkunLogin::class)
-            ->set('password', 'passwordbaru123')
-            ->set('password_confirmation', 'passwordbaru123')
+            ->set('hrisPassword', 'rahasia123')
             ->call('save')
             ->assertHasNoErrors();
 
         Http::assertSent(fn ($req) => $req->url() === 'https://kc.test/admin/realms/hris/users/kc-sub-2/reset-password'
-            && $req['value'] === 'passwordbaru123');
+            && $req['value'] === 'rahasia123');
     }
 
-    public function test_keycloak_failure_shows_error_and_does_not_crash(): void
+    public function test_user_without_keycloak_link_gets_account_created_with_nip_username(): void
     {
-        $user = User::factory()->create(['keycloak_sub' => 'kc-sub-3']);
+        $user = User::factory()->create(['keycloak_sub' => null, 'password' => Hash::make('rahasia123')]);
 
         Http::fake([
             'kc.test/realms/hris/protocol/openid-connect/token' => Http::response(['access_token' => 'tok']),
-            'kc.test/admin/realms/hris/users/kc-sub-3' => Http::sequence()
-                ->push(['id' => 'kc-sub-3', 'username' => 'user3'])
-                ->push(null, 500),
+            'kc.test/admin/realms/hris/users' => Http::response(null, 201, ['Location' => 'https://kc.test/admin/realms/hris/users/kc-new']),
+            'kc.test/admin/realms/hris/users/kc-new/reset-password' => Http::response(null, 204),
         ]);
 
         Livewire::actingAs($user)->test(UbahAkunLogin::class)
-            ->set('username', 'baru.username')
+            ->assertSet('ssoLinked', false)
+            ->set('hrisPassword', 'rahasia123')
             ->call('save')
-            ->assertHasNoErrors();
-    }
+            ->assertHasNoErrors()
+            ->assertSet('ssoLinked', true);
 
-    public function test_username_is_required(): void
-    {
-        $user = User::factory()->create(['keycloak_sub' => 'kc-sub-4']);
-
-        Http::fake([
-            'kc.test/realms/hris/protocol/openid-connect/token' => Http::response(['access_token' => 'tok']),
-            'kc.test/admin/realms/hris/users/kc-sub-4' => Http::response(['id' => 'kc-sub-4', 'username' => 'user4']),
-        ]);
-
-        Livewire::actingAs($user)->test(UbahAkunLogin::class)
-            ->set('username', '')
-            ->call('save')
-            ->assertHasErrors(['username']);
-    }
-
-    public function test_password_must_be_confirmed_when_filled(): void
-    {
-        $user = User::factory()->create(['keycloak_sub' => 'kc-sub-5']);
-
-        Http::fake([
-            'kc.test/realms/hris/protocol/openid-connect/token' => Http::response(['access_token' => 'tok']),
-            'kc.test/admin/realms/hris/users/kc-sub-5' => Http::response(['id' => 'kc-sub-5', 'username' => 'user5']),
-        ]);
-
-        Livewire::actingAs($user)->test(UbahAkunLogin::class)
-            ->set('password', 'passwordbaru123')
-            ->set('password_confirmation', 'beda')
-            ->call('save')
-            ->assertHasErrors(['password']);
+        $this->assertSame('kc-new', $user->fresh()->keycloak_sub);
+        Http::assertSent(fn ($req) => $req->method() === 'POST'
+            && $req->url() === 'https://kc.test/admin/realms/hris/users'
+            && $req['username'] === $user->nip);
     }
 }

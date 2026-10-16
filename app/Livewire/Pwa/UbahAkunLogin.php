@@ -9,16 +9,12 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Password akun SSO (Keycloak) sendiri — dulu juga bisa ubah username, SEKARANG TIDAK LAGI
- * (instruksi user 2026-09-23): username SSO dibakukan = NIP (konsisten dengan cara admin bikin
- * akun lewat panel /keycloak), jadi di sini cuma ditampilkan read-only, tidak bisa diketik ulang.
+ * Aktivasi akun SSO (Keycloak). Konsep (instruksi user 2026-10-16): password SSO = password HRIS,
+ * username SSO = NIP. User cukup ketik password HRIS-nya; kita verifikasi lewat password_verify()
+ * lalu pakai nilai yang sama buat Keycloak (hash HRIS tidak bisa dibalik). Ganti/reset password
+ * HRIS berikutnya otomatis disinkron ke Keycloak lewat AuthService.
  *
- * Kalau user belum punya akun SSO (keycloak_sub kosong), halaman ini SEKARANG BISA bikinkan
- * sendiri (dulu cuma suruh lapor ke IT) — username otomatis NIP, cukup minta set password.
- *
- * Password bisa dipilih: SAMA dengan password HRIS (mereka ketik ulang password HRIS mereka,
- * kita verifikasi lewat password_verify() lalu pakai nilai yang sama buat Keycloak — bukan
- * baca hash HRIS, itu tidak mungkin dibalik) atau password KHUSUS SSO yang beda.
+ * Kalau akun SSO sudah ada (keycloak_sub terisi), form yang sama dipakai buat menyamakan ulang.
  */
 #[Layout('components.layout', ['title' => 'Password SSO'])]
 class UbahAkunLogin extends Component
@@ -27,16 +23,7 @@ class UbahAkunLogin extends Component
 
     public ?string $nip = null;
 
-    /** 'same_as_hris' | 'custom' */
-    public string $passwordMode = 'same_as_hris';
-
-    /** Dipakai kalau passwordMode = same_as_hris — buat verifikasi SEKALIGUS nilai yang dipakai. */
     public ?string $hrisPassword = null;
-
-    /** Dipakai kalau passwordMode = custom. */
-    public ?string $password = null;
-
-    public ?string $password_confirmation = null;
 
     public function mount(): void
     {
@@ -45,43 +32,24 @@ class UbahAkunLogin extends Component
         $this->ssoLinked = (bool) $user->keycloak_sub && KeycloakAdmin::isConfigured();
     }
 
-    protected function rules(): array
-    {
-        if ($this->passwordMode === 'same_as_hris') {
-            return [
-                'hrisPassword' => ['required', 'string'],
-            ];
-        }
-
-        return [
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ];
-    }
-
     public function save(): void
     {
         if (! KeycloakAdmin::isConfigured()) {
             abort(403);
         }
 
-        $data = $this->validate();
+        $data = $this->validate(['hrisPassword' => ['required', 'string']]);
         $user = Auth::user();
 
-        if ($this->passwordMode === 'same_as_hris') {
-            if (! password_verify($data['hrisPassword'], $user->password)) {
-                $this->addError('hrisPassword', 'Password HRIS tidak sesuai.');
+        if (! password_verify($data['hrisPassword'], $user->password)) {
+            $this->addError('hrisPassword', 'Password HRIS tidak sesuai.');
 
-                return;
-            }
-
-            $newPassword = $data['hrisPassword'];
-        } else {
-            $newPassword = $data['password'];
+            return;
         }
 
         try {
             if ($this->ssoLinked) {
-                app(KeycloakAdmin::class)->setPassword($user->keycloak_sub, $newPassword, false);
+                app(KeycloakAdmin::class)->setPassword($user->keycloak_sub, $data['hrisPassword'], false);
             } else {
                 // Belum punya akun SSO — bikinkan sekarang, username dibakukan = NIP.
                 $id = app(KeycloakAdmin::class)->create([
@@ -90,7 +58,7 @@ class UbahAkunLogin extends Component
                     'enabled' => true,
                     'attributes' => ['nip' => [$user->nip]],
                 ]);
-                app(KeycloakAdmin::class)->setPassword($id, $newPassword, false);
+                app(KeycloakAdmin::class)->setPassword($id, $data['hrisPassword'], false);
                 $user->forceFill(['keycloak_sub' => $id])->save();
                 $this->ssoLinked = true;
             }
@@ -106,10 +74,10 @@ class UbahAkunLogin extends Component
             return;
         }
 
-        $this->reset(['hrisPassword', 'password', 'password_confirmation']);
+        $this->reset('hrisPassword');
 
         Notification::make()
-            ->title('Password SSO berhasil disimpan')
+            ->title('Akun SSO aktif — password sama dengan password HRIS')
             ->success()
             ->send();
     }
