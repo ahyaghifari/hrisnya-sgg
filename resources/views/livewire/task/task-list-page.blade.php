@@ -871,6 +871,9 @@
                                                 </button>
                                             @endif
                                         @endif
+                                        @if ($task->created_by === auth()->id() && ! $task->isAssignee(auth()->id()) && ! $task->is_self_assigned && in_array($task->status, [\App\Enum\Task\TaskStatus::TODO->value, \App\Enum\Task\TaskStatus::IN_PROGRESS->value], true))
+                                            <button type="button" wire:click="moveTaskStatus('{{ $task->id }}', '{{ \App\Enum\Task\TaskStatus::COMPLETE->value }}')" onclick="event.stopPropagation()" wire:confirm="Selesaikan tugas ini tanpa menunggu pelaksana?" class="btn-ghost btn-sm" style="margin-top:8px;width:100%;">Selesaikan</button>
+                                        @endif
 
                                         @unless ($task->is_self_assigned)
                                             <div class="task-card-footer">

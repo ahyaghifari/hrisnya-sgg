@@ -852,7 +852,7 @@ class TaskService
         // Di TODO ("belum dikerjakan") cuma yang ditugaskan yang boleh mulai - creator ngga bisa
         // gesa-gesa mindahin status tugas orang lain sebelum pelaksananya sendiri yang mulai.
         abort_if(
-            $task->status === TaskStatus::TODO->value && ! $task->isAssignee($user->id),
+            $task->status === TaskStatus::TODO->value && ! $task->isAssignee($user->id) && $newStatus !== TaskStatus::COMPLETE->value,
             403,
             'Cuma yang ditugaskan yang bisa mengubah status tugas ini.'
         );
@@ -866,6 +866,18 @@ class TaskService
         );
 
         abort_if($task->approvalSnapshot?->status === 'in_review', 422, 'Tugas masih menunggu approval.');
+
+        // Pemberi tugas boleh langsung menyelesaikan tugas orang lain tanpa menunggu pengajuan pelaksana.
+        if (
+            $newStatus === TaskStatus::COMPLETE->value
+            && $task->created_by === $user->id
+            && ! $task->is_self_assigned
+            && in_array($task->status, [TaskStatus::TODO->value, TaskStatus::IN_PROGRESS->value], true)
+        ) {
+            $this->taskRepository->update($task->id, ['status' => $newStatus, 'completed_date' => Carbon::now(), 'is_overdue' => false]);
+            $this->notifyAssignees($task, new TaskReviewDecided($task, true, $user->name));
+            return;
+        }
 
         // Task tanpa review yang baru aja diselesaikan pelaksana (< 24 jam) boleh dikembalikan
         // creator ke IN_PROGRESS - "salah pencet"/butuh revisi lagi padahal ngga ada tahap review.
