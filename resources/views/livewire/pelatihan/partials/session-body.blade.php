@@ -6,6 +6,18 @@
     @endif
 @endif
 
+{{-- Absensi QR: pemateri pilih metode & tampilkan QR; peserta buka scanner. --}}
+@if ($isTrainer ?? false)
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;">
+        @include('livewire.lms.partials.attendance-method-controls', ['meeting' => $meeting, 'showMethodSelect' => false])
+    </div>
+@endif
+@if (($isFollowed ?? false) && $meeting->attendance_method === 'qr')
+    <button type="button" wire:click="$set('showScanner', true)" class="course-follow-btn" style="margin:10px 0;width:auto;display:inline-flex;align-items:center;gap:6px;">
+        <i class="fa-solid fa-camera"></i> Scan QR Absensi
+    </button>
+@endif
+
 {{-- Materi: info saja (belum ada jalur unduh dari portal karyawan). --}}
 @if ($meeting->materials->isNotEmpty())
     <div class="course-materials">

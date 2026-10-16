@@ -30,7 +30,10 @@ class LmsCourseUsers extends Model
         'passed_at',
         'certificate_url',
         'archived_at',
+        'attendance_confirmed_at',
     ];
+
+    protected $casts = ['attendance_confirmed_at' => 'datetime'];
 
     protected static function booted(): void
     {

@@ -22,11 +22,37 @@ use Livewire\WithPagination;
 class TrainingDetail extends Component
 {
     use WithPagination;
+    use \App\Livewire\Concerns\ManagesAttendanceQr;
 
     public LmsCourses $course;
 
     public ?string $courseUserId = null;
     public ?string $courseUserStatus = null;
+    public ?string $attendanceConfirmedAt = null; // sudah diformat, null = belum konfirmasi
+
+    /** Tombol "Konfirmasi Kehadiran" hanya untuk peserta aktif yang belum konfirmasi. */
+    public function getCanConfirmAttendanceProperty(): bool
+    {
+        return in_array($this->courseUserStatus, ['approved', 'in_progress'], true);
+    }
+
+    public function openIzinForm(): void
+    {
+        $this->showIzin = true;
+        $this->js("setTimeout(() => document.getElementById('form-izin')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)");
+    }
+
+    public function confirmAttendance(): void
+    {
+        abort_unless($this->courseUserId && $this->canConfirmAttendance, 403);
+
+        $courseUser = \App\Models\LMS\LmsCourseUsers::where('user_id', Auth::id())->findOrFail($this->courseUserId);
+        $courseUser->update(['attendance_confirmed_at' => $courseUser->attendance_confirmed_at ?? now()]);
+
+        $this->attendanceConfirmedAt = $courseUser->attendance_confirmed_at->translatedFormat('d M Y H:i');
+
+        Notification::make()->title('Kehadiran Anda sudah dikonfirmasi')->success()->send();
+    }
 
     // Pagination member list di sini pakai wire:navigate (lihat livewire/partials/pagination.blade.php),
     // yaitu full page-visit yang bikin komponen di-mount ULANG dari URL. Tanpa #[Url], filter
@@ -47,6 +73,7 @@ class TrainingDetail extends Component
         $this->course = $course;
         $this->courseUserId = $courseUser?->id;
         $this->courseUserStatus = $courseUser?->status;
+        $this->attendanceConfirmedAt = $courseUser?->attendance_confirmed_at?->translatedFormat('d M Y H:i');
 
         if ($courseUser) {
             $this->attendance = $courseUser->meetingUsers
@@ -85,6 +112,54 @@ class TrainingDetail extends Component
             fn ($meeting) => $meeting->trainer_employee_id === Auth::id()
                 || $meeting->trainer?->user_id === Auth::id()
         );
+    }
+
+    protected function canManageAttendanceQr(): bool
+    {
+        return $this->isCourseTrainer;
+    }
+
+    public bool $showScanner = false;
+
+    /** Hasil decode kamera (jsQR) dikirim ke sini; token divalidasi service. */
+    /** Konfirmasi sebelum tercatat: token hasil scan ditahan di sini sampai peserta menekan Konfirmasi. */
+    public ?string $pendingScanToken = null;
+    public ?string $pendingScanType = null;
+    public ?string $pendingScanMeeting = null;
+
+    public function scanAttendanceQr(string $token): void
+    {
+        abort_unless($this->isFollowed, 403);
+
+        $check = app(\App\Services\LMS\MeetingQrAttendanceService::class)->inspect(Auth::user(), $token);
+
+        if (! $check['ok']) {
+            Notification::make()->title($check['message'])->danger()->send();
+            $this->showScanner = false;
+
+            return;
+        }
+
+        $this->pendingScanToken = $token;
+        $this->pendingScanType = $check['type'];
+        $this->pendingScanMeeting = $check['meeting']->title;
+    }
+
+    public function confirmAttendanceScan(): void
+    {
+        abort_unless($this->isFollowed && $this->pendingScanToken, 403);
+
+        $result = app(\App\Services\LMS\MeetingQrAttendanceService::class)->scan(Auth::user(), $this->pendingScanToken);
+
+        Notification::make()->title($result['message'])->{$result['ok'] ? 'success' : 'danger'}()->send();
+
+        $this->cancelAttendanceScan();
+    }
+
+    public function cancelAttendanceScan(): void
+    {
+        $this->showScanner = false;
+        $this->pendingScanToken = $this->pendingScanType = $this->pendingScanMeeting = null;
     }
 
     public function toggleQuizLock(string $meetingQuizId): void

@@ -53,6 +53,7 @@ use Maatwebsite\Excel\Facades\Excel;
 class LmsCourseDetailPage extends Component
 {
     use WithFileUploads;
+    use \App\Livewire\Concerns\ManagesAttendanceQr;
 
     public LmsCourses $course;
 
@@ -372,6 +373,11 @@ class LmsCourseDetailPage extends Component
                 'score' => 0,
                 'enrolled_at' => now(),
             ]);
+
+            // Pelatihan belum dipublish: notifikasi dikirim sekalian saat publish (notifyParticipantsEnrolled).
+            if ($this->course->status === LsmCourseStatus::Published->value) {
+                \App\Models\User::find($userId)?->notify(new \App\Notifications\CourseParticipantEnrolled($this->course));
+            }
         }
 
         $this->selectedUserIds = [];
@@ -1017,6 +1023,11 @@ class LmsCourseDetailPage extends Component
     public function getCanFillAttendanceProperty(): bool
     {
         return $this->canEditDetail && $this->course->status === LsmCourseStatus::Published->value;
+    }
+
+    protected function canManageAttendanceQr(): bool
+    {
+        return $this->canEditDetail;
     }
 
     public function openAttendanceView(string $meetingId): void

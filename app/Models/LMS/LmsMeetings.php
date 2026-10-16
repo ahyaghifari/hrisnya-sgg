@@ -30,6 +30,7 @@ class LmsMeetings extends Model
         'end_time',
         'jp',
         'attendance_type',
+        'attendance_method',
     ];
     
     protected $casts = [

@@ -9,7 +9,7 @@
             <div class="course-hero-media-placeholder">
                 <i class="fa-solid fa-graduation-cap"></i>
             </div>
-        @endif
+        @endif 
 
         @if ($this->isFollowed)
             <div class="course-hero-seal {{ $courseUserStatus === 'requested' ? 'is-pending' : '' }}">
@@ -39,6 +39,16 @@
 
         @if ($this->isFollowed && $courseUserStatus === 'requested')
             <button type="button" disabled class="course-follow-btn is-pending">Menunggu persetujuan admin/HC</button>
+        @elseif ($this->isFollowed && $this->canConfirmAttendance && ! $attendanceConfirmedAt)
+            <div style="display:flex;gap:8px;">
+                <button type="button" wire:click="confirmAttendance" wire:loading.attr="disabled" class="course-follow-btn" style="flex:1;">Konfirmasi Kehadiran</button>
+                @if ($this->izinMeetings->isNotEmpty())
+                    {{-- Buka form Izin Tidak Hadir yang sama dengan link di bawah halaman. --}}
+                    <button type="button" wire:click="openIzinForm" class="course-follow-btn" style="flex:1;background:var(--surface-alt,rgba(0,0,0,.05));color:var(--text-muted);border-color:var(--border);">Izin Tidak Menghadiri</button>
+                @endif
+            </div>
+        @elseif ($this->isFollowed && $attendanceConfirmedAt)
+            <button type="button" disabled class="course-follow-btn is-followed">Kehadiran terkonfirmasi · {{ $attendanceConfirmedAt }}</button>
         @elseif ($this->isFollowed)
             <button type="button" disabled class="course-follow-btn is-followed">Anda mengikuti pelatihan ini</button>
         @elseif (! $this->isCourseTrainer)
@@ -284,7 +294,7 @@
         </button>
     </div>
     @if ($showIzin)
-        <form wire:submit="submitIzin" class="form-card" style="margin-top:8px;">
+        <form wire:submit="submitIzin" id="form-izin" class="form-card" style="margin-top:8px;">
             <div style="display:flex;flex-direction:column;gap:18px;">
                 @if ($this->izinMeetings->count() > 1)
                     <div>
@@ -315,6 +325,63 @@
             </div>
         </form>
     @endif
+@endif
+
+@include('livewire.lms.partials.attendance-qr-modal')
+
+@if ($showScanner)
+    <div class="modal-overlay" wire:click.self="cancelAttendanceScan" style="align-items:center;">
+        <div class="modal-box"
+             x-data="{
+                stream: null, raf: null, err: '', zoomCap: null, z: 1,
+                async start() {
+                    try {
+                        if (!window.jsQR) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+                        this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                        const v = this.$refs.video; v.srcObject = this.stream; await v.play();
+                        const cap = this.stream.getVideoTracks()[0].getCapabilities?.();
+                        if (cap && cap.zoom) { this.zoomCap = cap.zoom; this.z = cap.zoom.min; }
+                        const c = document.createElement('canvas'), x = c.getContext('2d', { willReadFrequently: true });
+                        const tick = () => {
+                            if (v.readyState === v.HAVE_ENOUGH_DATA) {
+                                c.width = v.videoWidth; c.height = v.videoHeight; x.drawImage(v, 0, 0);
+                                const r = jsQR(x.getImageData(0, 0, c.width, c.height).data, c.width, c.height);
+                                if (r && r.data) { this.stop(); this.$wire.scanAttendanceQr(r.data); return; }
+                            }
+                            this.raf = requestAnimationFrame(tick);
+                        };
+                        tick();
+                    } catch (e) {
+                        this.err = !window.isSecureContext
+                            ? 'Kamera hanya bisa dipakai lewat HTTPS. Buka halaman ini dengan alamat https://.'
+                            : (e && e.name === 'NotAllowedError' ? 'Akses kamera ditolak. Izinkan kamera untuk situs ini lalu coba lagi.' : 'Kamera tidak bisa dibuka (' + (e && e.name || 'error') + ').');
+                    }
+                },
+                setZoom(v) { this.z = v; this.stream?.getVideoTracks()[0].applyConstraints({ advanced: [{ zoom: +v }] }).catch(() => {}); },
+                stop() { cancelAnimationFrame(this.raf); this.stream?.getTracks().forEach(t => t.stop()); },
+                destroy() { this.stop(); }
+             }"
+             x-init="start()" style="text-align:center;">
+            @if ($pendingScanToken)
+                <i class="fa-solid fa-circle-question" style="font-size:36px;color:var(--accent, var(--brand));"></i>
+                <p style="font-size:17px;font-weight:700;color:var(--text-heading);margin:10px 0 4px;">Konfirmasi {{ ucfirst($pendingScanType) }}</p>
+                <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">{{ $pendingScanMeeting }}</p>
+                <div style="display:flex;gap:8px;justify-content:center;">
+                    <button type="button" wire:click="cancelAttendanceScan" class="btn-ghost" style="padding:9px 20px;font-size:13px;">Batal</button>
+                    <button type="button" wire:click="confirmAttendanceScan" class="btn-primary" style="padding:9px 20px;font-size:13px;">Konfirmasi</button>
+                </div>
+            @else
+                <p style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0 0 12px;">Scan QR Absensi</p>
+                <div wire:ignore>
+                    <video x-ref="video" playsinline muted style="width:100%;border-radius:10px;background:#000;"></video>
+                    <div x-show="zoomCap" x-cloak style="display:flex;align-items:center;gap:8px;margin-top:10px;"><i class="fa-solid fa-magnifying-glass-minus" style="font-size:12px;color:var(--text-muted);"></i><input type="range" x-bind:min="zoomCap?.min" x-bind:max="zoomCap?.max" x-bind:step="zoomCap?.step || 0.1" x-bind:value="z" x-on:input="setZoom($event.target.value)" style="flex:1;"><i class="fa-solid fa-magnifying-glass-plus" style="font-size:12px;color:var(--text-muted);"></i></div>
+                </div>
+                <p x-show="err" x-text="err" style="color:var(--danger-text);font-size:12px;margin:10px 0 0;"></p>
+                <p style="font-size:12px;color:var(--text-muted);margin:10px 0 14px;">Arahkan kamera ke QR yang diberi/ditampilkan.</p>
+                <button type="button" wire:click="cancelAttendanceScan" class="btn-ghost" style="padding:8px 18px;font-size:12.5px;">Tutup</button>
+            @endif
+        </div>
+    </div>
 @endif
 
 </div>

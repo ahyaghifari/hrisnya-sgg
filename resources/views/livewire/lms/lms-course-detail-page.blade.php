@@ -168,6 +168,8 @@
         </div>
     @endif
 
+    @include('livewire.lms.partials.attendance-qr-modal')
+
     @if ($qrModalUrl)
         <div class="modal-overlay" wire:click.self="closeQrModal">
             <div style="background:var(--surface);border-radius:14px;padding:24px;max-width:360px;width:100%;text-align:center;margin-top:10vh;">
@@ -361,6 +363,11 @@
                             <td style="padding:9px 14px;font-weight:600;">{{ $participant->user?->name ?? '-' }}</td>
                             <td style="padding:9px 14px;text-align:center;">
                                 <span class="badge" style="background:var(--surface-muted);color:var(--text-muted);">{{ CourseUserStatus::tryFrom($participant->status)?->getLabel() ?? $participant->status }}</span>
+                                @if (in_array($participant->status, [CourseUserStatus::APPROVED->value, CourseUserStatus::IN_PROGRESS->value], true))
+                                    <p style="font-size:11px;margin:4px 0 0;color:{{ $participant->attendance_confirmed_at ? '#15803d' : 'var(--text-faint)' }};">
+                                        {{ $participant->attendance_confirmed_at ? 'Konfirmasi: ' . $participant->attendance_confirmed_at->translatedFormat('d M H:i') : 'Belum konfirmasi' }}
+                                    </p>
+                                @endif
                                 @if ($participant->status === CourseUserStatus::NOT_COMPLETED->value && $participant->not_completed_reason)
                                     <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">Alasan: {{ $participant->not_completed_reason }}</p>
                                 @endif

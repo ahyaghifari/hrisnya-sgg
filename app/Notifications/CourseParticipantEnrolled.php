@@ -40,7 +40,7 @@ class CourseParticipantEnrolled extends Notification implements ShouldQueue
 
     protected function body(): string
     {
-        return "Anda diikutkan ke pelatihan \"{$this->course->title}\", SEMANGAAAT!";
+        return "Anda diikutkan ke pelatihan \"{$this->course->title}\", SEMANGAAAT! Buka detail pelatihan untuk mengonfirmasi kehadiran Anda.";
     }
 
     public function toDatabase(object $notifiable): array
