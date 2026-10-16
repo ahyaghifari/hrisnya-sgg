@@ -53,7 +53,7 @@ $hasSections = $sections->contains(fn ($s) => $s['name']);
     @php $q = $item['question']; $ans = $item['answer']; $no++; $isCorrect = (bool) $ans?->is_correct; @endphp
     <x-filament::section>
         <div class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">{{ $no }}. {{ $q->question }}</div>
-        @if($img = \App\Models\Rekrutmen\QuizQuestion::imageUri($q->image_path))
+        @if($img = \App\Models\Rekrutmen\QuizQuestion::imageUrl($q->image_path))
             <img src="{{ $img }}" alt="Gambar soal {{ $no }}" class="mb-3 max-h-72 rounded-lg border border-gray-200 dark:border-white/10">
         @endif
         @if(filled($q->option_images))
@@ -73,7 +73,7 @@ $hasSections = $sections->contains(fn ($s) => $s['name']);
                         'border-danger-500 bg-danger-50 dark:bg-danger-500/10' => $isPicked && ! $isRight,
                         'border-gray-200 dark:border-white/10' => ! $isRight && ! $isPicked,
                     ])>
-                        @if($optImg = \App\Models\Rekrutmen\QuizQuestion::imageUri($q->option_images[$opt] ?? null))
+                        @if($optImg = \App\Models\Rekrutmen\QuizQuestion::imageUrl($q->option_images[$opt] ?? null))
                             <img src="{{ $optImg }}" alt="Pilihan {{ $opt }}" class="mx-auto mb-1 max-h-32 rounded">
                         @endif
                         <div class="font-semibold">{{ $opt }}{{ $isPicked ? ' (dipilih)' : '' }}{{ $isRight ? ' ✓' : '' }}</div>
@@ -92,7 +92,7 @@ $hasSections = $sections->contains(fn ($s) => $s['name']);
         @if(! $isCorrect)
             <div class="mt-2 flex flex-wrap gap-3">
                 @foreach(array_map('trim', explode(',', (string) $q->correct_option)) as $rightOpt)
-                    @if($rightImg = \App\Models\Rekrutmen\QuizQuestion::imageUri($q->option_images[$rightOpt] ?? null))
+                    @if($rightImg = \App\Models\Rekrutmen\QuizQuestion::imageUrl($q->option_images[$rightOpt] ?? null))
                         <div class="rounded-lg border border-success-500 bg-success-50 p-2 text-center text-xs dark:bg-success-500/10">
                             <img src="{{ $rightImg }}" alt="Jawaban benar {{ $rightOpt }}" class="mx-auto mb-1 max-h-32 rounded">
                             <div class="font-semibold">{{ $rightOpt }} ✓</div>

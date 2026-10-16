@@ -5,7 +5,6 @@ namespace App\Models\Rekrutmen;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 class QuizQuestion extends Model
 {
@@ -21,19 +20,10 @@ class QuizQuestion extends Model
         'points' => 'integer',
     ];
 
-    /**
-     * Gambar soal/pilihan ada di disk `rekrutmen_public` (project rekrutmen belum punya
-     * storage:link, disk tanpa URL) — dibaca langsung dari disk lalu ditempel sebagai data URI.
-     */
-    public static function imageUri(?string $path): ?string
+    /** Gambar soal/pilihan dilayani publik oleh app pelamar (`/storage/<path>`), jadi cukup dipanggil via URL-nya. */
+    public static function imageUrl(?string $path): ?string
     {
-        $disk = Storage::disk('rekrutmen_public');
-
-        if (blank($path) || ! $disk->exists($path)) {
-            return null;
-        }
-
-        return 'data:' . ($disk->mimeType($path) ?: 'image/jpeg') . ';base64,' . base64_encode($disk->get($path));
+        return blank($path) ? null : rtrim(config('services.rekrutmen.url') ?: 'https://karir.syifaglobalgroup.com', '/') . '/storage/' . ltrim($path, '/');
     }
 
     public function section(): BelongsTo

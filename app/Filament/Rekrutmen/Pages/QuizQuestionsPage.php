@@ -296,7 +296,7 @@ class QuizQuestionsPage extends Page implements HasForms, HasTable
             )
             ->columns([
                 TextColumn::make('sort_order')->label('#')->width(50)->sortable(),
-                \Filament\Tables\Columns\ImageColumn::make('image_path')->label('Gambar')->disk('rekrutmen_public')->height(40),
+                \Filament\Tables\Columns\ImageColumn::make('image_path')->label('Gambar')->state(fn ($record) => \App\Models\Rekrutmen\QuizQuestion::imageUrl($record->image_path))->height(40),
                 TextColumn::make('section.name')->label('Subtest')->placeholder('—'),
                 TextColumn::make('question')->label('Pertanyaan')->limit(70)->wrap(),
                 TextColumn::make('correct_option')->label('Jawaban Benar')->badge()->color('success'),

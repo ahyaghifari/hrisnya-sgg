@@ -578,12 +578,6 @@ class TesOnlinePage extends Page implements HasActions, HasForms, HasTable
 
                         return "{$done}/{$total} selesai";
                     }),
-                TextColumn::make('score')->label('Skor Rata-rata')
-                    ->state(function ($record) {
-                        $scores = $record->quizAttempts->where('status', 'submitted')->pluck('score');
-
-                        return $scores->isEmpty() ? '—' : round($scores->avg(), 2) . '%';
-                    }),
                 TextColumn::make('quiz_result')->label('Keputusan')->badge()
                     ->formatStateUsing(fn ($state) => match ($state) {
                         'lulus' => 'Lulus', 'tidak_lulus' => 'Tidak Lulus', default => 'Belum dicatat',
