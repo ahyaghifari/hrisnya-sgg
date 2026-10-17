@@ -66,11 +66,11 @@ class PajakPage extends Component
         return Payroll::query()
             ->where('payroll_period_id', $this->periodId)
             ->with([
-                'user.profile.pangkat.pangkatSalary',
-                'user.profile.kelas',
-                'user.profile.employeeType',
-                'user.profile.jobPosition.orgStructure.parent.parent',
-                'user.profile.jobPosition.orgStructure.parent.parent',
+                'employee.pangkat.pangkatSalary',
+                'employee.kelas',
+                'employee.employeeType',
+                'employee.jobPosition.orgStructure.parent.parent',
+                'employee.jobPosition.orgStructure.parent.parent',
                 'payrollPeriod' => fn ($q) => $q->withoutGlobalScope('company'),
                 'items',
             ])

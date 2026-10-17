@@ -62,7 +62,7 @@ class PayrollGenerateOrderTest extends TestCase
 
         app(PayrollService::class)->generatePayroll($period);
 
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         // Gaji Pokok penuh (rate 0%) = 3.100.000.
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'gaji_pokok', 'amount' => 3_100_000]);

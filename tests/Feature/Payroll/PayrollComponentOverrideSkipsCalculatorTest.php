@@ -48,7 +48,7 @@ class PayrollComponentOverrideSkipsCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $employeeType->id]);
 
         PayrollComponentOverride::create([
-            'user_id' => $user->id, 'employee_id' => $user->employee->id,
+            'employee_id' => $user->employee->id,
             'component' => PayrollComponentEnum::GAJI_POKOK->value,
             'amount' => 9_999_000,
             'note' => 'kesepakatan khusus',
@@ -85,7 +85,7 @@ class PayrollComponentOverrideSkipsCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $employeeType->id]);
 
         PayrollComponentOverride::create([
-            'user_id' => $user->id, 'employee_id' => $user->employee->id,
+            'employee_id' => $user->employee->id,
             'component' => PayrollComponentEnum::GAJI_POKOK->value,
             'amount' => 9_999_000,
             'is_active' => false,

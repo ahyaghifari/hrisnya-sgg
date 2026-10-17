@@ -31,7 +31,7 @@ class PayrollsPageNoWriteOnViewTest extends TestCase
         $company = Companies::create(['code' => 'VNW', 'name' => 'Verify No Write', 'location' => 'Test', 'is_active' => true]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $employee = User::factory()->create(['company_id' => $company->id]);
-        $payroll = Payroll::create(['user_id' => $employee->id, 'employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'total_deductions' => 500000]);
+        $payroll = Payroll::create(['employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'total_deductions' => 500000]);
 
         $before = DB::table('payrolls')->where('id', $payroll->id)->first(['gross_salary', 'net_salary', 'total_deductions']);
 

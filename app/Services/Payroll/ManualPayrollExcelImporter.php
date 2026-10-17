@@ -7,6 +7,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\Employee\Employee;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -19,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as XlsDate;
  * BUKAN menjalankan calculator. Lihat knowledge/markdown/import-payroll-excel-manual.md.
  *
  * - Dokter (STATUS KARYAWAN = Mitra) di-skip total.
- * - NIP tak ketemu User -> dilaporkan di preview, tidak diimport (baris lain tetap jalan).
+ * - NIP tak ketemu Employee -> dilaporkan di preview, tidak diimport (baris lain tetap jalan).
  * - Identitas slip (jabatan/status/kelas/tgl masuk) di-snapshot ke payrolls.import_meta.
  * - Label baris slip = PayrollComponentEnum::label() (bukan label Excel).
  * - Nominal Rp0 -> baris PayrollItem tidak dibuat.
@@ -101,7 +102,7 @@ class ManualPayrollExcelImporter
     private const MAX_ROW = 600;
 
     /**
-     * Baca file tanpa menulis apa pun. Cocokkan NIP -> User (company itu), susun komponen,
+     * Baca file tanpa menulis apa pun. Cocokkan NIP -> Employee (company itu), susun komponen,
      * kumpulkan warning.
      *
      * @return array{
@@ -121,16 +122,16 @@ class ManualPayrollExcelImporter
         $totalNet = 0;
 
         foreach ($parsed['rows'] as $row) {
-            $user = $this->resolveUser($row['nip']);
+            $employee = $this->resolveEmployee($row['nip']);
 
-            if (! $user) {
+            if (! $employee) {
                 $unmatched[] = ['nip' => $row['nip'], 'nip_excel' => $row['nip_excel'], 'nama' => $row['nama'], 'jabatan' => $row['jabatan']];
                 $warnings[] = ['type' => 'nip_tak_ketemu', 'nip' => $row['nip'], 'nama' => $row['nama'], 'detail' => "NIP Excel '{$row['nip_excel']}' tidak ada di data karyawan."];
                 continue;
             }
 
-            if ($user->company_id !== $companyId) {
-                $warnings[] = ['type' => 'beda_company', 'nip' => $row['nip'], 'nama' => $row['nama'], 'detail' => "Karyawan '{$user->name}' ada di perusahaan lain — dilewati."];
+            if ($employee->company_id !== $companyId) {
+                $warnings[] = ['type' => 'beda_company', 'nip' => $row['nip'], 'nama' => $row['nama'], 'detail' => "Karyawan '{$employee->nama_lengkap}' ada di perusahaan lain — dilewati."];
                 $unmatched[] = ['nip' => $row['nip'], 'nip_excel' => $row['nip_excel'], 'nama' => $row['nama'], 'jabatan' => $row['jabatan']];
                 continue;
             }
@@ -138,11 +139,11 @@ class ManualPayrollExcelImporter
             $totalNet += $row['net'];
 
             // Warning yang tidak memblokir import, cuma pemberitahuan sebelum kirim slip.
-            if (! $user->employee?->email_pribadi && ! $user->email) {
-                $warnings[] = ['type' => 'tanpa_email', 'nip' => $row['nip'], 'nama' => $user->name, 'detail' => 'Tidak punya email pribadi maupun email akun — slip tidak akan terkirim.'];
+            if (! $employee->email_pribadi && ! $employee->user?->email) {
+                $warnings[] = ['type' => 'tanpa_email', 'nip' => $row['nip'], 'nama' => $employee->nama_lengkap, 'detail' => 'Tidak punya email pribadi maupun email akun — slip tidak akan terkirim.'];
             }
-            if (! $user->employee?->date_of_birth) {
-                $warnings[] = ['type' => 'tanpa_dob', 'nip' => $row['nip'], 'nama' => $user->name, 'detail' => 'Tanggal lahir kosong — password PDF slip tidak bisa dibuat, email di-skip.'];
+            if (! $employee->date_of_birth) {
+                $warnings[] = ['type' => 'tanpa_dob', 'nip' => $row['nip'], 'nama' => $employee->nama_lengkap, 'detail' => 'Tanggal lahir kosong — password PDF slip tidak bisa dibuat, email di-skip.'];
             }
 
             // Per-komponen (dijumlah per source_type) — buat tabel pratinjau lebar biar mudah
@@ -153,11 +154,10 @@ class ManualPayrollExcelImporter
             }
 
             $matched[] = [
-                'nip' => $user->nip,
+                'nip' => $employee->nip,
                 'nip_excel' => $row['nip_excel'],
-                'user_id' => $user->id,
-                'employee_id' => $user->employee?->id,
-                'nama' => $user->name,
+                'employee_id' => $employee->id,
+                'nama' => $employee->nama_lengkap,
                 'nama_excel' => $row['nama'],
                 'unit' => $row['unit'],
                 'jabatan' => $row['jabatan'],
@@ -241,7 +241,6 @@ class ManualPayrollExcelImporter
 
                 $payroll = Payroll::create([
                     'employee_id' => $m['employee_id'],
-                    'user_id' => $m['user_id'],
                     'payroll_period_id' => $period->id,
                     'gross_salary' => $row['gross'],
                     'total_deductions' => $row['deduction'],
@@ -285,8 +284,7 @@ class ManualPayrollExcelImporter
                             PayrollManualLine::create([
                                 'payroll_period_id' => $period->id,
                                 'employee_id' => $m['employee_id'],
-                                'user_id' => $m['user_id'],
-                                'component' => $line['source_type'],
+                                            'component' => $line['source_type'],
                                 'label' => $line['label'],
                                 'amount' => $line['amount'],
                                 'note' => 'Import Excel ' . now()->format('d/m/Y'),
@@ -585,16 +583,16 @@ class ManualPayrollExcelImporter
         return self::TUNJANGAN_KHUSUS_LABEL[$code] ?? self::TUNJANGAN_KHUSUS_LABEL_DEFAULT;
     }
 
-    private function resolveUser(string $nip): ?User
+    private function resolveEmployee(string $nip): ?Employee
     {
         if ($nip === '') {
             return null;
         }
         $padded = str_pad($nip, 11, '0', STR_PAD_LEFT);
 
-        return User::query()
-            ->with('profile')
-            ->whereNip([$nip, $padded])
+        return Employee::query()
+            ->with('user')
+            ->whereIn('nip', [$nip, $padded])
             ->first();
     }
 

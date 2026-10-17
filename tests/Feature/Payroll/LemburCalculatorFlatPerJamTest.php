@@ -34,7 +34,7 @@ class LemburCalculatorFlatPerJamTest extends TestCase
         $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $request = AttendanceRequests::create(['user_id' => $user->id, 'type' => 'overtime', 'status' => AttendanceReqStatus::APPROVED->value]);
         AttendanceRequestOvertimeDetails::create(['request_id' => $request->id, 'date' => $date, 'total_hours' => $hours]);
@@ -50,7 +50,7 @@ class LemburCalculatorFlatPerJamTest extends TestCase
         $s = $this->makeSetup(hours: 2.5); // 2 jam 30 menit
 
         $context = new PayrollContext();
-        (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
+        (new LemburCalculator())->calculate($s['payroll']->employee, $s['payroll'], $s['period'], $context);
 
         $expected = round(10000 * 2 + (10000 / 60) * 30, 2); // 20.000 + 5.000 = 25.000
 
@@ -64,7 +64,7 @@ class LemburCalculatorFlatPerJamTest extends TestCase
         $s = $this->makeSetup(hours: 1.5); // di bawah default lembur_minimum_jam = 2
 
         $context = new PayrollContext();
-        (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
+        (new LemburCalculator())->calculate($s['payroll']->employee, $s['payroll'], $s['period'], $context);
 
         $this->assertSame(0.0, $context->grossSalary);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $s['payroll']->id]);
@@ -75,7 +75,7 @@ class LemburCalculatorFlatPerJamTest extends TestCase
         $s = $this->makeSetup(hours: 3.0);
 
         $context = new PayrollContext();
-        (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
+        (new LemburCalculator())->calculate($s['payroll']->employee, $s['payroll'], $s['period'], $context);
 
         $this->assertSame(30000.0, $context->grossSalary); // 10.000 x 3
     }
@@ -86,7 +86,7 @@ class LemburCalculatorFlatPerJamTest extends TestCase
         Setting::where('company_id', $s['company']->id)->where('key', 'lembur_rate_per_jam')->delete();
 
         $context = new PayrollContext();
-        (new LemburCalculator())->calculate($s['user'], $s['payroll'], $s['period'], $context);
+        (new LemburCalculator())->calculate($s['payroll']->employee, $s['payroll'], $s['period'], $context);
 
         $this->assertSame(0.0, $context->grossSalary);
     }

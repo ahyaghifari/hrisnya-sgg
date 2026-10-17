@@ -9,7 +9,7 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Shift\ExtraShiftAssignment;
 use App\Models\Shift\ExtraShiftRule;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Attendance\AttendancePeriodResolver;
 use Carbon\Carbon;
 
@@ -35,14 +35,14 @@ class ExtraShiftCalculator implements PayrollComponentCalculator
 {
     use ResolvesExtraShiftOptions;
 
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         // Window absensi (21-20 default), BUKAN literal start/end_date PayrollPeriod - sama
         // seperti LemburCalculator/Keterlambatan.
         [$start, $end] = AttendancePeriodResolver::resolve($period->start_date, $period->company_id);
 
         $assignments = ExtraShiftAssignment::query()
-            ->where('user_id', $user->id)
+            ->where('user_id', $employee->user_id)
             ->where('status', 'approved')
             ->where('category', ExtraShiftAssignment::CATEGORY_EXTRA_SHIFT)
             ->whereBetween('date', [$start, $end])
@@ -64,7 +64,7 @@ class ExtraShiftCalculator implements PayrollComponentCalculator
         foreach ($assignments as $assignment) {
             $to = $assignment->shiftType?->shift_type;
             $date = Carbon::parse($assignment->date)->toDateString();
-            $from = $this->resolveNormalShift($user, $date)['category'] ?? null;
+            $from = $this->resolveNormalShift($employee->user, $date)['category'] ?? null;
 
             if (! $to || ! $from) {
                 continue;

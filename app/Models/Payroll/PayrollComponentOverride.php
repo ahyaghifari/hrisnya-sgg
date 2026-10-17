@@ -22,7 +22,6 @@ class PayrollComponentOverride extends Model
     protected $table = 'payroll_component_overrides';
 
     protected $fillable = [
-        'user_id',
         'employee_id',
         'component',
         'amount',
@@ -44,10 +43,6 @@ class PayrollComponentOverride extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
 
     /** Override aktif buat (karyawan, component) ini, kalau ada - dipakai PayrollService::runComponent(). */
     public static function activeFor(string $employeeId, string $component): ?self

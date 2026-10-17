@@ -7,7 +7,6 @@ use App\Models\Employee\Employee;
 use App\Models\Payroll\PayrollJasaUnitDetail;
 use App\Models\Payroll\JasaUnitType;
 use App\Models\Payroll\PayrollComponentRecipient;
-use App\Models\User;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;

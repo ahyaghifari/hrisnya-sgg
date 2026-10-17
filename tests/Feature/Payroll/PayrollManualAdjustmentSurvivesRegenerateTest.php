@@ -50,7 +50,7 @@ class PayrollManualAdjustmentSurvivesRegenerateTest extends TestCase
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5_000_000, 'total_deductions' => 0, 'net_salary' => 5_000_000]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5_000_000, 'total_deductions' => 0, 'net_salary' => 5_000_000]);
         PayrollItem::create([
             'payroll_id' => $payroll->id,
             'name' => 'Gaji Pokok (override HR)',
@@ -114,7 +114,7 @@ class PayrollManualAdjustmentSurvivesRegenerateTest extends TestCase
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5_000_000, 'total_deductions' => 0, 'net_salary' => 5_000_000]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5_000_000, 'total_deductions' => 0, 'net_salary' => 5_000_000]);
         PayrollItem::create([
             'payroll_id' => $payroll->id,
             'name' => 'Gaji Pokok (override HR)',
@@ -128,7 +128,7 @@ class PayrollManualAdjustmentSurvivesRegenerateTest extends TestCase
 
         app(PayrollService::class)->regeneratePayroll($period);
 
-        $newPayroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $newPayroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
         $gajiPokokItem = $newPayroll->items()->where('source_type', PayrollComponentEnum::GAJI_POKOK->value)->first();
 
         $this->assertNotNull($gajiPokokItem);

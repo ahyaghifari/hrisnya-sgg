@@ -8,7 +8,7 @@ use App\Models\Payroll\PayrollJasaUnitDetail;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Input manual lewat `payroll_jasa_unit_details` (halaman "Input Jasa Unit"), tidak ada rumus otomatis.
@@ -18,7 +18,7 @@ use App\Models\User;
  */
 class JasaUnitCalculator implements PayrollComponentCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $details = PayrollJasaUnitDetail::with('jasaUnitType')
             ->where('employee_id', $payroll->employee_id)

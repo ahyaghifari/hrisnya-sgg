@@ -171,6 +171,36 @@ class Employee extends Model
             ->latestOfMany('start_date');
     }
 
+    /** Struktur organisasi efektif = struktur milik jabatannya (sama seperti UserProfiles). */
+    public function getEffectiveOrgStructureAttribute(): ?\App\Models\Master\OrgStructure
+    {
+        return $this->jobPosition?->orgStructure;
+    }
+
+    public function getDepartmentAttribute()
+    {
+        $org = $this->effective_org_structure;
+
+        if (! $org) {
+            return null;
+        }
+
+        return $org->level === \App\Enum\OrgStructurLevel::LEVEL_DEPARTMENT->value
+            ? $org
+            : ($org->parent?->parent ?? $org->parent);
+    }
+
+    public function getDivisionAttribute()
+    {
+        $org = $this->effective_org_structure;
+
+        if (! $org) {
+            return null;
+        }
+
+        return $org->level === \App\Enum\OrgStructurLevel::LEVEL_DIVISION->value ? $org : $org->parent;
+    }
+
     public function religion(): BelongsTo
     {
         return $this->belongsTo(Religions::class, 'religion_id');

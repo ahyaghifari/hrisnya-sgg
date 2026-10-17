@@ -63,8 +63,8 @@ class PayrollDetailPage extends Component
         abort_unless(Auth::user()->can('view', $payroll), 403);
 
         $this->payroll = $payroll->load([
-            'user.activeJobPosition.jobPosition',
-            'user.profile.kelas',
+            'employee.jobPosition',
+            'employee.kelas',
             'items',
         ]);
         $this->loadPayrollPeriod();
@@ -153,7 +153,7 @@ class PayrollDetailPage extends Component
         $period = $this->payroll->payrollPeriod;
 
         $izinCount = AttendanceRequests::query()
-            ->where('user_id', $this->payroll->user_id)
+            ->where('user_id', $this->payroll->employee->user_id)
             ->where('type', 'permission')
             ->where('status', AttendanceReqStatus::APPROVED->value)
             ->whereHas('permissionDetails', function ($q) use ($period) {
@@ -212,7 +212,7 @@ class PayrollDetailPage extends Component
             return false;
         }
 
-        return PayrollComponentRecipient::isEligible($companyId, $component, $this->payroll->user->profile?->employee_type_id);
+        return PayrollComponentRecipient::isEligible($companyId, $component, $this->payroll->employee?->employee_type_id);
     }
 
     /** Baris Bon manual punya karyawan ini di periode ini — ditampilkan dengan aksi ubah/hapus. */
@@ -257,7 +257,7 @@ class PayrollDetailPage extends Component
         return AuditLog::where('key', 'payroll:' . $this->payroll->id)
             ->where('module', 'payroll_payment')
             ->orderByDesc('created_at')
-            ->with('user')
+            ->with('employee')
             ->get();
     }
 
@@ -286,7 +286,7 @@ class PayrollDetailPage extends Component
         $this->payroll->refresh();
         $this->loadPayrollPeriod();
 
-        $this->payroll->user?->notify(new PayrollPaid($this->payroll));
+        $this->payroll->employee?->user?->notify(new PayrollPaid($this->payroll));
 
         Notification::make()
             ->title('Payroll ditandai sudah dibayar')
@@ -332,7 +332,7 @@ class PayrollDetailPage extends Component
             'payroll_payment',
             $this->payroll->payrollPeriod->company_id,
             'payroll:' . $this->payroll->id,
-            $this->payroll->user->name . ' — ' . $this->payroll->payrollPeriod->start_date->format('M Y') . ' (' . $this->cancelPaidReason . ')',
+            $this->payroll->employee?->nama_lengkap . ' — ' . $this->payroll->payrollPeriod->start_date->format('M Y') . ' (' . $this->cancelPaidReason . ')',
             'Sudah Dibayar',
             'Dibatalkan'
         );
@@ -358,7 +358,7 @@ class PayrollDetailPage extends Component
         abort_unless($this->payroll->is_paid, 403, 'Payroll harus ditandai sudah dibayar dulu sebelum slip bisa dikirim.');
 
         // Sama fallback dengan SendPayrollSlipJob - email_pribadi diprioritaskan, baru email akun.
-        if (! ($this->payroll->user->profile?->email_pribadi ?: $this->payroll->user->email)) {
+        if (! ($this->payroll->employee?->email_pribadi ?: $this->payroll->employee?->user?->email)) {
             Notification::make()
                 ->title('Karyawan ini belum punya email')
                 ->danger()
@@ -467,7 +467,6 @@ class PayrollDetailPage extends Component
             $line = PayrollManualLine::create([
                 'payroll_period_id' => $this->payroll->payroll_period_id,
                 'employee_id' => $this->payroll->employee_id,
-                'user_id' => $this->payroll->user_id,
                 'component' => $this->manualLineComponent,
                 'amount' => $this->manualLineAmount,
                 'note' => $this->manualLineNote,
@@ -596,7 +595,7 @@ class PayrollDetailPage extends Component
      */
     private function recordAdjustmentAudit(string $lineId, ?string $oldAmount, ?string $newAmount): void
     {
-        $label = ($this->manualLineLabel ?: 'Bon') . ' — ' . $this->payroll->user->name
+        $label = ($this->manualLineLabel ?: 'Bon') . ' — ' . $this->payroll->employee?->nama_lengkap
             . ($this->manualLineNote ? " ({$this->manualLineNote})" : '');
 
         AuditLog::record(

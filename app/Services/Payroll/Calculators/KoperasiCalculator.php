@@ -7,7 +7,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Employee\EmployeeKoperasi;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Baca LANGSUNG dari `employee_koperasi` (roster anggota aktif) tiap Generate/Regenerate - TIDAK
@@ -18,7 +18,7 @@ use App\Models\User;
  */
 class KoperasiCalculator implements PayrollComponentCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $member = EmployeeKoperasi::query()
             ->where('employee_id', $payroll->employee_id)

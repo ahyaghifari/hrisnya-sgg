@@ -7,7 +7,7 @@ use App\Models\Employee\EmployeeExecutiveAllowance;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Baris pendapatan/potongan manual khusus User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS (Presiden
@@ -25,7 +25,7 @@ use App\Models\User;
  */
 class ExecutiveAllowanceCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $rows = EmployeeExecutiveAllowance::where('employee_id', $payroll->employee_id)
             ->where('is_active', true)

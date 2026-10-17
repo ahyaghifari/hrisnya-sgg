@@ -8,7 +8,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Basis potongan dibaca dari `pangkat.bpjsBasis` (tabel `pangkat_bpjs_bases`, 1:1 ke
@@ -25,14 +25,14 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
     abstract protected function componentType(): string;
 
     /** Dikali ke amount akhir — cuma BPJS Kesehatan yang override ini (lihat tanggungan). */
-    protected function multiplier(User $user, Payroll $payroll): float
+    protected function multiplier(Employee $employee, Payroll $payroll): float
     {
         return 1.0;
     }
 
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $bpjsBasis = $user->employee?->pangkat?->bpjsBasis?->bpjs_basis;
+        $bpjsBasis = $employee->pangkat?->bpjsBasis?->bpjs_basis;
 
         if (! $bpjsBasis) {
             return;
@@ -54,7 +54,7 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
             return;
         }
 
-        $multiplier = $this->multiplier($user, $payroll);
+        $multiplier = $this->multiplier($employee, $payroll);
 
         $amount = round((float) $basis * (float) $rate / 100 * $multiplier, 2);
 

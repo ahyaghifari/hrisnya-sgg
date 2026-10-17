@@ -82,7 +82,7 @@ class PayrollDetailPageManualLineTest extends TestCase
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        return Payroll::create(['user_id' => $employee->id, 'employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id]);
+        return Payroll::create(['employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id]);
     }
 
     public function test_bon_simple_mode_blocks_second_manual_line(): void

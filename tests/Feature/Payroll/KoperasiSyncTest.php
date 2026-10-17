@@ -39,7 +39,7 @@ class KoperasiSyncTest extends TestCase
 
         $this->assertDatabaseMissing('payroll_manual_lines', ['component' => 'koperasi']);
 
-        $payroll = \App\Models\Payroll\Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = \App\Models\Payroll\Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
         $item = $payroll->items()->where('source_type', 'koperasi')->first();
 
         $this->assertNotNull($item);
@@ -60,7 +60,7 @@ class KoperasiSyncTest extends TestCase
 
         app(PayrollService::class)->generatePayroll($period);
 
-        $payroll = \App\Models\Payroll\Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = \App\Models\Payroll\Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         // Koperasi tetap komponen aktif di company ini - baris Rp0 tetap muncul di slip (perilaku
         // umum semua komponen aktif, lihat PayrollService::runComponent()), cuma tidak ada

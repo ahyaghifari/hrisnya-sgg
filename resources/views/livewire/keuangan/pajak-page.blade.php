@@ -41,8 +41,8 @@
                         @endphp
                         <tr wire:key="'pajak-'.{{ $payroll->id }}" style="border-bottom:1px solid var(--border-soft);">
                             <td style="padding:9px 14px;white-space:nowrap;">
-                                <span style="font-weight:600;">{{ $payroll->user?->name ?? '-' }}</span>
-                                <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $payroll->user?->nip ?? '-' }}</span>
+                                <span style="font-weight:600;">{{ $payroll->employee?->nama_lengkap ?? '-' }}</span>
+                                <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $payroll->employee?->nip ?? '-' }}</span>
                             </td>
                             <td style="padding:9px 14px;text-align:right;white-space:nowrap;">{{ $base !== null ? 'Rp'.number_format($base, 0, ',', '.') : '-' }}</td>
                             <td style="padding:9px 14px;text-align:right;white-space:nowrap;">{{ $percent !== null ? rtrim(rtrim(number_format($percent, 2, ',', ''), '0'), ',').'%' : '-' }}</td>

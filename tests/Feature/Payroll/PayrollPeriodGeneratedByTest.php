@@ -68,7 +68,7 @@ class PayrollPeriodGeneratedByTest extends TestCase
 
         app(PayrollService::class)->generatePayroll($period, $actor->id);
 
-        $payroll = \App\Models\Payroll\Payroll::where('user_id', $employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = \App\Models\Payroll\Payroll::where('employee_id', $employee->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
         $this->assertSame($actor->id, $payroll->generated_by);
         $this->assertNotNull($payroll->generated_at);
     }

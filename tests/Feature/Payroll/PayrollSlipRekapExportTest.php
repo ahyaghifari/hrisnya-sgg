@@ -11,7 +11,8 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
-use App\Models\User\UserProfiles;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeIdentity;
 use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -46,17 +47,15 @@ class PayrollSlipRekapExportTest extends TestCase
 
     private function makePayroll(array $items): Payroll
     {
-        $profile = new UserProfiles;
+        $profile = new Employee;
         $profile->setRelation('jobPosition', null);
         $profile->setRelation('pangkat', null);
         $profile->setRelation('kelas', null);
         $profile->setRelation('employeeType', null);
         $profile->setRelation('orgStructure', null);
 
-        $user = new User;
-        $user->name = 'Karyawan Uji';
-        $user->nip = '00123';
-        $user->setRelation('profile', $profile);
+        $profile->nama_lengkap = 'Karyawan Uji';
+        $profile->nip = '00123';
 
         $period = new PayrollPeriod;
         $period->start_date = now();
@@ -67,7 +66,7 @@ class PayrollSlipRekapExportTest extends TestCase
         $payroll->gross_salary = collect($items)->where('type', 'earning')->sum(fn (PayrollItem $i) => (float) $i->amount);
         $payroll->total_deductions = collect($items)->where('type', 'deduction')->sum(fn (PayrollItem $i) => (float) $i->amount);
         $payroll->net_salary = $payroll->gross_salary - $payroll->total_deductions;
-        $payroll->setRelation('user', $user);
+        $payroll->setRelation('employee', $profile);
         $payroll->setRelation('payrollPeriod', $period);
         $payroll->setRelation('items', new Collection($items));
 
@@ -146,7 +145,7 @@ class PayrollSlipRekapExportTest extends TestCase
             $pangkat->level = $pangkatLevel;
         }
 
-        $profile = new UserProfiles;
+        $profile = new Employee;
         $profile->setRelation('jobPosition', null);
         $profile->setRelation('pangkat', $pangkat);
         $profile->setRelation('kelas', null);
@@ -154,12 +153,10 @@ class PayrollSlipRekapExportTest extends TestCase
         $profile->setRelation('orgStructure', null);
         $profile->joining_date = $joiningDate;
 
-        $user = new User;
-        $user->name = $name;
-        $user->setRelation('profile', $profile);
+        $profile->nama_lengkap = $name;
 
         $payroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 1_000_000)]);
-        $payroll->setRelation('user', $user);
+        $payroll->setRelation('employee', $profile);
 
         return $payroll;
     }
@@ -199,19 +196,17 @@ class PayrollSlipRekapExportTest extends TestCase
         $division->level = OrgStructurLevel::LEVEL_DIVISION->value;
         $division->name = $divisionName;
 
-        $profile = new UserProfiles;
+        $profile = new Employee;
         $profile->setRelation('jobPosition', null);
         $profile->setRelation('pangkat', null);
         $profile->setRelation('kelas', null);
         $profile->setRelation('employeeType', null);
         $profile->setRelation('jobPosition', (new JobPositions)->setRelation('orgStructure', $division));
 
-        $user = new User;
-        $user->name = $name;
-        $user->setRelation('profile', $profile);
+        $profile->nama_lengkap = $name;
 
         $payroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 1_000_000)]);
-        $payroll->setRelation('user', $user);
+        $payroll->setRelation('employee', $profile);
 
         return $payroll;
     }
@@ -262,19 +257,17 @@ class PayrollSlipRekapExportTest extends TestCase
         $division->level = OrgStructurLevel::LEVEL_DIVISION->value;
         $division->name = 'Divisi Keuangan';
 
-        $profile = new UserProfiles;
+        $profile = new Employee;
         $profile->setRelation('jobPosition', null);
         $profile->setRelation('pangkat', null);
         $profile->setRelation('kelas', null);
         $profile->setRelation('employeeType', null);
         $profile->setRelation('jobPosition', (new JobPositions)->setRelation('orgStructure', $division));
 
-        $user = new User;
-        $user->name = 'Karyawan Divisi';
-        $user->setRelation('profile', $profile);
+        $profile->nama_lengkap = 'Karyawan Divisi';
 
         $payroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 1_000_000)]);
-        $payroll->setRelation('user', $user);
+        $payroll->setRelation('employee', $profile);
 
         $export = new PayrollSlipRekapExport(collect([$payroll]), $company->id);
         $rows = $export->collection()->values();
@@ -296,49 +289,43 @@ class PayrollSlipRekapExportTest extends TestCase
         $division->level = OrgStructurLevel::LEVEL_DIVISION->value;
         $division->name = 'Divisi Keuangan';
 
-        $divisionProfile = new UserProfiles;
+        $divisionProfile = new Employee;
         $divisionProfile->setRelation('jobPosition', null);
         $divisionProfile->setRelation('pangkat', null);
         $divisionProfile->setRelation('kelas', null);
         $divisionProfile->setRelation('employeeType', null);
         $divisionProfile->setRelation('jobPosition', (new JobPositions)->setRelation('orgStructure', $division));
 
-        $divisionUser = new User;
-        $divisionUser->name = 'Karyawan Divisi';
-        $divisionUser->setRelation('profile', $divisionProfile);
+        $divisionProfile->nama_lengkap = 'Karyawan Divisi';
 
         $divisionPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 1_000_000)]);
-        $divisionPayroll->setRelation('user', $divisionUser);
+        $divisionPayroll->setRelation('employee', $divisionProfile);
 
         // 2 akun tanpa divisi, jabatan BEDA-BEDA (Presiden Direktur & Sekretaris Direktur) -
         // harus tetap 1 grup gabungan, bukan 2 grup terpisah.
-        $presdirProfile = new UserProfiles;
+        $presdirProfile = new Employee;
         $presdirProfile->setRelation('jobPosition', null);
         $presdirProfile->setRelation('pangkat', null);
         $presdirProfile->setRelation('kelas', null);
         $presdirProfile->setRelation('employeeType', null);
         $presdirProfile->setRelation('orgStructure', null);
 
-        $presdirUser = new User;
-        $presdirUser->name = 'Presiden Direktur Uji';
-        $presdirUser->setRelation('profile', $presdirProfile);
+        $presdirProfile->nama_lengkap = 'Presiden Direktur Uji';
 
         $presdirPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 5_000_000)]);
-        $presdirPayroll->setRelation('user', $presdirUser);
+        $presdirPayroll->setRelation('employee', $presdirProfile);
 
-        $sekdirProfile = new UserProfiles;
+        $sekdirProfile = new Employee;
         $sekdirProfile->setRelation('jobPosition', null);
         $sekdirProfile->setRelation('pangkat', null);
         $sekdirProfile->setRelation('kelas', null);
         $sekdirProfile->setRelation('employeeType', null);
         $sekdirProfile->setRelation('orgStructure', null);
 
-        $sekdirUser = new User;
-        $sekdirUser->name = 'Sekretaris Direktur Uji';
-        $sekdirUser->setRelation('profile', $sekdirProfile);
+        $sekdirProfile->nama_lengkap = 'Sekretaris Direktur Uji';
 
         $sekdirPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 4_000_000)]);
-        $sekdirPayroll->setRelation('user', $sekdirUser);
+        $sekdirPayroll->setRelation('employee', $sekdirProfile);
 
         $export = new PayrollSlipRekapExport(collect([$divisionPayroll, $presdirPayroll, $sekdirPayroll]), $company->id);
         $rows = $export->collection()->values();
@@ -364,33 +351,29 @@ class PayrollSlipRekapExportTest extends TestCase
         $division->level = OrgStructurLevel::LEVEL_DIVISION->value;
         $division->name = 'Divisi Keuangan';
 
-        $divisionProfile = new UserProfiles;
+        $divisionProfile = new Employee;
         $divisionProfile->setRelation('jobPosition', null);
         $divisionProfile->setRelation('pangkat', null);
         $divisionProfile->setRelation('kelas', null);
         $divisionProfile->setRelation('employeeType', null);
         $divisionProfile->setRelation('jobPosition', (new JobPositions)->setRelation('orgStructure', $division));
 
-        $divisionUser = new User;
-        $divisionUser->name = 'Karyawan Divisi';
-        $divisionUser->setRelation('profile', $divisionProfile);
+        $divisionProfile->nama_lengkap = 'Karyawan Divisi';
 
         $divisionPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 1_000_000)]);
-        $divisionPayroll->setRelation('user', $divisionUser);
+        $divisionPayroll->setRelation('employee', $divisionProfile);
 
-        $noDivisionProfile = new UserProfiles;
+        $noDivisionProfile = new Employee;
         $noDivisionProfile->setRelation('jobPosition', null);
         $noDivisionProfile->setRelation('pangkat', null);
         $noDivisionProfile->setRelation('kelas', null);
         $noDivisionProfile->setRelation('employeeType', null);
         $noDivisionProfile->setRelation('orgStructure', null);
 
-        $noDivisionUser = new User;
-        $noDivisionUser->name = 'Karyawan Tanpa Divisi';
-        $noDivisionUser->setRelation('profile', $noDivisionProfile);
+        $noDivisionProfile->nama_lengkap = 'Karyawan Tanpa Divisi';
 
         $noDivisionPayroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 2_000_000)]);
-        $noDivisionPayroll->setRelation('user', $noDivisionUser);
+        $noDivisionPayroll->setRelation('employee', $noDivisionProfile);
 
         $export = new PayrollSlipRekapExport(collect([$divisionPayroll, $noDivisionPayroll]), $company->id);
         $rows = $export->collection()->values();
@@ -422,19 +405,17 @@ class PayrollSlipRekapExportTest extends TestCase
         ]);
         \App\Models\Payroll\PangkatSalary::create(['pangkat_id' => $pangkat->id, 'base_salary' => 1_000_000]);
 
-        $profile = new UserProfiles;
+        $profile = new Employee;
         $profile->setRelation('jobPosition', null);
         $profile->setRelation('pangkat', $pangkat->fresh(['startKelas', 'maxKelas', 'pangkatSalary']));
         $profile->setRelation('kelas', $currentKelas);
         $profile->setRelation('employeeType', null);
         $profile->setRelation('orgStructure', null);
 
-        $user = new User;
-        $user->name = 'Karyawan Uji';
-        $user->setRelation('profile', $profile);
+        $profile->nama_lengkap = 'Karyawan Uji';
 
         $payroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 1_160_000)]);
-        $payroll->setRelation('user', $user);
+        $payroll->setRelation('employee', $profile);
         $payroll->payrollPeriod->company_id = $company->id;
 
         $export = new PayrollSlipRekapExport(collect([$payroll]), $company->id);
@@ -454,22 +435,19 @@ class PayrollSlipRekapExportTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'PT Uji', 'location' => 'Banjarbaru']);
         CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'is_active' => true]);
 
-        $profile = new UserProfiles;
+        $profile = new Employee;
         $profile->setRelation('jobPosition', null);
         $profile->setRelation('pangkat', null);
         $profile->setRelation('kelas', null);
         $profile->setRelation('employeeType', null);
         $profile->setRelation('orgStructure', null);
-        $profile->no_nik = '0033445566778899';
-        $profile->bank_account_number = '0012345678';
+        $profile->setRelation('identity', new EmployeeIdentity(['no_nik' => '0033445566778899', 'bank_account_number' => '0012345678']));
 
-        $user = new User;
-        $user->name = 'Karyawan Uji';
-        $user->nip = '00123';
-        $user->setRelation('profile', $profile);
+        $profile->nama_lengkap = 'Karyawan Uji';
+        $profile->nip = '00123';
 
         $payroll = $this->makePayroll([$this->makeItem('gaji_pokok', 'earning', 1_000_000)]);
-        $payroll->setRelation('user', $user);
+        $payroll->setRelation('employee', $profile);
 
         $export = new PayrollSlipRekapExport(collect([$payroll]), $company->id);
         $bytes = Excel::raw($export, ExcelWriter::XLSX);

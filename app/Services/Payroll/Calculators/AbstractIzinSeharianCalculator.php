@@ -9,7 +9,7 @@ use App\Models\Attendance\AttendanceRequests;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Attendance\AttendancePeriodResolver;
 
 /**
@@ -23,9 +23,9 @@ use App\Services\Attendance\AttendancePeriodResolver;
 abstract class AbstractIzinSeharianCalculator implements PayrollComponentCalculator
 {
     /** Rate harian (Rp per hari izin) - 0 berarti tidak ada dasar hitung, tidak digenerate. */
-    abstract protected function rateHarian(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): float;
+    abstract protected function rateHarian(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): float;
 
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         // Window pengecekan tanggal izin BUKAN literal start_date/end_date PayrollPeriod (itu
         // diketik bebas admin pas bikin periode gaji) - dipakai window "periode Izin" dari
@@ -36,7 +36,7 @@ abstract class AbstractIzinSeharianCalculator implements PayrollComponentCalcula
         // Hitung berapa kali karyawan ini punya pengajuan Izin (kategori Izin Seharian) yang
         // sudah APPROVED dan tanggalnya jatuh di dalam periode Izin ini.
         $count = AttendanceRequests::query()
-            ->where('user_id', $user->id)
+            ->where('user_id', $employee->user_id)
             ->where('type', 'permission')
             ->where('status', AttendanceReqStatus::APPROVED->value)
             ->whereHas('permissionDetails', function ($q) use ($izinPeriodStart, $izinPeriodEnd) {
@@ -50,7 +50,7 @@ abstract class AbstractIzinSeharianCalculator implements PayrollComponentCalcula
             return;
         }
 
-        $rateHarian = $this->rateHarian($user, $payroll, $period, $context);
+        $rateHarian = $this->rateHarian($employee, $payroll, $period, $context);
 
         if ($rateHarian <= 0) {
             return;

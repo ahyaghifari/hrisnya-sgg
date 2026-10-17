@@ -35,7 +35,7 @@ class JasaPelayananCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'job_position_id' => $userPosition->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $rawatInap = OmsetCategory::create(['company_id' => $company->id, 'name' => 'Rawat Inap BPJS', 'payer_type' => 'bpjs']);
         $rawatJalan = OmsetCategory::create(['company_id' => $company->id, 'name' => 'Rawat Jalan Umum', 'payer_type' => 'umum']);
@@ -43,7 +43,7 @@ class JasaPelayananCalculatorTest extends TestCase
         OmsetDetail::create(['payroll_period_id' => $period->id, 'omset_category_id' => $rawatJalan->id, 'amount' => 30_000]);
 
         $context = new PayrollContext();
-        (new JasaPelayananCalculator())->calculate($user, $payroll, $period, $context);
+        (new JasaPelayananCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // Total JE = 300 + 700 = 1000. Pool = 70.000 x 2,5% (BPJS) + 30.000 x 7,5% (Umum)
         // = 1.750 + 2.250 = 4.000. (300 / 1000) * 4.000 = 1.200
@@ -60,10 +60,10 @@ class JasaPelayananCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'job_position_id' => $userPosition->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new JasaPelayananCalculator())->calculate($user, $payroll, $period, $context);
+        (new JasaPelayananCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
     }

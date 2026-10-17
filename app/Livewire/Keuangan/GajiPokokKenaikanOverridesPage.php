@@ -123,7 +123,6 @@ class GajiPokokKenaikanOverridesPage extends Component
         try {
             GajiPokokKenaikanOverride::create([
                 'employee_id' => $this->addEmployeeId,
-                'user_id' => Employee::whereKey($this->addEmployeeId)->value('user_id'),
                 'rate' => $this->addRate,
                 'note' => $this->addNote,
                 'is_active' => true,

@@ -51,7 +51,7 @@ class PayrollSlipEmailTest extends TestCase
         UserProfiles::create(array_merge(['user_id' => $employee->id, 'date_of_birth' => '1995-05-17'], $profileAttrs));
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-06-01', 'end_date' => '2026-06-30']);
         $payroll = Payroll::create([
-            'user_id' => $employee->id, 'employee_id' => $employee->employee->id,
+            'employee_id' => $employee->employee->id,
             'payroll_period_id' => $period->id,
             'gross_salary' => 1000000,
             'net_salary' => 1000000,
@@ -67,7 +67,7 @@ class PayrollSlipEmailTest extends TestCase
     {
         [, , $payroll] = $this->makePaidPayroll(['nip' => '20260001123'], ['date_of_birth' => '1995-05-07']);
 
-        $password = app(PayrollService::class)->slipPassword($payroll->user);
+        $password = app(PayrollService::class)->slipPassword($payroll->employee);
 
         $this->assertSame('07123', $password);
     }
@@ -77,7 +77,7 @@ class PayrollSlipEmailTest extends TestCase
         $employee = User::factory()->create(['nip' => '20260001123']);
         UserProfiles::create(['user_id' => $employee->id, 'date_of_birth' => null]);
 
-        $this->assertNull(app(PayrollService::class)->slipPassword($employee));
+        $this->assertNull(app(PayrollService::class)->slipPassword($employee->employee));
     }
 
     public function test_encrypted_slip_throws_without_password_data(): void
@@ -92,13 +92,13 @@ class PayrollSlipEmailTest extends TestCase
     {
         [, , $payroll] = $this->makePaidPayroll();
 
-        $slip = app(PayrollService::class)->encryptedSlip($payroll->load('payrollPeriod', 'user.profile'));
+        $slip = app(PayrollService::class)->encryptedSlip($payroll->load('payrollPeriod', 'employee'));
 
         $this->assertSame('17123', $slip['password']);
         $this->assertStringStartsWith('%PDF', $slip['binary']);
         // Format: SLIPGAJI-{bulan periode}{tahun periode}-{NIP}_{NAMA KARYAWAN} — periode
         // makePaidPayroll() berakhir 2026-06-30.
-        $this->assertSame('SLIPGAJI-062026-20260001123_' . strtoupper($payroll->user->name) . '.pdf', $slip['filename']);
+        $this->assertSame('SLIPGAJI-062026-20260001123_' . strtoupper($payroll->employee->nama_lengkap) . '.pdf', $slip['filename']);
     }
 
     // ── Job ───────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ class PayrollSlipEmailTest extends TestCase
 
         (new SendPayrollSlipJob($payroll->id))->handle(app(PayrollService::class), app(\App\Services\Payroll\PayrollMailer::class));
 
-        Mail::assertSent(PayrollSlipMail::class, fn (PayrollSlipMail $mail) => $mail->hasTo($payroll->user->email) && $mail->senderName === 'Noor Afini');
+        Mail::assertSent(PayrollSlipMail::class, fn (PayrollSlipMail $mail) => $mail->hasTo($payroll->employee->user->email) && $mail->senderName === 'Noor Afini');
         $this->assertNotNull($payroll->fresh()->slip_sent_at);
     }
 

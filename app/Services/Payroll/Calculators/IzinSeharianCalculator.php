@@ -5,7 +5,7 @@ namespace App\Services\Payroll\Calculators;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Dispatcher tipis - pilih Calculator sesuai setting `izin_seharian_metode` (company-scoped,
@@ -20,7 +20,7 @@ use App\Models\User;
  */
 class IzinSeharianCalculator implements PayrollComponentCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $metode = Setting::resolve('izin_seharian_metode', $period->company_id, default: 'keseluruhan');
 
@@ -28,6 +28,6 @@ class IzinSeharianCalculator implements PayrollComponentCalculator
             ? new IzinSeharianGajiPokokCalculator()
             : new IzinSeharianKeseluruhanCalculator();
 
-        $calculator->calculate($user, $payroll, $period, $context);
+        $calculator->calculate($employee, $payroll, $period, $context);
     }
 }

@@ -169,8 +169,8 @@ class PayrollsPage extends Component
         // Ambil dulu SEMUA baris mentah (query di atas tidak menyentuh nominal terenkripsi
         // sama sekali - PayrollEncrypted baru jalan pas atribut diakses, bukan pas ->get()).
         $payrolls = $this->applySlipStatusFilter($this->baseSlipQuery())
-            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->searchNameOrNip($search)))
-            ->with(['user', 'payrollPeriod' => fn ($q) => $this->unscopePeriodRelation($q)])
+            ->when($search !== '', fn ($q) => $q->whereHas('employee', fn ($q2) => $q2->where(fn ($q3) => $q3->where('nama_lengkap', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"))))
+            ->with(['employee', 'payrollPeriod' => fn ($q) => $this->unscopePeriodRelation($q)])
             ->orderByDesc('created_at')
             ->get();
 
@@ -203,13 +203,13 @@ class PayrollsPage extends Component
 
         $payrolls = Payroll::where('payroll_period_id', $this->periodId)
             ->with([
-                'user.profile.jobPosition.orgStructure.parent.parent',
-                'user.profile.pangkat.pangkatSalary',
-                'user.profile.pangkat.startKelas',
-                'user.profile.pangkat.maxKelas',
-                'user.profile.kelas',
-                'user.profile.employeeType',
-                'user.profile.jobPosition.orgStructure.parent.parent',
+                'employee.jobPosition.orgStructure.parent.parent',
+                'employee.pangkat.pangkatSalary',
+                'employee.pangkat.startKelas',
+                'employee.pangkat.maxKelas',
+                'employee.kelas',
+                'employee.employeeType',
+                'employee.jobPosition.orgStructure.parent.parent',
                 'payrollPeriod',
                 'items',
             ])
@@ -344,7 +344,7 @@ class PayrollsPage extends Component
         $applied = 0;
 
         foreach ($this->revisionDiffs as $diff) {
-            $payroll = Payroll::with('payrollPeriod', 'user')->find($diff['payroll_id']);
+            $payroll = Payroll::with('payrollPeriod', 'employee')->find($diff['payroll_id']);
             if (! $payroll || $payroll->is_paid) {
                 continue;
             }
@@ -450,12 +450,12 @@ class PayrollsPage extends Component
         // Ambil dulu SEBELUM update masal — butuh tahu persis baris mana yang benar-benar
         // berubah dari belum ke sudah dibayar, biar tidak notifikasi ulang yang sudah dibayar
         // sebelumnya (bisa ikut kecentang tapi tidak seharusnya dianggap "baru dibayar").
-        $newlyPaid = Payroll::whereIn('id', $this->selected)->where('is_paid', false)->with(['user', 'payrollPeriod'])->get();
+        $newlyPaid = Payroll::whereIn('id', $this->selected)->where('is_paid', false)->with(['employee', 'payrollPeriod'])->get();
 
         Payroll::whereIn('id', $newlyPaid->pluck('id'))->update(['is_paid' => true]);
 
         foreach ($newlyPaid as $payroll) {
-            $payroll->user?->notify(new PayrollPaid($payroll));
+            $payroll->employee?->user?->notify(new PayrollPaid($payroll));
         }
 
         $count = $newlyPaid->count();
@@ -473,12 +473,12 @@ class PayrollsPage extends Component
         abort_unless($this->canUpdatePayroll, 403);
         abort_unless($this->selectedAllPaid, 403, 'Semua payroll yang dipilih harus sudah dibayar dulu.');
 
-        $payrolls = Payroll::whereIn('id', $this->selected)->with('user.profile')->get();
+        $payrolls = Payroll::whereIn('id', $this->selected)->with('employee.user')->get();
         $skipped = 0;
 
         foreach ($payrolls as $payroll) {
             // Sama fallback dengan SendPayrollSlipJob - email_pribadi diprioritaskan, baru email akun.
-            if (! ($payroll->user?->profile?->email_pribadi ?: $payroll->user?->email)) {
+            if (! ($payroll->employee?->email_pribadi ?: $payroll->employee?->user?->email)) {
                 $skipped++;
 
                 continue;
@@ -504,14 +504,14 @@ class PayrollsPage extends Component
         abort_unless($this->canUpdatePayroll, 403);
 
         $payroll = Payroll::where('id', $payrollId)->where('is_paid', false)
-            ->with(['user', 'payrollPeriod'])->first();
+            ->with(['employee', 'payrollPeriod'])->first();
 
         if (! $payroll) {
             return;
         }
 
         $payroll->update(['is_paid' => true]);
-        $payroll->user?->notify(new PayrollPaid($payroll));
+        $payroll->employee?->user?->notify(new PayrollPaid($payroll));
 
         Notification::make()->title('Payroll ditandai sudah dibayar')->success()->send();
     }
@@ -520,10 +520,10 @@ class PayrollsPage extends Component
     {
         abort_unless($this->canUpdatePayroll, 403);
 
-        $payroll = Payroll::where('id', $payrollId)->where('is_paid', true)->with('user.profile')->first();
+        $payroll = Payroll::where('id', $payrollId)->where('is_paid', true)->with('employee.user')->first();
         abort_unless($payroll, 403, 'Payroll harus sudah dibayar dulu.');
 
-        if (! ($payroll->user?->profile?->email_pribadi ?: $payroll->user?->email)) {
+        if (! ($payroll->employee?->email_pribadi ?: $payroll->employee?->user?->email)) {
             Notification::make()->title('Karyawan belum punya email')->warning()->send();
 
             return;
@@ -626,7 +626,7 @@ class PayrollsPage extends Component
             $payrollService = app(PayrollService::class);
             $payrolls = Payroll::where('payroll_period_id', $this->importPeriodId)
                 ->whereIn('employee_id', $import->getSuccessEmployeeIds())
-                ->with(['user.profile', 'payrollPeriod'])
+                ->with(['employee.user', 'payrollPeriod'])
                 ->get();
 
             foreach ($payrolls as $payroll) {
@@ -634,7 +634,7 @@ class PayrollsPage extends Component
                     $payrollService->regenerateSinglePayroll($payroll, Auth::id());
                     $regeneratedCount++;
                 } catch (\Throwable $e) {
-                    $this->importErrors[] = "NIP {$payroll->user?->nip}: berhasil diimport tapi gagal regenerate payroll - {$e->getMessage()}";
+                    $this->importErrors[] = "NIP {$payroll->employee?->nip}: berhasil diimport tapi gagal regenerate payroll - {$e->getMessage()}";
                 }
             }
         }

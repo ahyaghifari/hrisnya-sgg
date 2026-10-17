@@ -132,7 +132,6 @@ class PayrollComponentOverridesPage extends Component
         try {
             PayrollComponentOverride::create([
                 'employee_id' => $this->addEmployeeId,
-                'user_id' => Employee::whereKey($this->addEmployeeId)->value('user_id'),
                 'component' => $this->addComponent,
                 'amount' => $this->addAmount,
                 'note' => $this->addNote,

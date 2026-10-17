@@ -7,7 +7,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Input manual finance lewat `payroll_manual_lines` (Bon mode Detail = potongan rincian
@@ -27,7 +27,7 @@ abstract class AbstractManualLineCalculator implements PayrollComponentCalculato
     abstract protected function componentLabel(): string;
     abstract protected function componentType(): string;
 
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $lines = PayrollManualLine::query()
             ->where('employee_id', $payroll->employee_id)

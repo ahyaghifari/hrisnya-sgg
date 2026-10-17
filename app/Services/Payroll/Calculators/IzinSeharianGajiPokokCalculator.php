@@ -7,7 +7,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Payroll\Calculators\Concerns\ResolvesProrateDivisor;
 
 /**
@@ -32,7 +32,7 @@ class IzinSeharianGajiPokokCalculator extends AbstractIzinSeharianCalculator
 {
     use ResolvesProrateDivisor;
 
-    protected function rateHarian(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): float
+    protected function rateHarian(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): float
     {
         // `amount` dienkripsi (PayrollEncrypted) - SUM SQL gak bisa jalan, jumlah di PHP.
         $gajiPokok = (float) PayrollItem::query()

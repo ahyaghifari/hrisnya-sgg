@@ -48,10 +48,10 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
         $user = $this->makeUser($company, dependentCount: 2);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new BpjsKesehatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new BpjsKesehatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // basis 3.000.000 * rate 1% * (1 + 2 tanggungan) = 90.000
         $this->assertSame(90_000.0, $context->totalDeductions);
@@ -66,10 +66,10 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
         $user = $this->makeUser($company, dependentCount: null);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new BpjsKesehatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new BpjsKesehatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(30_000.0, $context->totalDeductions);
     }
@@ -83,10 +83,10 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
         $user = $this->makeUser($company, dependentCount: 3, dependentActive: false);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new BpjsKesehatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new BpjsKesehatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(30_000.0, $context->totalDeductions);
     }
@@ -104,10 +104,10 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new BpjsKesehatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new BpjsKesehatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->totalDeductions);
     }

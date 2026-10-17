@@ -3,8 +3,10 @@
 namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
+use App\Models\Employee\Employee;
 use App\Models\Master\Companies;
 use App\Models\User;
+use App\Models\User\UserProfiles;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -14,7 +16,7 @@ use Livewire\WithPagination;
 
 /**
  * Halaman "Data Rekening" — kelola bank_name/bank_account_number/bank_account_name
- * (UserProfiles) khusus buat finance/payroll, TERPISAH dari Update:User (2026-08-26, permintaan
+ * (employee_identities) khusus buat finance/payroll, TERPISAH dari Update:User (2026-08-26, permintaan
  * user) - supaya bisa dikasih ke role yang tidak punya akses edit seluruh data karyawan.
  * Pola list sama KaryawanPage (company+search+paginate), edit modal sama KoperasiPage.
  */
@@ -29,7 +31,7 @@ class DataRekeningPage extends Component
     #[Url]
     public string $search = '';
 
-    public ?string $editingUserId = null;
+    public ?string $editingEmployeeId = null;
     public ?string $editBankName = null;
     public ?string $editBankAccountNumber = null;
     public ?string $editBankAccountName = null;
@@ -71,42 +73,44 @@ class DataRekeningPage extends Component
 
     public function getEmployeesProperty()
     {
-        $query = User::query()->where('is_active', true)->with('profile');
+        $query = Employee::query()->where('status', 'aktif')->with('identity')
+            // Employee tidak punya scope 'non_karyawan' seperti User - dikecualikan manual.
+            ->where(fn ($q) => $q->whereNull('user_id')->orWhereNotIn('user_id', User::NON_KARYAWAN_IDS));
 
         if ($this->companyId) {
-            $query->whereCompany($this->companyId);
+            $query->where('company_id', $this->companyId);
         } elseif (! Auth::user()->canFilterByCompany()) {
-            $query->whereCompany(Auth::user()->company_id);
+            $query->where('company_id', Auth::user()->company_id);
         }
 
         $search = trim($this->search);
 
         if ($search !== '') {
-            $query->searchNameOrNip($search);
+            $query->where(fn ($q) => $q->where('nama_lengkap', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"));
         }
 
-        return $query->orderByName()->paginate(15)->appends([
+        return $query->orderBy('nama_lengkap')->paginate(15)->appends([
             'companyId' => $this->companyId,
             'search' => $this->search,
         ]);
     }
 
-    public function openEditModal(string $userId): void
+    public function openEditModal(string $employeeId): void
     {
         abort_unless($this->canEdit, 403);
 
-        $user = User::with('profile')->findOrFail($userId);
+        $employee = Employee::with('identity')->findOrFail($employeeId);
 
-        $this->editingUserId = $userId;
-        $this->editBankName = $user->profile?->bank_name;
-        $this->editBankAccountNumber = $user->profile?->bank_account_number;
-        $this->editBankAccountName = $user->profile?->bank_account_name;
+        $this->editingEmployeeId = $employeeId;
+        $this->editBankName = $employee->identity?->bank_name;
+        $this->editBankAccountNumber = $employee->identity?->bank_account_number;
+        $this->editBankAccountName = $employee->identity?->bank_account_name;
         $this->resetErrorBag();
     }
 
     public function closeEditModal(): void
     {
-        $this->editingUserId = null;
+        $this->editingEmployeeId = null;
     }
 
     public function save(): void
@@ -123,15 +127,23 @@ class DataRekeningPage extends Component
             'editBankAccountName' => 'atas nama rekening',
         ]);
 
-        $user = User::with('profile')->findOrFail($this->editingUserId);
+        $employee = Employee::findOrFail($this->editingEmployeeId);
 
-        $user->profile()->updateOrCreate(['user_id' => $user->id], [
+        $bank = [
             'bank_name' => $this->editBankName,
             'bank_account_number' => $this->editBankAccountNumber,
             'bank_account_name' => $this->editBankAccountName,
-        ]);
+        ];
 
-        $this->editingUserId = null;
+        $employee->identity()->updateOrCreate([], $bank);
+
+        // user_profiles masih sumber salinan ke employee_identities (EmployeeSyncService menimpa
+        // identitas dari profil tiap sinkron) - tulis juga ke sana supaya rekening tidak kembali lama.
+        if ($employee->user_id) {
+            UserProfiles::updateOrCreate(['user_id' => $employee->user_id], $bank);
+        }
+
+        $this->editingEmployeeId = null;
 
         Notification::make()
             ->title('Data rekening berhasil disimpan')

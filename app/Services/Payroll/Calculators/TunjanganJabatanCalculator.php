@@ -7,7 +7,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\PositionAllowance;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
 
 /**
@@ -24,10 +24,10 @@ class TunjanganJabatanCalculator implements PayrollComponentCalculator
 {
     use ProratesFirstMonth;
 
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $pangkatId = $user->employee?->pangkat_id;
-        $kelasId = $user->employee?->kelas_id;
+        $pangkatId = $employee->pangkat_id;
+        $kelasId = $employee->kelas_id;
 
         if (! $pangkatId || ! $kelasId) {
             return;
@@ -45,7 +45,7 @@ class TunjanganJabatanCalculator implements PayrollComponentCalculator
         $amount = (float) $allowance->amount;
         $note = null;
 
-        if ($prorate = $this->contractTransitionRatio($user, $period) ?? $this->firstMonthProrate($user, $period)) {
+        if ($prorate = $this->contractTransitionRatio($employee, $period) ?? $this->firstMonthProrate($employee, $period)) {
             $amount = round($amount * $prorate['ratio'], 2);
             $note = ucfirst($prorate['note']);
         }

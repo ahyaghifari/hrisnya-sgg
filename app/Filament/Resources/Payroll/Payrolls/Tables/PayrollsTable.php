@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Payroll\Payrolls\Tables;
 
-use App\Filament\Resources\UserColumn;
+
 use App\Helpers\PermissionHelper;
 use App\Models\AuditLog;
 use App\Models\Payroll\Payroll;
@@ -27,10 +27,10 @@ class PayrollsTable
     {
         return $table
             ->columns([
-                TextColumn::make('user.name')
+                TextColumn::make('employee.nama_lengkap')
                     ->label('Employee')
-                    ->searchable(query: UserColumn::searchName())
-                    ->sortable(query: UserColumn::sortName()),
+                    ->searchable()
+                    ->sortable(),
 
                 TextColumn::make('payrollPeriod.start_date')
                     ->label('Period')
@@ -87,7 +87,7 @@ class PayrollsTable
                             'payroll_payment',
                             $record->payrollPeriod->company_id,
                             'payroll:' . $record->id,
-                            $record->user->name . ' — ' . Carbon::parse($record->payrollPeriod->start_date)->format('M Y'),
+                            $record->employee?->nama_lengkap . ' — ' . Carbon::parse($record->payrollPeriod->start_date)->format('M Y'),
                             'Belum Dibayar',
                             'Sudah Dibayar'
                         );
@@ -112,7 +112,7 @@ class PayrollsTable
                             'payroll_payment',
                             $record->payrollPeriod->company_id,
                             'payroll:' . $record->id,
-                            $record->user->name . ' — ' . Carbon::parse($record->payrollPeriod->start_date)->format('M Y') . ' (' . $data['reason'] . ')',
+                            $record->employee?->nama_lengkap . ' — ' . Carbon::parse($record->payrollPeriod->start_date)->format('M Y') . ' (' . $data['reason'] . ')',
                             'Sudah Dibayar',
                             'Dibatalkan'
                         );

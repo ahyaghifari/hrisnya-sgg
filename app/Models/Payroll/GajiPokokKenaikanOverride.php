@@ -22,7 +22,6 @@ class GajiPokokKenaikanOverride extends Model
     protected $table = 'gaji_pokok_kenaikan_overrides';
 
     protected $fillable = [
-        'user_id',
         'employee_id',
         'rate',
         'note',
@@ -42,10 +41,6 @@ class GajiPokokKenaikanOverride extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
 
     /** Rate aktif (%) buat karyawan ini kalau ada, dipakai GajiPokokCalculator/BreakdownResolver. */
     public static function activeRateFor(?string $employeeId): ?float

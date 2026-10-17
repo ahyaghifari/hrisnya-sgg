@@ -4,7 +4,7 @@ namespace App\Services\Payroll\Calculators;
 
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Teknik 'thp': satu baris potongan dari selisih THP (net_salary) penuh vs proyeksi net kalau
@@ -23,10 +23,10 @@ use App\Models\User;
  */
 class CutiThpCalculator extends AbstractCutiMelahirkanCalculator
 {
-    protected function resolveAmount(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context, int $divisor, int $days): ?float
+    protected function resolveAmount(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context, int $divisor, int $days): ?float
     {
         $thp = $context->grossSalary - $context->totalDeductions;
-        $gajiPokokAkhir = app(GajiPokokCalculator::class)->resolveAmount($user, $period) ?? 0.0;
+        $gajiPokokAkhir = app(GajiPokokCalculator::class)->resolveAmount($employee, $period) ?? 0.0;
 
         $worked = max(0, $divisor - $days);
         $gajiPokokRatio = min(1, $days / $divisor);

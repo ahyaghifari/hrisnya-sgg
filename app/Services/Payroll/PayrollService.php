@@ -72,23 +72,23 @@ class PayrollService
     {
         $period = $payroll->payrollPeriod->end_date->format('mY');
 
-        return "SLIPGAJI-{$period}-{$payroll->user->nip}_" . strtoupper($payroll->user->name) . '.pdf';
+        return "SLIPGAJI-{$period}-{$payroll->employee?->nip}_" . strtoupper($payroll->employee?->nama_lengkap) . '.pdf';
     }
 
     /**
      * Password buka PDF slip gaji terenkripsi: 2 digit tanggal lahir + 3 digit terakhir NIP.
      * Null kalau salah satu datanya belum diisi — pemanggil wajib cek sebelum kirim email.
      */
-    public function slipPassword(User $user): ?string
+    public function slipPassword(Employee $employee): ?string
     {
-        $dob = $user->employee?->date_of_birth;
+        $dob = $employee->date_of_birth;
 
-        if (! $dob || ! $user->nip) {
+        if (! $dob || ! $employee->nip) {
             return null;
         }
 
         $day = str_pad((string) \Carbon\Carbon::parse($dob)->day, 2, '0', STR_PAD_LEFT);
-        $nipLast3 = str_pad(substr($user->nip, -3), 3, '0', STR_PAD_LEFT);
+        $nipLast3 = str_pad(substr($employee->nip, -3), 3, '0', STR_PAD_LEFT);
 
         return $day . $nipLast3;
     }
@@ -104,7 +104,7 @@ class PayrollService
     {
         $this->ensurePeriodLoaded($payroll);
 
-        $password = $this->slipPassword($payroll->user);
+        $password = $this->slipPassword($payroll->employee);
 
         if (! $password) {
             throw new \RuntimeException('Karyawan ini belum punya tanggal lahir atau NIP lengkap — tidak bisa membuat slip gaji terenkripsi.');
@@ -186,7 +186,7 @@ class PayrollService
         // Tulis ke disk, unset, gc — pemakaian memory jadi rata berapa pun jumlah slip.
         Payroll::where('payroll_period_id', $period->id)
             ->where('is_paid', true)
-            ->with(['user.profile', 'payrollPeriod.company'])
+            ->with(['employee.user', 'payrollPeriod.company'])
             ->chunkById(50, function ($payrolls) use ($stageDir, $root, &$skipped, &$entries) {
                 foreach ($payrolls as $payroll) {
                     $name = $root . '/' . $this->slipFilename($payroll);
@@ -203,7 +203,7 @@ class PayrollService
                         }
                         $entries[$name] = $abs;
                     } catch (\Throwable) {
-                        $skipped[] = trim(($payroll->user?->nip ?? '?') . ' — ' . ($payroll->user?->name ?? '?'));
+                        $skipped[] = trim(($payroll->employee?->nip ?? '?') . ' — ' . ($payroll->employee?->nama_lengkap ?? '?'));
                     } finally {
                         unset($pdf);
                     }
@@ -373,7 +373,7 @@ class PayrollService
         $after = Payroll::query()
             ->where('payroll_period_id', $period->id)
             ->whereIn('employee_id', $before->keys())
-            ->with('user')
+            ->with('employee')
             ->get();
 
         foreach ($after as $payroll) {
@@ -411,7 +411,7 @@ class PayrollService
             'payroll_regenerate',
             $period->company_id,
             'payroll:' . $payroll->id,
-            $payroll->user?->name . ' — ' . $period->start_date?->format('M Y') . ' (regenerate)',
+            $payroll->employee?->nama_lengkap . ' — ' . $period->start_date?->format('M Y') . ' (regenerate)',
             $describe($old),
             $describe($new),
         );
@@ -424,7 +424,7 @@ class PayrollService
             // belum soft delete (disinkron EmployeeSyncService). Dua akun Super Admin ikut punya baris
             // employees tapi bukan penerima gaji; Presiden Direktur & Sekretaris Direktur sengaja
             // disertakan (instruksi user 2026-08-11, lihat User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS).
-            // Karyawan tanpa akun (user_id kosong) belum didukung: payrolls.user_id masih NOT NULL.
+            // Karyawan tanpa akun (user_id kosong) belum didukung: calculator masih menerima User.
             $employees = Employee::query()
                 ->with('user')
                 ->where('company_id', $period->company_id)
@@ -439,7 +439,6 @@ class PayrollService
                 ->get();
 
             foreach ($employees as $employee) {
-                $user = $employee->user;
                 // Payroll yang SUDAH DIBAYAR dikunci total, tidak boleh disentuh lagi. Payroll
                 // yang BELUM dibayar dihapus & digenerate ulang dari nol (bukan di-skip) - kalau
                 // di-skip, klik "Generate" di halaman Periode Gaji ini tidak akan pernah
@@ -471,7 +470,7 @@ class PayrollService
                 // halaman Data Eksekutif (ExecutiveAllowanceCalculator) - gerbang recipient
                 // employee-type ini tidak relevan buat mereka, tapi baris Payroll-nya sendiri
                 // tetap harus ada supaya ada tempat nempel input manual itu.
-                $isEligibleExecutive = in_array($user->id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true);
+                $isEligibleExecutive = in_array($employee->user_id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true);
 
                 if (! $isEligibleExecutive && ! PayrollComponentRecipient::isRegisteredAnywhere($period->company_id, $employee->employee_type_id)) {
                     continue;
@@ -495,15 +494,13 @@ class PayrollService
      */
     public function generateSingleForEmployee(Employee $employee, PayrollPeriod $period, ?string $generatedByUserId = null): Payroll
     {
-        $user = $employee->user;
-
         if (Payroll::where('employee_id', $employee->id)->where('payroll_period_id', $period->id)->exists()) {
             throw new \RuntimeException('Karyawan ini sudah punya payroll di periode ini.');
         }
 
         // Eksekutif PAYROLL_ELIGIBLE_EXECUTIVE_IDS dikecualikan dari gerbang ini juga (lihat
         // generateForEmployee()) - sama alasan seperti di generatePayroll().
-        if (! in_array($user->id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)
+        if (! in_array($employee->user_id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)
             && ! PayrollComponentRecipient::isRegisteredAnywhere($period->company_id, $employee->employee_type_id)) {
             throw new \RuntimeException('Tipe karyawan ini belum terdaftar sebagai penerima komponen gaji apa pun — atur dulu di halaman Penerima Komponen Gaji.');
         }
@@ -530,7 +527,7 @@ class PayrollService
 
         // Eksekutif PAYROLL_ELIGIBLE_EXECUTIVE_IDS dikecualikan dari gerbang ini juga (lihat
         // generateForEmployee()) - sama alasan seperti di generatePayroll().
-        if (! in_array($payroll->user_id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)
+        if (! in_array($payroll->employee->user_id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)
             && ! PayrollComponentRecipient::isRegisteredAnywhere($payroll->payrollPeriod->company_id, $payroll->employee->employee_type_id)) {
             throw new \RuntimeException('Tipe karyawan ini belum terdaftar sebagai penerima komponen gaji apa pun — atur dulu di halaman Penerima Komponen Gaji.');
         }
@@ -560,7 +557,7 @@ class PayrollService
                 'generated_by' => $generatedByUserId ?? $period->generated_by,
             ]);
 
-            $this->logRegenerateChangeIfAny($period, $newPayroll->load('user'), $old);
+            $this->logRegenerateChangeIfAny($period, $newPayroll->load('employee'), $old);
 
             return $newPayroll;
         });
@@ -622,7 +619,7 @@ class PayrollService
                 'payroll_adjustment',
                 $payroll->payrollPeriod?->company_id,
                 'payroll_item:' . $item->id,
-                $component->label() . ' — ' . $payroll->user?->name . ' (' . $note . ')',
+                $component->label() . ' — ' . $payroll->employee?->nama_lengkap . ' (' . $note . ')',
                 (string) $oldAmount,
                 (string) $newAmount,
             );
@@ -637,11 +634,8 @@ class PayrollService
      */
     private function generateForEmployee(Employee $employee, PayrollPeriod $period, Collection $activeComponents, ?string $generatedByUserId = null, array $preservedItems = []): Payroll
     {
-        $user = $employee->user; // Calculator masih menerima akun (User)
-
         $payroll = Payroll::create([
             'employee_id' => $employee->id,
-            'user_id' => $employee->user_id, // kolom lama, masih NOT NULL
             'payroll_period_id' => $period->id,
             'generated_by' => $generatedByUserId,
             'generated_at' => now(),
@@ -678,7 +672,7 @@ class PayrollService
         // (eksekutif tidak punya tipe karyawan) - gerbang penerima itu tidak relevan buat
         // mereka, tapi toggle aktif/nonaktif per company (company_payroll_components) tetap
         // dihormati.
-        if (in_array($user->id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)) {
+        if (in_array($employee->user_id, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true)) {
             foreach (ExecutiveAutoComponentEnum::toComponents() as $component) {
                 $isActiveForCompany = $activeComponents->contains(
                     fn (CompanyPayrollComponent $c) => $c->component === $component->value
@@ -691,11 +685,11 @@ class PayrollService
                 $calculatorClass = PayrollCalculatorRegistry::resolve($component);
 
                 if ($calculatorClass) {
-                    app($calculatorClass)->calculate($user, $payroll, $period, $context);
+                    app($calculatorClass)->calculate($employee, $payroll, $period, $context);
                 }
             }
 
-            app(ExecutiveAllowanceCalculator::class)->calculate($user, $payroll, $period, $context);
+            app(ExecutiveAllowanceCalculator::class)->calculate($employee, $payroll, $period, $context);
 
             $payroll->update([
                 'gross_salary' => $context->grossSalary,
@@ -728,19 +722,19 @@ class PayrollService
         );
 
         foreach ($earning as $companyComponent) {
-            $this->runComponent($companyComponent, $user, $payroll, $period, $context);
+            $this->runComponent($companyComponent, $employee, $payroll, $period, $context);
         }
 
         foreach ($deduction as $companyComponent) {
-            $this->runComponent($companyComponent, $user, $payroll, $period, $context);
+            $this->runComponent($companyComponent, $employee, $payroll, $period, $context);
         }
 
         if ($izinSeharian) {
-            $this->runComponent($izinSeharian, $user, $payroll, $period, $context);
+            $this->runComponent($izinSeharian, $employee, $payroll, $period, $context);
         }
 
         if ($cuti) {
-            $this->runComponent($cuti, $user, $payroll, $period, $context);
+            $this->runComponent($cuti, $employee, $payroll, $period, $context);
         }
 
         // Always-on, tidak digate lewat company_payroll_components - roster-nya sendiri
@@ -748,7 +742,7 @@ class PayrollService
         // semua user (no-op kalau roster kosong). Ditaruh paling akhir - baris manual ini
         // konsisten muncul di bagian bawah slip (source_type null diperlakukan sama seperti
         // manual adjustment lain di componentRows()).
-        app(ExecutiveAllowanceCalculator::class)->calculate($user, $payroll, $period, $context);
+        app(ExecutiveAllowanceCalculator::class)->calculate($employee, $payroll, $period, $context);
 
         $payroll->update([
             'gross_salary' => $context->grossSalary,
@@ -788,7 +782,7 @@ class PayrollService
 
     private function runComponent(
         CompanyPayrollComponent $companyComponent,
-        User $user,
+        Employee $employee,
         Payroll $payroll,
         PayrollPeriod $period,
         PayrollContext $context
@@ -806,13 +800,13 @@ class PayrollService
         // aktif di company ini tetap harus tampil sebagai baris Rp0 di slip meski tipe karyawan
         // ini belum terdaftar sebagai penerima (2026-08-02, per keputusan user: "penerima cuma
         // nentuin dia dapat uang atau tidak, bukan nentuin barisnya ada atau tidak").
-        $isEligible = PayrollComponentRecipient::isEligible($companyComponent->company_id, $companyComponent->component, $user->employee?->employee_type_id);
+        $isEligible = PayrollComponentRecipient::isEligible($companyComponent->company_id, $companyComponent->component, $employee->employee_type_id);
 
         // Baris komponen ini sudah di-edit manual di payroll sebelumnya & sudah dibawa pindah
         // apa adanya ke payroll baru ini (lihat generateForEmployee()) - Calculator-nya WAJIB
         // di-skip, kalau tidak baris manualnya ketimpa balik oleh hasil hitungan otomatis.
         if (! $context->isProtected($component->value)) {
-            $override = PayrollComponentOverride::activeFor($user->employee->id, $component->value);
+            $override = PayrollComponentOverride::activeFor($employee->id, $component->value);
 
             if ($override) {
                 // Standing override (halaman "Override Komponen Gaji") - nilai dipakai APA
@@ -836,7 +830,7 @@ class PayrollService
                 $calculatorClass = PayrollCalculatorRegistry::resolve($component);
 
                 if ($calculatorClass) {
-                    app($calculatorClass)->calculate($user, $payroll, $period, $context);
+                    app($calculatorClass)->calculate($employee, $payroll, $period, $context);
                 }
             }
         }

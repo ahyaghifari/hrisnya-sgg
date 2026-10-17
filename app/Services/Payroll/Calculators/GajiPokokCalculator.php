@@ -9,7 +9,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
 use Carbon\Carbon;
 
@@ -24,7 +24,7 @@ use Carbon\Carbon;
  *
  * Kenaikan berdasarkan LANGKAH KELAS di-terminate (instruksi user 2026-08-22) - rate sekarang
  * flat, TIDAK dikali lagi dengan selisih level Kelas karyawan terhadap Kelas awal Pangkat. Kelas
- * & Pangkat tetap wajib terisi di UserProfiles (syarat data lengkap, skip diam-diam kalau kosong)
+ * & Pangkat tetap wajib terisi di Employee (syarat data lengkap, skip diam-diam kalau kosong)
  * walau nilainya sudah tidak dipakai di rumus ini.
  *
  * Rate CUMA berlaku untuk kategori Tetap & Kontrak (instruksi user 2026-08-22) - Orientasi tidak
@@ -40,7 +40,7 @@ use Carbon\Carbon;
  * lewat OrientationService::followUpContract):
  * - 'penuh' (default, = perilaku lama tanpa perubahan): kapanpun tanggal TTD-nya, bulan itu
  *   langsung dibayar Kontrak penuh (rate normal, tanpa prorate) - employee_type sudah ke-flip
- *   Kontrak duluan di UserProfiles jadi ini otomatis kejadian tanpa kode tambahan.
+ *   Kontrak duluan di Employee jadi ini otomatis kejadian tanpa kode tambahan.
  * - 'tiered': tanggal TTD 1-5 = tetap penuh Kontrak (sama seperti 'penuh'). 6-20 = prorate
  *   dicampur: porsi hari SEBELUM TTD dihitung rate Orientasi (0%, base_salary polos), porsi
  *   hari MULAI TTD dihitung rate Kontrak, dibagi divisor yang sama seperti ProratesFirstMonth
@@ -51,9 +51,9 @@ class GajiPokokCalculator implements PayrollComponentCalculator
 {
     use ProratesFirstMonth;
 
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        [$amount, $note] = $this->resolveAmountAndNote($user, $period);
+        [$amount, $note] = $this->resolveAmountAndNote($employee, $period);
 
         if ($amount === null || $amount <= 0) {
             return;
@@ -83,18 +83,18 @@ class GajiPokokCalculator implements PayrollComponentCalculator
      * Gaji Pokok (bisa saja tidak ada, mis. Gaji Khusus override skip Calculator ini total).
      * Null kalau karyawan ini tidak eligible (Pangkat/Kelas kosong) atau hasilnya 0.
      */
-    public function resolveAmount(User $user, PayrollPeriod $period): ?float
+    public function resolveAmount(Employee $employee, PayrollPeriod $period): ?float
     {
-        return $this->resolveAmountAndNote($user, $period)[0];
+        return $this->resolveAmountAndNote($employee, $period)[0];
     }
 
     /** @return array{0: ?float, 1: ?string} */
-    private function resolveAmountAndNote(User $user, PayrollPeriod $period): array
+    private function resolveAmountAndNote(Employee $employee, PayrollPeriod $period): array
     {
         // Gaji Pokok butuh Pangkat (jenjang jabatan) + Kelas (level dalam pangkat itu) - dua-duanya
-        // FK opsional di UserProfiles, kalau salah satu kosong berarti data karyawan belum lengkap.
-        $pangkat = $user->employee?->pangkat;
-        $kelas = $user->employee?->kelas;
+        // FK opsional di Employee, kalau salah satu kosong berarti data karyawan belum lengkap.
+        $pangkat = $employee->pangkat;
+        $kelas = $employee->kelas;
 
         // Tidak ada Pangkat/Kelas = tidak bisa hitung Gaji Pokok sama sekali, skip diam-diam
         // (karyawan itu memang belum eligible, bukan error).
@@ -113,10 +113,10 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         // kenaikan penuh cuma karena bukan Orientasi secara eksplisit. Docblock di atas bilang
         // "rate cuma berlaku Tetap & Kontrak" - null bukan salah satu dari itu, harus ikut
         // diblok sama seperti Orientasi.
-        $category = $user->employee?->employeeType?->category;
+        $category = $employee->employeeType?->category;
         $rate = ($category === null || $category === EmployeeTypeCategory::ORIENTASI)
             ? 0.0
-            : (GajiPokokKenaikanOverride::activeRateFor($user->employee?->id)
+            : (GajiPokokKenaikanOverride::activeRateFor($employee->id)
                 ?? (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $period->company_id, default: 8)) / 100;
 
         // Skip aman kalau fondasi datanya belum lengkap — Gaji Pokok Rp0 yang ke-generate
@@ -128,14 +128,14 @@ class GajiPokokCalculator implements PayrollComponentCalculator
 
         $baseSalary = (float) $pangkatSalary->base_salary;
 
-        if ($transition = $this->contractTransitionAmount($user, $period, $baseSalary, $rate)) {
+        if ($transition = $this->contractTransitionAmount($employee, $period, $baseSalary, $rate)) {
             [$amount, $note] = $transition;
         } else {
             // Rumus akhir: base_salary * (1 + rate) - flat, TIDAK lagi dikali langkah Kelas.
             $amount = round($baseSalary * (1 + $rate), 2);
             $note = "Base Rp" . number_format($baseSalary, 0, ',', '.') . ', kenaikan ' . rtrim(rtrim(number_format($rate * 100, 2), '0'), '.') . '%';
 
-            if ($prorate = $this->firstMonthProrate($user, $period)) {
+            if ($prorate = $this->firstMonthProrate($employee, $period)) {
                 $amount = round($amount * $prorate['ratio'], 2);
                 $note .= ', ' . $prorate['note'];
             }
@@ -156,14 +156,14 @@ class GajiPokokCalculator implements PayrollComponentCalculator
      * kalau relevan). $rate di sini rate KONTRAK (sudah termasuk kenaikan), dipakai untuk porsi
      * hari setelah TTD - porsi sebelum TTD selalu rate 0% (Orientasi).
      */
-    private function contractTransitionAmount(User $user, PayrollPeriod $period, float $baseSalary, float $rate): ?array
+    private function contractTransitionAmount(Employee $employee, PayrollPeriod $period, float $baseSalary, float $rate): ?array
     {
         // Cuma kontrak PERTAMA (Orientasi->Kontrak) yang relevan - perpanjangan kontrak (Kontrak
         // lama -> Kontrak baru) sudah dibayar rate Kontrak dari sebelumnya, tidak ada "porsi
         // Orientasi" yang perlu diprorate. Cek setting/kontrak-pertama/rentang-periode/tgl<=5
         // semua di resolveContractTransitionSignDate() (dipakai bareng Tunjangan
         // Jabatan/Transportasi/Masa Kerja juga - lihat ProratesFirstMonth).
-        $signDate = $this->resolveContractTransitionSignDate($user, $period);
+        $signDate = $this->resolveContractTransitionSignDate($employee, $period);
 
         if (! $signDate) {
             return null;

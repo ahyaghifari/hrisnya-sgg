@@ -7,7 +7,7 @@
 <body style="font-family: Arial, sans-serif; font-size: 14px; color: #1f2933; line-height: 1.7;">
     <p>
         Yang terhormat,<br>
-        Bpk/Ibu {{ $payroll->user->name }}
+        Bpk/Ibu {{ $payroll->employee?->nama_lengkap }}
     </p>
 
     <p>

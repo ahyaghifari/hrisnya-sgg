@@ -30,7 +30,7 @@ class PajakGajiPokokExportTest extends TestCase
             : null;
         UserProfiles::create(['user_id' => $user->id, 'job_position_id' => $jobId]);
 
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
         PayrollItem::create([
             'payroll_id' => $payroll->id,
             'name' => 'Gaji Pokok',
@@ -39,7 +39,7 @@ class PajakGajiPokokExportTest extends TestCase
             'source_type' => PayrollComponentEnum::GAJI_POKOK->value,
         ]);
 
-        return $payroll->load(['user.profile.jobPosition.orgStructure.parent.parent', 'items']);
+        return $payroll->load(['employee.jobPosition.orgStructure.parent.parent', 'items']);
     }
 
     public function test_no_division_group_labeled_manajemen_for_regular_company_and_sorts_first(): void

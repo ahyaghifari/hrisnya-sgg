@@ -6,7 +6,7 @@ use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Teknik 'per_komponen': tiap komponen di PRORATED_COMPONENTS (Tunjangan Jabatan/Transportasi/
@@ -31,7 +31,7 @@ class CutiPerKomponenCalculator extends AbstractCutiMelahirkanCalculator
         PayrollComponentEnum::JASA_PELAYANAN,
     ];
 
-    protected function resolveAmount(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context, int $divisor, int $days): ?float
+    protected function resolveAmount(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context, int $divisor, int $days): ?float
     {
         $ratio = max(0.0, min(1.0, ($divisor - $days) / $divisor));
         $reduction = 1 - $ratio;

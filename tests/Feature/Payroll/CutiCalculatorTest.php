@@ -21,10 +21,10 @@ class CutiCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new CutiCalculator())->calculate($user, $payroll, $period, $context);
+        (new CutiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
         $this->assertSame(0.0, $context->totalDeductions);

@@ -32,10 +32,10 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'kelas_id' => $kelas->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganTransportasiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(300_000.0, $context->grossSalary);
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'tunjangan_transportasi', 'amount' => 300000]);
@@ -51,10 +51,10 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'kelas_id' => $kelas->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganTransportasiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(round(300_000 * 5 / 31, 2), $context->grossSalary);
     }
@@ -66,10 +66,10 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id]); // tanpa kelas
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganTransportasiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
     }
@@ -84,10 +84,10 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'kelas_id' => $kelas->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganTransportasiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
     }
@@ -107,10 +107,10 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         EmployeeContract::create(['employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'start_date' => '2026-07-10', 'end_date' => '2027-07-09']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganTransportasiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 10-31 Juli = 19 hari kerja / 31 hari kalender * 300.000 - porsi sebelum TTD Rp0.
         $this->assertSame(round(300_000 * 19 / 31, 2), $context->grossSalary);

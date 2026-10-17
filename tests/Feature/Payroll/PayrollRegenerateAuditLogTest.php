@@ -67,7 +67,7 @@ class PayrollRegenerateAuditLogTest extends TestCase
         // dan itu HARUS kecatat ke audit_logs.
         PangkatSalary::where('pangkat_id', $fixture['pangkat']->id)->update(['base_salary' => 2_000_000]);
 
-        $newPayroll = $service->regenerateSinglePayroll($payroll->fresh(['payrollPeriod', 'user']));
+        $newPayroll = $service->regenerateSinglePayroll($payroll->fresh(['payrollPeriod', 'employee']));
 
         $this->assertSame(2_160_000.0, (float) $newPayroll->fresh()->gross_salary);
 
@@ -87,7 +87,7 @@ class PayrollRegenerateAuditLogTest extends TestCase
 
         // Regenerate TANPA mengubah data master apa pun - angkanya harus tetap sama, tidak
         // perlu dicatat sebagai "perubahan".
-        $service->regenerateSinglePayroll($payroll->fresh(['payrollPeriod', 'user']));
+        $service->regenerateSinglePayroll($payroll->fresh(['payrollPeriod', 'employee']));
 
         $this->assertSame(0, AuditLog::where('module', 'payroll_regenerate')->count());
     }

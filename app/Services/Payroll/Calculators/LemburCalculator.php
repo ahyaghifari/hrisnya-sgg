@@ -10,7 +10,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Attendance\AttendancePeriodResolver;
 use Carbon\Carbon;
 
@@ -36,7 +36,7 @@ use Carbon\Carbon;
  */
 class LemburCalculator implements PayrollComponentCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         // "per_pangkat" = rumus lama Excel Holding (base rate per pangkat / (hari x 7) x multiplier).
         // "flat_per_jam" = 1 rate flat per company x jam desimal sampai menit:
@@ -45,7 +45,7 @@ class LemburCalculator implements PayrollComponentCalculator
 
         $baseRate = $metode === 'flat_per_jam'
             ? (float) Setting::resolve('lembur_rate_per_jam', $period->company_id, default: 0)
-            : (float) ($user->employee?->pangkat?->lemburRate?->amount_per_hour ?? 0);
+            : (float) ($employee->pangkat?->lemburRate?->amount_per_hour ?? 0);
 
         if ($baseRate <= 0) {
             return;
@@ -58,7 +58,7 @@ class LemburCalculator implements PayrollComponentCalculator
         [$attendancePeriodStart, $attendancePeriodEnd] = AttendancePeriodResolver::resolve($period->start_date, $period->company_id);
 
         $overtimeRequests = AttendanceRequests::query()
-            ->where('user_id', $user->id)
+            ->where('user_id', $employee->user_id)
             ->where('type', 'overtime')
             ->where('status', AttendanceReqStatus::APPROVED->value)
             ->whereHas('overtimeDetails', function ($q) use ($attendancePeriodStart, $attendancePeriodEnd) {

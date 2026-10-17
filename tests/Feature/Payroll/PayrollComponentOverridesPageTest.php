@@ -63,7 +63,7 @@ class PayrollComponentOverridesPageTest extends TestCase
             ->set('addAmount', '750000')
             ->call('saveAdd');
 
-        $override = PayrollComponentOverride::where('user_id', $employee->id)->firstOrFail();
+        $override = PayrollComponentOverride::where('employee_id', $employee->employee->id)->firstOrFail();
         $this->assertSame(750000.0, $override->amount);
         $this->assertTrue($override->is_active);
     }
@@ -74,7 +74,7 @@ class PayrollComponentOverridesPageTest extends TestCase
         $company = $this->makeCompany();
         $employee = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
         PayrollComponentOverride::create([
-            'user_id' => $employee->id, 'employee_id' => $employee->employee->id,
+            'employee_id' => $employee->employee->id,
             'component' => PayrollComponentEnum::INSENTIF->value,
             'amount' => 100000,
             'is_active' => true,
@@ -97,7 +97,7 @@ class PayrollComponentOverridesPageTest extends TestCase
         $company = $this->makeCompany();
         $employee = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
         $override = PayrollComponentOverride::create([
-            'user_id' => $employee->id, 'employee_id' => $employee->employee->id,
+            'employee_id' => $employee->employee->id,
             'component' => PayrollComponentEnum::LEMBUR->value,
             'amount' => 50000,
             'is_active' => true,

@@ -50,7 +50,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
         app(PayrollService::class)->generatePayroll($period);
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'cuti', 'amount' => 0]);
     }
@@ -78,7 +78,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         ]);
 
         app(PayrollService::class)->generatePayroll($period);
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         // Baris Keterlambatan tetap ADA (Rp0) meski bukan penerima - "penerima cuma nentuin
         // dibayar atau tidak, bukan nentuin barisnya ada atau tidak".
@@ -101,7 +101,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
         app(PayrollService::class)->generatePayroll($period);
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'gaji_pokok', 'amount' => 0]);
     }
@@ -119,7 +119,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
         app(PayrollService::class)->generatePayroll($period);
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $this->assertDatabaseHas('payroll_items', [
             'payroll_id' => $payroll->id,
@@ -149,7 +149,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         ]);
 
         app(PayrollService::class)->generatePayroll($period);
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $this->assertDatabaseHas('payroll_items', [
             'payroll_id' => $payroll->id,
@@ -171,7 +171,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
         app(PayrollService::class)->generatePayroll($period);
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $this->assertDatabaseHas('payroll_items', [
             'payroll_id' => $payroll->id,
@@ -193,7 +193,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
         app(PayrollService::class)->generatePayroll($period);
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $item = \App\Models\Payroll\PayrollItem::where('payroll_id', $payroll->id)->where('source_type', 'bpjs_kesehatan')->firstOrFail();
         $this->assertSame(0.0, (float) $item->amount);
@@ -216,7 +216,7 @@ class PayrollAlwaysGeneratesAllComponentsTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
         app(PayrollService::class)->generatePayroll($period);
-        $payroll = Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $this->assertDatabaseHas('payroll_items', [
             'payroll_id' => $payroll->id,

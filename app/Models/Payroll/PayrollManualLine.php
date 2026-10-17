@@ -20,7 +20,6 @@ class PayrollManualLine extends Model
 
     protected $fillable = [
         'payroll_period_id',
-        'user_id',
         'employee_id',
         'component',
         'label',
@@ -43,10 +42,6 @@ class PayrollManualLine extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
 
     public function creator(): BelongsTo
     {

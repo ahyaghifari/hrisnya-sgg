@@ -46,9 +46,9 @@ class RegenerateSinglePayrollTest extends TestCase
         UserProfiles::create(['user_id' => $employee->id, 'employee_type_id' => $employeeType->id]);
         PayrollComponentRecipient::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::GAJI_POKOK->value, 'employee_type_id' => $employeeType->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31', 'processed_at' => now()]);
-        $payroll = Payroll::create(['user_id' => $employee->id, 'employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 1000000, 'net_salary' => 1000000]);
+        $payroll = Payroll::create(['employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 1000000, 'net_salary' => 1000000]);
         PayrollItem::create(['payroll_id' => $payroll->id, 'name' => 'Old Item', 'type' => 'earning', 'amount' => 1000000]);
-        $otherPayroll = Payroll::create(['user_id' => $otherEmployee->id, 'employee_id' => $otherEmployee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 2000000, 'net_salary' => 2000000]);
+        $otherPayroll = Payroll::create(['employee_id' => $otherEmployee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 2000000, 'net_salary' => 2000000]);
 
         return [$period, $payroll, $otherPayroll];
     }
@@ -62,7 +62,7 @@ class RegenerateSinglePayrollTest extends TestCase
 
         $this->assertDatabaseMissing('payrolls', ['id' => $payroll->id]);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);
-        $this->assertDatabaseHas('payrolls', ['id' => $newPayroll->id, 'user_id' => $payroll->user_id, 'payroll_period_id' => $period->id]);
+        $this->assertDatabaseHas('payrolls', ['id' => $newPayroll->id, 'employee_id' => $payroll->employee_id, 'payroll_period_id' => $period->id]);
         // Payroll karyawan lain di periode yang sama tidak tersentuh.
         $this->assertDatabaseHas('payrolls', ['id' => $otherPayroll->id, 'gross_salary' => 2000000]);
         $this->assertSame($actor->id, $period->fresh()->generated_by);

@@ -120,7 +120,7 @@ class PayrollDashboardPage extends Component
     {
         return $this->periodPayrolls()
             ->where('is_paid', false)
-            ->with('user')
+            ->with('employee')
             ->get()
             ->sortByDesc('net_salary')
             ->take(20)

@@ -4,7 +4,7 @@ namespace App\Services\Payroll\Calculators\Concerns;
 
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use Carbon\Carbon;
 
 /**
@@ -33,10 +33,10 @@ trait ProratesFirstMonth
      * @return array{ratio: float, note: string}|null null = tidak perlu diprorate (karyawan
      * lama, atau Tanggal Bergabung belum diisi / di luar periode ini).
      */
-    protected function firstMonthProrate(User $user, PayrollPeriod $period): ?array
+    protected function firstMonthProrate(Employee $employee, PayrollPeriod $period): ?array
     {
         // Tanggal Bergabung - dibaca dari employees.joining_date (di-cast Carbon).
-        $joiningDate = $user->employee?->joining_date ? Carbon::parse($user->employee->joining_date) : null;
+        $joiningDate = $employee->joining_date ? Carbon::parse($employee->joining_date) : null;
 
         // Syarat prorate: (1) Tanggal Bergabung ADA, (2) jatuh SETELAH awal periode (baru masuk
         // di tengah bulan, bukan sudah dari awal), (3) masih di dalam rentang periode ini.
@@ -71,13 +71,13 @@ trait ProratesFirstMonth
      * milik user pasti dari OrientationService::followUpContract, tidak pernah dari
      * perpanjangan - aman dipakai sebagai penanda "ini benar TTD pertama", bukan perpanjangan.
      */
-    protected function resolveContractTransitionSignDate(User $user, PayrollPeriod $period): ?Carbon
+    protected function resolveContractTransitionSignDate(Employee $employee, PayrollPeriod $period): ?Carbon
     {
         if (Setting::resolve('kontrak_prorate_metode', $period->company_id, default: 'penuh') !== 'tiered') {
             return null;
         }
 
-        $firstContract = $user->employee?->contracts()->oldest('start_date')->first();
+        $firstContract = $employee->contracts()->oldest('start_date')->first();
 
         if (! $firstContract || ! $firstContract->start_date) {
             return null;
@@ -102,9 +102,9 @@ trait ProratesFirstMonth
      * @return array{ratio: float, note: string}|null null = tidak ada transisi kontrak yang
      * relevan bulan ini, pakai jalur normal (firstMonthProrate kalau ada, atau penuh).
      */
-    protected function contractTransitionRatio(User $user, PayrollPeriod $period): ?array
+    protected function contractTransitionRatio(Employee $employee, PayrollPeriod $period): ?array
     {
-        $signDate = $this->resolveContractTransitionSignDate($user, $period);
+        $signDate = $this->resolveContractTransitionSignDate($employee, $period);
 
         if (! $signDate) {
             return null;

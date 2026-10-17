@@ -64,6 +64,9 @@ class PurgeUsers extends Command
 
         $also = (array) $this->option('also');
         $restrictive = $this->restrictiveForeignKeys();
+        // FK ke employees (mis. payrolls.employee_id) ikut jadi penghalang: dicek dengan id employee milik user itu.
+        $employeeIds = Employee::whereIn('user_id', $users->pluck('id'))->pluck('id', 'user_id')->all();
+        $foreignOf = collect($restrictive)->mapWithKeys(fn ($r) => ["{$r[0]}.{$r[1]}" => $r[2]])->all();
 
         // Hitung ulang sampai stabil: melewati satu user mengubah penilaian user lain.
         $set = $users->pluck('id')->all();
@@ -73,7 +76,7 @@ class PurgeUsers extends Command
             $blocked = [];
 
             foreach ($set as $id) {
-                if ($reasons = $this->blockReasons($id, $set, $restrictive, $also, (bool) $this->option('nullify-approvals'))) {
+                if ($reasons = $this->blockReasons($id, $set, $restrictive, $also, (bool) $this->option('nullify-approvals'), $employeeIds)) {
                     $blocked[$id] = $reasons;
                 }
             }
@@ -105,11 +108,14 @@ class PurgeUsers extends Command
         }
 
         try {
-            DB::transaction(function () use ($set, $also) {
+            DB::transaction(function () use ($set, $also, $employeeIds, $foreignOf) {
                 // Baris penghalang yang diizinkan (--also) dulu: sebagian (mis. payrolls.employee_id) menahan hapus employees.
                 foreach ($also as $target) {
                     [$table, $column] = explode('.', $target, 2);
-                    DB::table($table)->whereIn($column, $set)->delete();
+                    $values = ($foreignOf[$target] ?? 'users') === 'employees'
+                        ? array_values(array_intersect_key($employeeIds, array_flip($set)))
+                        : $set;
+                    DB::table($table)->whereIn($column, $values)->delete();
                 }
 
                 // Salinan karyawan; cascade ke identitas, alamat, lampiran, employee_careers.
@@ -147,22 +153,23 @@ class PurgeUsers extends Command
      * untuk dihapus bersama). Kosong = aman.
      *
      * @param  array<int, string>  $set
-     * @param  array<int, array{0: string, 1: string}>  $restrictive
+     * @param  array<int, array{0: string, 1: string, 2: string}>  $restrictive
      * @param  array<int, string>  $also
      * @return array<int, string>
      */
-    private function blockReasons(string $id, array $set, array $restrictive, array $also, bool $nullify): array
+    private function blockReasons(string $id, array $set, array $restrictive, array $also, bool $nullify, array $employeeIds = []): array
     {
         $reasons = [];
 
-        foreach ($restrictive as [$table, $column]) {
+        foreach ($restrictive as [$table, $column, $foreign]) {
             $key = "{$table}.{$column}";
+            $value = $foreign === 'employees' ? ($employeeIds[$id] ?? null) : $id;
 
-            if (in_array($key, self::APPROVAL_HANDLED, true) || in_array($key, $also, true)) {
+            if ($value === null || in_array($key, self::APPROVAL_HANDLED, true) || in_array($key, $also, true)) {
                 continue;
             }
 
-            if ($n = DB::table($table)->where($column, $id)->count()) {
+            if ($n = DB::table($table)->where($column, $value)->count()) {
                 $reasons[] = "{$key} ({$n})";
             }
         }
@@ -198,16 +205,16 @@ class PurgeUsers extends Command
         return $reasons;
     }
 
-    /** @return array<int, array{0: string, 1: string}> [tabel, kolom] FK ke users tanpa cascade/set null. */
+    /** @return array<int, array{0: string, 1: string, 2: string}> [tabel, kolom, tabel tujuan] FK ke users/employees tanpa cascade/set null. */
     private function restrictiveForeignKeys(): array
     {
         $found = [];
 
         foreach (Schema::getTables() as $table) {
             foreach (Schema::getForeignKeys($table['name']) as $fk) {
-                if ($fk['foreign_table'] === 'users' && in_array(strtolower((string) $fk['on_delete']), ['restrict', 'no action'], true)) {
+                if (in_array($fk['foreign_table'], ['users', 'employees'], true) && in_array(strtolower((string) $fk['on_delete']), ['restrict', 'no action'], true)) {
                     foreach ($fk['columns'] as $column) {
-                        $found[] = [$table['name'], $column];
+                        $found[] = [$table['name'], $column, $fk['foreign_table']];
                     }
                 }
             }

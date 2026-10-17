@@ -302,7 +302,7 @@ class PayrollPeriodsPageTest extends TestCase
             'processed_at' => now(),
         ]);
         $owner = User::factory()->create();
-        $payroll = \App\Models\Payroll\Payroll::create(['user_id' => $owner->id, 'employee_id' => $owner->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = \App\Models\Payroll\Payroll::create(['employee_id' => $owner->employee->id, 'payroll_period_id' => $period->id]);
         \App\Models\Payroll\PayrollItem::create([
             'payroll_id' => $payroll->id,
             'name' => 'Insentif',

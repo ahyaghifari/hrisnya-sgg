@@ -7,7 +7,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\TenureAllowance;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Payroll\Calculators\Concerns\ProratesFirstMonth;
 use Carbon\Carbon;
 
@@ -20,9 +20,9 @@ class TunjanganMasaKerjaCalculator implements PayrollComponentCalculator
 {
     use ProratesFirstMonth;
 
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $joiningDate = $user->employee?->joining_date;
+        $joiningDate = $employee->joining_date;
 
         if (! $joiningDate) {
             return;
@@ -48,7 +48,7 @@ class TunjanganMasaKerjaCalculator implements PayrollComponentCalculator
         $amount = (float) $bracket->amount;
         $note = "Masa kerja {$years} tahun";
 
-        if ($prorate = $this->contractTransitionRatio($user, $period) ?? $this->firstMonthProrate($user, $period)) {
+        if ($prorate = $this->contractTransitionRatio($employee, $period) ?? $this->firstMonthProrate($employee, $period)) {
             $amount = round($amount * $prorate['ratio'], 2);
             $note .= ', ' . $prorate['note'];
         }

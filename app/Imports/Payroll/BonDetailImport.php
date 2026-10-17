@@ -84,7 +84,6 @@ class BonDetailImport implements ToCollection, WithHeadingRow
                         'label' => $namaPotongan,
                     ],
                     [
-                        'user_id' => $employee->user_id,
                         'amount' => $amount,
                         'note' => 'Import Excel',
                     ]

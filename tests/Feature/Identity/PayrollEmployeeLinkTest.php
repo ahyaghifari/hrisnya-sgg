@@ -21,14 +21,16 @@ class PayrollEmployeeLinkTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => null, 'payroll_period_id' => $period->id]);
+        // Baris LAMA: user_id terisi tapi employee_id kosong (baris baru tidak punya user_id lagi).
+        $payrollId = (string) \Illuminate\Support\Str::ulid();
+        \Illuminate\Support\Facades\DB::table('payrolls')->insert(['id' => $payrollId, 'user_id' => $user->id, 'employee_id' => null, 'payroll_period_id' => $period->id, 'created_at' => now(), 'updated_at' => now()]);
 
         // Baris detail selisih ("dimensi: NIP") hanya muncul kalau ada yang menyimpang.
         Artisan::call('identity:verify');
         $this->assertStringContainsString('payroll: payrolls.employee_id:', Artisan::output());
 
         $this->assertSame(1, app(EmployeeSyncService::class)->linkPayrollEmployeeIds());
-        $this->assertSame($user->employee->id, $payroll->fresh()->employee_id);
+        $this->assertSame($user->employee->id, Payroll::find($payrollId)->employee_id);
 
         Artisan::call('identity:verify');
         $this->assertStringNotContainsString('payroll: payrolls.employee_id:', Artisan::output());

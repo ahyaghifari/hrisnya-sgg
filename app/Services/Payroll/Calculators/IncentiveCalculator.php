@@ -10,7 +10,7 @@ use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Metode ditentukan setting `insentif_metode` (company-scoped, lihat requiredSettings() di
@@ -33,12 +33,12 @@ use App\Models\User;
  */
 class IncentiveCalculator implements PayrollComponentCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $metode = Setting::resolve('insentif_metode', $period->company_id, default: 'master');
 
         if ($metode === 'auto') {
-            $this->calculateFromLegacyGap($user, $payroll, $context);
+            $this->calculateFromLegacyGap($employee, $payroll, $context);
 
             return;
         }
@@ -73,10 +73,10 @@ class IncentiveCalculator implements PayrollComponentCalculator
         $context->addEarning($totalAmount);
     }
 
-    private function calculateFromLegacyGap(User $user, Payroll $payroll, PayrollContext $context): void
+    private function calculateFromLegacyGap(Employee $employee, Payroll $payroll, PayrollContext $context): void
     {
-        $pangkatId = $user->employee?->pangkat_id;
-        $kelasId = $user->employee?->kelas_id;
+        $pangkatId = $employee->pangkat_id;
+        $kelasId = $employee->kelas_id;
 
         if (! $pangkatId || ! $kelasId) {
             return;

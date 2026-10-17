@@ -49,10 +49,10 @@ class IncentiveCalculatorAutoMetodeTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $period->company_id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkatA->id, 'kelas_id' => $kelasA->id]);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(10000.0, $context->grossSalary);
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif', 'amount' => 10000]);
@@ -69,10 +69,10 @@ class IncentiveCalculatorAutoMetodeTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $period->company_id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkatA->id, 'kelas_id' => $kelasB->id]);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif']);
@@ -84,10 +84,10 @@ class IncentiveCalculatorAutoMetodeTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $period->company_id]);
         UserProfiles::create(['user_id' => $user->id]);
-        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
     }

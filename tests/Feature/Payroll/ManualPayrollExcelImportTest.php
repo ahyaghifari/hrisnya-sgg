@@ -163,7 +163,7 @@ class ManualPayrollExcelImportTest extends TestCase
 
         $this->assertSame(1, $res['dibuat']);
 
-        $payroll = Payroll::where('user_id', $emp->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $emp->employee->id)->firstOrFail();
         $this->assertSame(3_500_000.0, (float) $payroll->gross_salary); // S + T (W diabaikan)
         $this->assertSame(30_000.0, (float) $payroll->total_deductions);
         $this->assertSame(3_670_000.0, (float) $payroll->net_salary);
@@ -212,7 +212,7 @@ class ManualPayrollExcelImportTest extends TestCase
         app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
         @unlink($path);
 
-        $payroll = Payroll::where('user_id', $emp->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $emp->employee->id)->firstOrFail();
         $this->assertSame(2_570_000.0, (float) $payroll->gross_salary);
         $this->assertSame(120_000.0, (float) $payroll->total_deductions);
         $this->assertSame(2_450_000.0, (float) $payroll->net_salary);
@@ -297,7 +297,7 @@ class ManualPayrollExcelImportTest extends TestCase
         app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
         @unlink($path);
 
-        $payroll = Payroll::where('user_id', $emp->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $emp->employee->id)->firstOrFail();
         $this->assertSame(3_450_000.0, (float) $payroll->gross_salary);
         $this->assertSame(3_315_000.0, (float) $payroll->net_salary);
         // Telat "3x/Bulan" (2 + 1).
@@ -325,7 +325,7 @@ class ManualPayrollExcelImportTest extends TestCase
         app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
         @unlink($path);
 
-        $payroll = Payroll::where('user_id', $emp->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $emp->employee->id)->firstOrFail();
 
         $telat = PayrollItem::where('payroll_id', $payroll->id)->where('source_type', 'keterlambatan')->first();
         $this->assertSame(30_000.0, (float) $telat->amount);
@@ -344,7 +344,7 @@ class ManualPayrollExcelImportTest extends TestCase
         // AX juga tercatat di payroll_manual_lines.
         $this->assertDatabaseHas('payroll_manual_lines', [
             'payroll_period_id' => $this->period->id,
-            'user_id' => $emp->id,
+            'employee_id' => $emp->employee->id,
             'component' => 'potongan_khusus',
         ]);
 
@@ -364,7 +364,7 @@ class ManualPayrollExcelImportTest extends TestCase
         app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
         @unlink($path);
 
-        $item = PayrollItem::where('payroll_id', Payroll::where('user_id', $emp->id)->value('id'))
+        $item = PayrollItem::where('payroll_id', Payroll::where('employee_id', $emp->employee->id)->value('id'))
             ->where('source_type', 'tunjangan_khusus')->first();
         $this->assertNotNull($item);
         $this->assertSame('earning', $item->type);
@@ -384,7 +384,7 @@ class ManualPayrollExcelImportTest extends TestCase
         app(ManualPayrollExcelImporter::class)->import($path2, $period0001, $actor);
         @unlink($path2);
 
-        $item2 = PayrollItem::where('payroll_id', Payroll::where('user_id', $emp2->id)->value('id'))
+        $item2 = PayrollItem::where('payroll_id', Payroll::where('employee_id', $emp2->employee->id)->value('id'))
             ->where('source_type', 'tunjangan_khusus')->first();
         $this->assertSame('Tunjangan Dokter/Jabatan Khusus', $item2->name);
     }
@@ -404,7 +404,7 @@ class ManualPayrollExcelImportTest extends TestCase
         app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
         @unlink($path);
 
-        $payroll = Payroll::with('items')->where('user_id', $emp->id)->firstOrFail();
+        $payroll = Payroll::with('items')->where('employee_id', $emp->employee->id)->firstOrFail();
         $rows = app(PayrollService::class)->componentRows($payroll);
 
         // Semua komponen tetap dibuat (walau Rp0) -> slip lengkap; urutan ikut PayrollComponentEnum
@@ -434,7 +434,7 @@ class ManualPayrollExcelImportTest extends TestCase
         app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
         @unlink($path);
 
-        $payrollId = Payroll::where('user_id', $emp->id)->value('id');
+        $payrollId = Payroll::where('employee_id', $emp->employee->id)->value('id');
         $jasa = PayrollItem::where('payroll_id', $payrollId)->where('source_type', 'jasa_unit')
             ->pluck('amount', 'name')->map(fn ($v) => (float) $v)->all();
 
@@ -453,7 +453,7 @@ class ManualPayrollExcelImportTest extends TestCase
         app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
         @unlink($path);
 
-        $payroll = Payroll::where('user_id', $emp->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $emp->employee->id)->firstOrFail();
         $this->assertSame(0, PayrollItem::where('payroll_id', $payroll->id)->where('source_type', 'potongan_khusus')->count());
         $this->assertDatabaseMissing('payroll_manual_lines', ['payroll_period_id' => $this->period->id, 'component' => 'potongan_khusus']);
     }
@@ -512,7 +512,7 @@ class ManualPayrollExcelImportTest extends TestCase
         app(ManualPayrollExcelImporter::class)->import($path, $this->period, $actor);
         @unlink($path);
 
-        $payroll = Payroll::where('user_id', $emp->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $emp->employee->id)->firstOrFail();
 
         $this->actingAs($admin);
         Livewire::test(ManualPayrollImportPage::class)
@@ -573,14 +573,14 @@ class ManualPayrollExcelImportTest extends TestCase
         $p1 = $make(3_000_000);
         app(ManualPayrollExcelImporter::class)->import($p1, $this->period, $actor);
         @unlink($p1);
-        $this->assertSame(3_000_000.0, (float) Payroll::where('user_id', $emp->id)->value('gross_salary'));
+        $this->assertSame(3_000_000.0, (float) Payroll::where('employee_id', $emp->employee->id)->value('gross_salary'));
 
         // Re-import (belum dibayar) -> baris lama diganti, tidak dobel.
         $p2 = $make(3_100_000);
         app(ManualPayrollExcelImporter::class)->import($p2, $this->period, $actor);
         @unlink($p2);
         $this->assertSame(1, Payroll::where('payroll_period_id', $this->period->id)->count());
-        $this->assertSame(3_100_000.0, (float) Payroll::where('user_id', $emp->id)->value('gross_salary'));
+        $this->assertSame(3_100_000.0, (float) Payroll::where('employee_id', $emp->employee->id)->value('gross_salary'));
 
         // Tandai dibayar -> import ulang TIDAK menimpa yang sudah dibayar: baris Excel-nya
         // dilewati (dilewati_dibayar=1), nominal lama tetap, tidak throw.
@@ -592,6 +592,6 @@ class ManualPayrollExcelImportTest extends TestCase
         $this->assertSame(0, $result['dibuat']);
         $this->assertSame(1, $result['dilewati_dibayar']);
         $this->assertSame(1, Payroll::where('payroll_period_id', $this->period->id)->count());
-        $this->assertSame(3_100_000.0, (float) Payroll::where('user_id', $emp->id)->value('gross_salary'));
+        $this->assertSame(3_100_000.0, (float) Payroll::where('employee_id', $emp->employee->id)->value('gross_salary'));
     }
 }
