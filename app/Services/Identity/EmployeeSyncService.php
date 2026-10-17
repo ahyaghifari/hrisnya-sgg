@@ -78,6 +78,7 @@ class EmployeeSyncService
                 ...$this->userSource($user),
                 'nickname' => $profile?->nickname,
                 'is_dokter' => (bool) $profile?->is_dokter,
+                'is_dokter_umum' => (bool) $profile?->is_dokter_umum,
                 'gender' => $profile?->gender,
                 'marital_status' => $profile?->marital_status,
                 'place_of_birth' => $profile?->place_of_birth,

@@ -40,6 +40,8 @@ trait HasKaryawanForm
     public bool $is_active = true;
     public bool $is_dokter = false;
 
+    public bool $is_dokter_umum = false;
+
     // Step 2 — Data Pribadi, Alamat, Kontak
     public string $nickname = '';
     public ?string $gender = null;

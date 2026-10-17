@@ -23,6 +23,7 @@ class UserProfiles extends Model
         'user_id',
         'nickname',
         'is_dokter',
+        'is_dokter_umum',
         'gender',
         'marital_status',
         'place_of_birth',
@@ -60,6 +61,7 @@ class UserProfiles extends Model
     protected $casts = [
         'profile_picture' => 'array',
         'is_dokter' => 'boolean',
+        'is_dokter_umum' => 'boolean',
     ];
 
     protected static function boot(): void

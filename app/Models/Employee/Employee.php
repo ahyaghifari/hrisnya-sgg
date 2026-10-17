@@ -31,6 +31,7 @@ class Employee extends Model
         'nama_lengkap',
         'nickname',
         'is_dokter',
+        'is_dokter_umum',
         'gender',
         'marital_status',
         'place_of_birth',
@@ -51,6 +52,7 @@ class Employee extends Model
 
     protected $casts = [
         'is_dokter' => 'boolean',
+        'is_dokter_umum' => 'boolean',
         'date_of_birth' => 'date',
         'joining_date' => 'date',
         'tmt_tetap' => 'date',
