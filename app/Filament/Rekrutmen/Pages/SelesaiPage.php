@@ -13,6 +13,7 @@ use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
@@ -75,19 +76,36 @@ class SelesaiPage extends Page implements HasActions, HasForms, HasTable
             : collect();
     }
 
+    /** Akun HRIS (email yang sama, belum dihapus) sudah ada: tombol buat akun & atur tanggal onboarding disembunyikan. */
+    private function akunSudahAda($record): bool
+    {
+        return $record->user?->email && \App\Models\User::where('email', $record->user->email)->exists();
+    }
+
     public function buatAkunKaryawanAction(): Action
     {
         return Action::make('buatAkunKaryawan')
             ->label('Buat Akun Karyawan')
             ->icon('heroicon-m-user-plus')
             ->color('primary')
-            ->visible(fn () => filament()->auth()->user()->can('create', \App\Models\User::class))
+            ->visible(fn ($record) => filament()->auth()->user()->can('create', \App\Models\User::class) && ! $this->akunSudahAda($record))
             ->modalHeading('Buat Akun Karyawan HRIS')
+            ->modalSubmitActionLabel('Buat Akun')
             ->modalDescription('Periksa data diri & jabatan tujuan di bawah, lalu pilih lama orientasi.')
             ->modalContent(fn ($record) => view('filament.rekrutmen.partials.onboarding-preview', [
                 'preview' => app(CandidateOnboardingService::class)->previewOnboarding($record->id),
             ]))
             ->schema([
+                // NIP diisi manual, wajib untuk akun baru (akun yang sudah ada tidak diubah NIP-nya).
+                TextInput::make('nip')->label('NIP')->maxLength(50)
+                    ->visible(fn ($record) => ! \App\Models\User::withTrashed()->where('email', $record->user?->email)->exists())
+                    ->required()
+                    // Bukan ->unique(): rule itu otomatis mengecualikan $record (lamaran), id-nya tidak ada di employees.
+                    ->rule(fn () => function (string $attribute, $value, \Closure $fail) {
+                        if (\App\Models\Employee\Employee::where('nip', trim((string) $value))->exists()) {
+                            $fail('NIP sudah dipakai karyawan lain.');
+                        }
+                    }),
                 Radio::make('orientationMonths')->label('Lama Orientasi')
                     ->options(collect(CandidateOnboardingService::ORIENTATION_MONTHS_OPTIONS)
                         ->mapWithKeys(fn ($m) => [$m => "{$m} bulan"])->all())
@@ -95,7 +113,7 @@ class SelesaiPage extends Page implements HasActions, HasForms, HasTable
             ])
             ->action(function (array $data, $record): void {
                 $res = app(CandidateOnboardingService::class)
-                    ->createEmployeeFromCandidate($record->id, (int) $data['orientationMonths']);
+                    ->createEmployeeFromCandidate($record->id, (int) $data['orientationMonths'], $data['nip'] ?? null);
 
                 Notification::make()
                     ->title($res['ok'] ? 'Akun karyawan siap' : 'Gagal membuat akun')
@@ -112,7 +130,7 @@ class SelesaiPage extends Page implements HasActions, HasForms, HasTable
             ->label('Atur Tanggal Onboarding')
             ->icon('heroicon-m-calendar-days')
             ->color('gray')
-            ->visible(fn () => filament()->auth()->user()->can('create', \App\Models\User::class))
+            ->visible(fn ($record) => filament()->auth()->user()->can('create', \App\Models\User::class) && ! $this->akunSudahAda($record))
             ->modalHeading('Atur / Ubah Tanggal Onboarding')
             ->modalDescription('Tanggal ini jadi Tanggal Bergabung saat akun karyawan dibuat. Kandidat dikirimi email undangan onboarding yang diperbarui.')
             ->modalSubmitActionLabel('Simpan & Kirim Email')

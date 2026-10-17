@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Rekrutmen;
 
 use App\Http\Controllers\Controller;
+use App\Models\Rekrutmen\CandidateDocument;
 use App\Models\Rekrutmen\JobApplication;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -14,12 +15,24 @@ use Illuminate\Support\Facades\Storage;
  */
 class CandidateDocumentProxyController extends Controller
 {
-    /** Dokumen kandidat (KTP/ijazah/dll) — belum diport ke shared DB (Fase 6b). */
+    /**
+     * Berkas pelamar, dibuka inline dari disk `rekrutmen`. `{document}` angka = id
+     * candidate_documents (milik kandidat lamaran ini); selain itu = field_key jawaban form
+     * lamaran bertipe file (mis. cv_file).
+     */
     public function show(string $jobApplication, string $document)
     {
         abort_unless(Auth::user()?->can('View:JobOpenings'), 403);
 
-        abort(501, 'Unduh dokumen kandidat belum tersedia di integrasi shared DB (Fase 6b).');
+        $app = JobApplication::with('candidate')->findOrFail($jobApplication);
+
+        $path = ctype_digit($document)
+            ? CandidateDocument::where('candidate_id', $app->candidate?->id)->find($document)?->file_path
+            : $app->answers()->where('field_key', $document)->value('value');
+
+        abort_if(! $path || ! Storage::disk('rekrutmen')->exists($path), 404, 'File tidak tersedia.');
+
+        return Storage::disk('rekrutmen')->response($path, basename($path), ['Content-Disposition' => 'inline; filename="' . basename($path) . '"']);
     }
 
     /**
