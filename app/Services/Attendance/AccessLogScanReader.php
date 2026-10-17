@@ -37,7 +37,7 @@ class AccessLogScanReader
      */
     public function forUser(User $user, string $from, string $to): Collection
     {
-        $rows = DB::table('access_logs')
+        $rows = DB::connection(config('database.access_log_connection'))->table('access_logs')
             ->where('employee_id', (string) $user->nip)
             ->whereBetween('access_date', [$from, $to])
             ->orderBy('access_datetime')

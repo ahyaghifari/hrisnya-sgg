@@ -29,6 +29,10 @@ return [
     |
     */
 
+    // Koneksi tabel access_logs. Kosong = koneksi default (DB HRIS); isi 'access_log' kalau
+    // access_logs dipindah ke DB terpisah di server yang sama (lihat koneksi access_log).
+    'access_log_connection' => env('DB_ACCESS_LOG_CONNECTION'),
+
     'connections' => [
 
         'sqlite' => [
@@ -108,6 +112,30 @@ return [
             'unix_socket' => env('DB_DOCTOR_SOCKET', ''),
             'charset' => env('DB_DOCTOR_CHARSET', 'utf8mb4'),
             'collation' => env('DB_DOCTOR_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        /*
+         * Koneksi DB `access_log` — tabel access_logs (dump mentah mesin absensi) di DB terpisah,
+         * server yang sama. Aktif cuma kalau DB_ACCESS_LOG_CONNECTION=access_log. Isi DB_ACCESS_LOG_* di .env.
+         */
+        'access_log' => [
+            'driver' => 'mysql',
+            'url' => env('DB_ACCESS_LOG_URL'),
+            'host' => env('DB_ACCESS_LOG_HOST', '127.0.0.1'),
+            'port' => env('DB_ACCESS_LOG_PORT', '3306'),
+            'database' => env('DB_ACCESS_LOG_DATABASE'),
+            'username' => env('DB_ACCESS_LOG_USERNAME'),
+            'password' => env('DB_ACCESS_LOG_PASSWORD', ''),
+            'unix_socket' => env('DB_ACCESS_LOG_SOCKET', ''),
+            'charset' => env('DB_ACCESS_LOG_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_ACCESS_LOG_COLLATION', 'utf8mb4_unicode_ci'),
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,

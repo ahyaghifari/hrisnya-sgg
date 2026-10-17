@@ -53,7 +53,7 @@ class AccessLogScheduleReader
      */
     public function readAndGroup(string $fromDate, string $toDate, ?string $nip = null, ?string $fromTime = null): array
     {
-        $query = DB::table('access_logs')->whereBetween('access_date', [$fromDate, $toDate]);
+        $query = DB::connection(config('database.access_log_connection'))->table('access_logs')->whereBetween('access_date', [$fromDate, $toDate]);
         if ($nip) {
             $query->where('employee_id', $nip);
         }
@@ -84,7 +84,7 @@ class AccessLogScheduleReader
      */
     public function readAndGroupIncremental(?string $sinceDatetime): array
     {
-        $query = DB::table('access_logs');
+        $query = DB::connection(config('database.access_log_connection'))->table('access_logs');
         if ($sinceDatetime) {
             $query->where('access_datetime', '>', $sinceDatetime);
         }
@@ -105,7 +105,7 @@ class AccessLogScheduleReader
         }
 
         // Semua scan hari (nip, tanggal) yang tersentuh - bukan cuma yang baru.
-        $rows = DB::table('access_logs')
+        $rows = DB::connection(config('database.access_log_connection'))->table('access_logs')
             ->whereIn('employee_id', $newRows->pluck('employee_id')->unique()->values())
             ->whereIn('access_date', $newRows->pluck('access_date')->unique()->values())
             ->orderBy('access_datetime')

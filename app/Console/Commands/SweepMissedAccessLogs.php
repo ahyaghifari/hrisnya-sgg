@@ -103,7 +103,7 @@ class SweepMissedAccessLogs extends Command
      */
     private function findSuspects(string $date): Collection
     {
-        $scans = DB::table('access_logs')
+        $scans = DB::connection(config('database.access_log_connection'))->table('access_logs')
             ->where('access_date', $date)
             ->groupBy('employee_id')
             ->select('employee_id', DB::raw('MIN(access_time) as first_scan'), DB::raw('MAX(access_time) as last_scan'))
