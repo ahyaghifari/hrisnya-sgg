@@ -10,7 +10,7 @@ use App\Models\Payroll\OmsetDetail;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Rasio JE user / total JE company x Total Omset periode itu — logic sama persis
@@ -25,9 +25,10 @@ use App\Models\User;
  */
 class JasaPelayananCalculator implements PayrollComponentCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $jobPosition = $user->activeJobPosition?->jobPosition;
+        // Jabatan SAAT INI dari employees.job_position_id (instruksi user 2026-10-17), bukan riwayat jabatan akun.
+        $jobPosition = $employee->jobPosition;
 
         if (! $jobPosition || ! $jobPosition->job_evaluation_score) {
             return;

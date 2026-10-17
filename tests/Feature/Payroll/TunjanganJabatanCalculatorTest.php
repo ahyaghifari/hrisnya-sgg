@@ -11,7 +11,7 @@ use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Setting;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use App\Models\User\UserProfiles;
 use App\Services\Payroll\Calculators\PayrollContext;
 use App\Services\Payroll\Calculators\TunjanganJabatanCalculator;
@@ -34,10 +34,10 @@ class TunjanganJabatanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganJabatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(750_000.0, $context->grossSalary);
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'tunjangan_jabatan', 'amount' => 750000]);
@@ -54,10 +54,10 @@ class TunjanganJabatanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganJabatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);
@@ -74,10 +74,10 @@ class TunjanganJabatanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganJabatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 5 hari kerja (27-31 Juli) / 31 hari kalender Juli * 750.000 - metode default 'kalender'.
         $this->assertSame(round(750_000 * 5 / 31, 2), $context->grossSalary);
@@ -96,10 +96,10 @@ class TunjanganJabatanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganJabatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // Default Hari Kerja Efektif per Bulan = 25 (Pengaturan Kepegawaian, tidak di-override).
         $this->assertSame(round(750_000 * 5 / 25, 2), $context->grossSalary);
@@ -112,10 +112,10 @@ class TunjanganJabatanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id]); // tanpa pangkat/kelas
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganJabatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
     }
@@ -134,13 +134,13 @@ class TunjanganJabatanCalculatorTest extends TestCase
         $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
         $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
-        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-10', 'contract_end_date' => '2027-07-09']);
+        EmployeeContract::create(['employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'start_date' => '2026-07-10', 'end_date' => '2027-07-09']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganJabatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 10-31 Juli = 19 hari kerja (Minggu 12/19/26 di-exclude) / 31 hari kalender * 750.000 -
         // porsi sebelum TTD (1-9 Juli) Rp0, tidak ikut dihitung sama sekali.
@@ -159,13 +159,13 @@ class TunjanganJabatanCalculatorTest extends TestCase
         $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
         $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
-        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-03', 'contract_end_date' => '2027-07-02']);
+        EmployeeContract::create(['employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'start_date' => '2026-07-03', 'end_date' => '2027-07-02']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganJabatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(750_000.0, $context->grossSalary);
     }
@@ -182,13 +182,13 @@ class TunjanganJabatanCalculatorTest extends TestCase
         $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
         $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
-        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-25', 'contract_end_date' => '2027-07-24']);
+        EmployeeContract::create(['employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'start_date' => '2026-07-25', 'end_date' => '2027-07-24']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new TunjanganJabatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new TunjanganJabatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);

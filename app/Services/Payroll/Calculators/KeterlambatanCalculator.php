@@ -11,7 +11,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Attendance\AttendancePeriodResolver;
 
 /**
@@ -25,7 +25,7 @@ use App\Services\Attendance\AttendancePeriodResolver;
  */
 class KeterlambatanCalculator implements PayrollComponentCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $denda = Setting::resolve('keterlambatan_denda', $period->company_id, default: 0);
         $graceCount = Setting::resolve('keterlambatan_grace_count', $period->company_id, default: 0);
@@ -44,7 +44,7 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
         // berarti late_minutes pasti > 0/tidak null), itu sudah dianggap terlambat di sini -
         // tidak ada gerbang toleransi kedua yang menyaring ulang.
         $lateRecords = AttendanceRecords::query()
-            ->where('user_id', $user->id)
+            ->where('user_id', $employee->user_id)
             ->whereBetween('date', [$attendancePeriodStart, $attendancePeriodEnd])
             ->where('status', 'late')
             ->whereNotNull('check_in_time')
@@ -57,7 +57,7 @@ class KeterlambatanCalculator implements PayrollComponentCalculator
         // juga - izin itu justru komponen potongan sendiri (IzinMeninggalkanJamKerjaCalculator),
         // kena dua-duanya = double dip untuk kejadian telat yang sama.
         $excusedDates = AttendanceRequests::query()
-            ->where('user_id', $user->id)
+            ->where('user_id', $employee->user_id)
             ->where('type', 'permission')
             ->where('status', AttendanceReqStatus::APPROVED->value)
             ->whereHas('permissionDetails', function ($q) use ($attendancePeriodStart, $attendancePeriodEnd) {

@@ -23,14 +23,14 @@
                     </h3>
                     <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;">{{ $this->detail->count() }} staff, diurutkan dari yang paling dekat jatuh tempo.</p>
 
-                    @forelse ($this->detail->sortBy(fn ($item) => $activeModal === 'orientasi-urgent' ? $item->effective_end_date : $item->contract_end_date) as $item)
+                    @forelse ($this->detail->sortBy(fn ($item) => $activeModal === 'orientasi-urgent' ? $item->effective_end_date : $item->end_date) as $item)
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);">
                             <div>
-                                <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $item->user?->name ?? '-' }}</p>
-                                <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $item->user?->profile?->jobPosition?->name ?? '-' }}</p>
+                                <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ ($activeModal === 'orientasi-urgent' ? $item->user?->name : $item->employee?->nama_lengkap) ?? '-' }}</p>
+                                <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ ($activeModal === 'orientasi-urgent' ? $item->user?->profile?->jobPosition?->name : $item->employee?->jobPosition?->name) ?? '-' }}</p>
                             </div>
                             <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">
-                                {{ \Illuminate\Support\Carbon::parse($activeModal === 'orientasi-urgent' ? $item->effective_end_date : $item->contract_end_date)->translatedFormat('d M Y') }}
+                                {{ \Illuminate\Support\Carbon::parse($activeModal === 'orientasi-urgent' ? $item->effective_end_date : $item->end_date)->translatedFormat('d M Y') }}
                             </span>
                         </div>
                     @empty

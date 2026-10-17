@@ -46,9 +46,9 @@
                 <tbody>
                     @forelse ($rows as $u)
                         @php
-                            $c = $u->currentContract;
+                            $c = $u->employee?->currentContract;
                             $sub = $u->contractSubmissions->first();
-                            $sisa = $c?->contract_end_date ? now()->startOfDay()->diffInDays($c->contract_end_date, false) : null;
+                            $sisa = $c?->end_date ? now()->startOfDay()->diffInDays($c->end_date, false) : null;
                             $mark = $this->submissionMark($u);
                         @endphp
                         <tr style="border-bottom:1px solid var(--border-soft);">
@@ -56,7 +56,7 @@
                                 <span style="font-weight:600;color:var(--text-heading);">{{ $u->name }}</span>
                                 <span style="display:block;font-size:11px;color:var(--text-muted);">NIP {{ $u->nip ?? '-' }}</span>
                             </td>
-                            <td style="padding:10px 12px;">{{ $c?->contract_start_date?->format('d M Y') ?? '—' }} &ndash; {{ $c?->contract_end_date?->format('d M Y') ?? '—' }}</td>
+                            <td style="padding:10px 12px;">{{ $c?->start_date?->format('d M Y') ?? '—' }} &ndash; {{ $c?->end_date?->format('d M Y') ?? '—' }}</td>
                             <td style="padding:10px 12px;color:{{ $sisa !== null && $sisa < 0 ? 'var(--danger-text)' : ($sisa !== null && $sisa <= 30 ? '#b45309' : 'var(--text-muted)') }};">
                                 {{ $sisa === null ? '—' : ($sisa < 0 ? abs($sisa) . ' hr lalu' : $sisa . ' hr') }}
                             </td>
@@ -106,7 +106,7 @@
                             <td style="padding:10px 12px;">{{ $decisionLabels[$s->decision] ?? $s->decision ?? '—' }}</td>
                             <td style="padding:10px 12px;">
                                 @if ($s->newContract)
-                                    {{ $s->newContract->contract_start_date?->format('d M Y') }} &ndash; {{ $s->newContract->contract_end_date?->format('d M Y') }}
+                                    {{ $s->newContract->start_date?->format('d M Y') }} &ndash; {{ $s->newContract->end_date?->format('d M Y') }}
                                 @else — @endif
                             </td>
                             <td style="padding:10px 12px;">{{ $s->decided_at?->format('d M Y') ?? '—' }} <span style="color:var(--text-faint);">{{ $s->decidedBy?->name }}</span></td>
@@ -136,7 +136,7 @@
                 'dibatalkan' => ['Dibatalkan', '#dc2626'],
             ];
             [$sLabel, $sColor] = $statusLabels[$r->status] ?? [$r->status, 'var(--text-muted)'];
-            $currentContract = $r->user?->currentContract ?? $r->userContract;
+            $currentContract = $r->user?->employee?->currentContract ?? $r->employeeContract;
         @endphp
         <div style="margin-bottom:14px;">
             <button type="button" wire:click="closeReview" class="btn-ghost" style="font-size:12px;">
@@ -158,7 +158,7 @@
                 @if ($currentContract)
                     <p style="font-size:12px;color:var(--text-body);margin:0 0 4px;">
                         <span style="color:var(--text-faint);">Kontrak berjalan:</span>
-                        {{ $currentContract->contract_start_date?->format('d M Y') }} &ndash; {{ $currentContract->contract_end_date?->format('d M Y') }}
+                        {{ $currentContract->start_date?->format('d M Y') }} &ndash; {{ $currentContract->end_date?->format('d M Y') }}
                     </p>
                 @endif
                 @if ($r->alasan)
@@ -189,7 +189,7 @@
                     <p style="font-size:12px;color:var(--text-muted);margin:0 0 3px;">Keputusan Penilai — {{ $r->decidedBy?->name }}</p>
                     <p style="font-size:15px;font-weight:700;color:{{ $decisionColors[$r->decision] ?? 'var(--text-muted)' }};margin:0 0 4px;">{{ $decisionLabels[$r->decision] ?? $r->decision }}</p>
                     @if ($r->decision === 'perpanjang' && $r->newContract)
-                        <p style="font-size:12.5px;color:var(--text-body);margin:0 0 4px;">Kontrak baru: <strong>{{ $r->newContract->contract_start_date?->format('d M Y') }}</strong> &ndash; <strong>{{ $r->newContract->contract_end_date?->format('d M Y') }}</strong> ({{ $r->decision_durasi_bulan }} bln)</p>
+                        <p style="font-size:12.5px;color:var(--text-body);margin:0 0 4px;">Kontrak baru: <strong>{{ $r->newContract->start_date?->format('d M Y') }}</strong> &ndash; <strong>{{ $r->newContract->end_date?->format('d M Y') }}</strong> ({{ $r->decision_durasi_bulan }} bln)</p>
                     @endif
                     @if ($r->decision_note)<p style="font-size:12.5px;color:var(--text-body);margin:0;">{{ $r->decision_note }}</p>@endif
                 </div>

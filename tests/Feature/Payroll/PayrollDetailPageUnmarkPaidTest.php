@@ -42,7 +42,7 @@ class PayrollDetailPageUnmarkPaidTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => $startDate, 'end_date' => $endDate, 'processed_at' => now()]);
         $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Karyawan']);
 
-        return Payroll::create(['user_id' => $employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
+        return Payroll::create(['employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
     }
 
     public function test_unmark_as_paid_reopens_payroll_and_records_audit_log_with_reason(): void

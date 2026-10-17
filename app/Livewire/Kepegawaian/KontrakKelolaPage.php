@@ -122,10 +122,10 @@ class KontrakKelolaPage extends Component
                 $q->searchNameOrNip($s);
             })
             ->whereHas('profile.employeeType', fn ($q) => $q->where('category', EmployeeTypeCategory::KONTRAK->value))
-            ->whereHas('contracts')
+            ->whereHas('employee.contracts')
             ->with([
                 'company',
-                'currentContract',
+                'employee.currentContract',
                 'contractSubmissions' => fn ($q) => $q->with('decidedBy')->latest(),
             ])
             ->orderByName()
@@ -159,7 +159,7 @@ class KontrakKelolaPage extends Component
             return 'yes';
         }
 
-        $end = $u->currentContract?->contract_end_date;
+        $end = $u->employee?->currentContract?->end_date;
         if ($end) {
             $lead = $this->leadDaysFor($u->company_id);
             if ($lead > 0 && now()->lt(Carbon::parse($end)->subDays($lead)->startOfDay())) {
@@ -190,7 +190,7 @@ class KontrakKelolaPage extends Component
         }
 
         $record = ContractSubmission::with([
-            'user.profile', 'user.currentContract', 'userContract', 'newContract', 'documents', 'decidedBy',
+            'user.profile', 'user.employee.currentContract', 'employeeContract', 'newContract', 'documents', 'decidedBy',
         ])->find($this->openId);
 
         return $record && $this->canAccess($record, Auth::user()) ? $record : null;
@@ -289,7 +289,7 @@ class KontrakKelolaPage extends Component
     public function getAnchorProperty(): Carbon
     {
         $record = $this->openSubmission;
-        $end = ($record?->user?->currentContract ?? $record?->userContract)?->contract_end_date;
+        $end = ($record?->user?->employee?->currentContract ?? $record?->employeeContract)?->end_date;
 
         return $end ? Carbon::parse($end)->max(Carbon::today()) : Carbon::today();
     }

@@ -5,7 +5,7 @@ namespace App\Services\Payroll\Calculators;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Dispatcher tipis - Cuti Tahunan/Haid TIDAK ADA POTONGAN (dikonfirmasi user) - kalau tidak ada
@@ -19,14 +19,14 @@ use App\Models\User;
  * - CutiPerKomponenCalculator — prorate Tunjangan Jabatan/Transportasi/Masa Kerja, Insentif,
  *   Jasa Pelayanan sesuai hari kerja efektif yang dijalani.
  * - CutiThpCalculator — 1 baris potongan dari selisih THP, WAJIB jalan paling terakhir (lihat
- *   PayrollService::generateForUser()).
+ *   PayrollService::generateForEmployee()).
  *
  * Tetap terdaftar sebagai 1 entry di PayrollCalculatorRegistry (CUTI => self::class) supaya
  * orchestrator (PayrollService) tidak perlu tahu ada 2 teknik di baliknya.
  */
 class CutiCalculator implements PayrollComponentCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $metode = Setting::resolve('cuti_melahirkan_metode', $period->company_id, default: 'per_komponen');
 
@@ -34,6 +34,6 @@ class CutiCalculator implements PayrollComponentCalculator
             ? new CutiThpCalculator()
             : new CutiPerKomponenCalculator();
 
-        $calculator->calculate($user, $payroll, $period, $context);
+        $calculator->calculate($employee, $payroll, $period, $context);
     }
 }

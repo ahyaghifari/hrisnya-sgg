@@ -98,7 +98,7 @@ class OrientasiKelolaPage extends Component
                 $s = trim($this->search);
                 $q->searchNameOrNip($s);
             })
-            ->whereHas('orientations')
+            ->whereHas('employee.orientations')
             ->when($currentlyOrientasi,
                 fn ($q) => $q->whereHas('profile.employeeType', fn ($q2) => $q2->where('category', EmployeeTypeCategory::ORIENTASI->value)),
                 fn ($q) => $q->whereDoesntHave('profile.employeeType', fn ($q2) => $q2->where('category', EmployeeTypeCategory::ORIENTASI->value)),
@@ -106,7 +106,7 @@ class OrientasiKelolaPage extends Component
             ->with([
                 'company',
                 'profile.employeeType',
-                'orientations' => fn ($q) => $q->orderByDesc('start_date'),
+                'employee.orientations' => fn ($q) => $q->orderByDesc('start_date'),
                 'orientationSubmissions' => fn ($q) => $q->with('decidedBy')->orderByDesc('created_at'),
             ])
             ->orderByName();

@@ -34,7 +34,7 @@ trait GroupsPayrollsByDivision
         $noDivisionLabel = $this->isHoldingCompany($companyId) ? self::NO_DIVISION_LABEL_HOLDING : self::NO_DIVISION_LABEL_REGULAR;
 
         return $payrolls
-            ->groupBy(fn (Payroll $payroll) => $payroll->user?->profile?->division?->name ?? $noDivisionLabel)
+            ->groupBy(fn (Payroll $payroll) => $payroll->employee?->division?->name ?? $noDivisionLabel)
             ->sortBy(
                 fn ($rows, $label) => ($label === $noDivisionLabel ? '0_' : '1_') . $label,
                 SORT_STRING,
@@ -69,23 +69,23 @@ trait GroupsPayrollsByDivision
                 return $joiningCompare;
             }
 
-            return strcmp((string) $a->user?->name, (string) $b->user?->name);
+            return strcmp((string) $a->employee?->nama_lengkap, (string) $b->employee?->nama_lengkap);
         })->values();
     }
 
     private function pangkatLevel(Payroll $payroll): ?int
     {
-        return $payroll->user?->profile?->pangkat?->level;
+        return $payroll->employee?->pangkat?->level;
     }
 
     private function kelasLevel(Payroll $payroll): ?int
     {
-        return $payroll->user?->profile?->kelas?->level;
+        return $payroll->employee?->kelas?->level;
     }
 
     private function joiningTimestamp(Payroll $payroll): ?int
     {
-        $joiningDate = $payroll->user?->profile?->joining_date;
+        $joiningDate = $payroll->employee?->joining_date;
 
         return $joiningDate ? Carbon::parse($joiningDate)->timestamp : null;
     }
@@ -98,7 +98,7 @@ trait GroupsPayrollsByDivision
      */
     private function bulanKerja(Payroll $payroll): ?int
     {
-        $joiningDate = $payroll->user?->profile?->joining_date;
+        $joiningDate = $payroll->employee?->joining_date;
         $periodEnd = $payroll->payrollPeriod?->end_date;
 
         if (! $joiningDate || ! $periodEnd) {

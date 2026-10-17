@@ -4,7 +4,7 @@ namespace App\Services\Payroll\Calculators;
 
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Teknik 'thp': satu baris potongan dari selisih THP (net_salary) penuh vs proyeksi net kalau
@@ -12,7 +12,7 @@ use App\Models\User;
  *
  * THP = net running total SAAT INI ($context->grossSalary - $context->totalDeductions) - VALID
  * cuma karena CutiCalculator (dispatcher, lihat PayrollCalculatorRegistry) dipaksa jalan PALING
- * TERAKHIR (lihat PayrollService::generateForUser()), jadi semua earning+deduction lain
+ * TERAKHIR (lihat PayrollService::generateForEmployee()), jadi semua earning+deduction lain
  * (termasuk Gaji Pokok, BPJS, Izin Seharian) sudah final duluan.
  *
  * Potongan = THP - ( THP/E x W + GajiPokokAkhir x rasio_gaji_pokok )
@@ -23,10 +23,10 @@ use App\Models\User;
  */
 class CutiThpCalculator extends AbstractCutiMelahirkanCalculator
 {
-    protected function resolveAmount(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context, int $divisor, int $days): ?float
+    protected function resolveAmount(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context, int $divisor, int $days): ?float
     {
         $thp = $context->grossSalary - $context->totalDeductions;
-        $gajiPokokAkhir = app(GajiPokokCalculator::class)->resolveAmount($user, $period) ?? 0.0;
+        $gajiPokokAkhir = app(GajiPokokCalculator::class)->resolveAmount($employee, $period) ?? 0.0;
 
         $worked = max(0, $divisor - $days);
         $gajiPokokRatio = min(1, $days / $divisor);

@@ -7,8 +7,6 @@ namespace App\Models;
 use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Models\Concerns\LogsFieldAuditChanges;
 use App\Models\Master\Companies;
-use App\Models\Payroll\BpjsDependent;
-use App\Models\Payroll\UserKoperasi;
 use App\Models\Setting;
 use App\Models\Shift\ShiftScheduleAssignments;
 use App\Models\User\UserJobPositions;
@@ -371,26 +369,10 @@ class User extends Authenticatable implements FilamentUser
         return (substr((string) $this->profile?->joining_date, 0, 10) ?: '9999-12-31') . '|' . mb_strtolower($this->name);
     }
 
-    public function koperasi()
-    {
-        return $this->hasOne(UserKoperasi::class, 'user_id', 'id');
-    }
-
-    public function bpjsDependent()
-    {
-        return $this->hasOne(BpjsDependent::class, 'user_id', 'id');
-    }
-
 
     public function jobPositions(): HasMany
     {
         return $this->hasMany(UserJobPositions::class, 'user_id', 'id');
-    }
-
-    /** Riwayat kontrak (1 baris = 1 periode/tahun kontrak yang sudah disetujui), lihat UserContract. */
-    public function contracts(): HasMany
-    {
-        return $this->hasMany(\App\Models\User\UserContract::class, 'user_id', 'id');
     }
 
     /** Pengajuan penilaian orientasi (self-service, bisa >1 kalau pernah "Perpanjang"). */
@@ -403,34 +385,6 @@ class User extends Authenticatable implements FilamentUser
     public function contractSubmissions(): HasMany
     {
         return $this->hasMany(\App\Models\ContractSubmission::class, 'user_id', 'id');
-    }
-
-    /** Riwayat periode orientasi (1 baris = 1 periode/perpanjangan), lihat UserOrientation.
-     *  Dibuat lewat Rekrutmen, bukan "Tambah Karyawan" manual. */
-    public function orientations(): HasMany
-    {
-        return $this->hasMany(\App\Models\User\UserOrientation::class, 'user_id', 'id');
-    }
-
-    /** Periode orientasi terbaru yang SUDAH MULAI - pola currentContract(). */
-    public function currentOrientation(): HasOne
-    {
-        return $this->hasOne(\App\Models\User\UserOrientation::class, 'user_id', 'id')
-            ->where('start_date', '<=', now())
-            ->latestOfMany('start_date');
-    }
-
-    /**
-     * Kontrak paling baru YANG SUDAH MULAI (contract_start_date <= hari ini) - pola sama
-     * activeJobPosition() di bawah. Filter tanggal ini penting: kalau tidak, baris kontrak yang
-     * dibuat duluan dengan contract_start_date di masa depan (transisi belum efektif jalan)
-     * keliru dianggap "current" sebelum waktunya.
-     */
-    public function currentContract(): HasOne
-    {
-        return $this->hasOne(\App\Models\User\UserContract::class, 'user_id', 'id')
-            ->where('contract_start_date', '<=', now())
-            ->latestOfMany('contract_start_date');
     }
 
     public function activeJobPosition(): HasOne
@@ -547,7 +501,7 @@ class User extends Authenticatable implements FilamentUser
      * dia keliru masih lihat menu Sikartap. */
     public function isKontrakKaryawan(): bool
     {
-        return $this->currentContract?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK
+        return $this->employee?->currentContract?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK
             && $this->profile?->employeeType?->category === \App\Enum\EmployeeTypeCategory::KONTRAK;
     }
 
@@ -610,8 +564,8 @@ class User extends Authenticatable implements FilamentUser
             return false;
         }
 
-        $contract = $this->currentContract;
-        if (! $contract || \App\Models\ContractSubmission::where('user_contract_id', $contract->id)->exists()) {
+        $contract = $this->employee?->currentContract;
+        if (! $contract || \App\Models\ContractSubmission::where('employee_contract_id', $contract->id)->exists()) {
             return false;
         }
 
@@ -621,11 +575,11 @@ class User extends Authenticatable implements FilamentUser
             default: KepegawaianSettingEnum::PENGAJUAN_KONTRAK_LEAD_HARI->default(),
         );
 
-        if (! $contract->contract_end_date || $leadDays <= 0) {
+        if (! $contract->end_date || $leadDays <= 0) {
             return true;
         }
 
-        $opensAt = Carbon::parse($contract->contract_end_date)->copy()->subDays($leadDays)->startOfDay();
+        $opensAt = Carbon::parse($contract->end_date)->copy()->subDays($leadDays)->startOfDay();
 
         return now()->gte($opensAt);
     }

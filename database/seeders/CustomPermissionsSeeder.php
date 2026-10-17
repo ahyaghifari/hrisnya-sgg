@@ -26,10 +26,10 @@ class CustomPermissionsSeeder extends Seeder
     /**
      * Permission format Shield "Verb:Subject" buat model tanpa Filament Resource sendiri
      * (Policy-nya ditulis manual di app/Policies/**, tidak pernah kena `shield:generate`) —
-     * baris permission-nya dijamin ada di sini sebagai gantinya. UserKoperasi/BpjsDependent/
-     * ExtraShiftAssignment/ExecutiveAllowance/Schedule SUDAH DIKELUARKAN dari daftar ini
+     * baris permission-nya dijamin ada di sini sebagai gantinya. EmployeeKoperasi/EmployeeBpjsDependent/
+     * ExtraShiftAssignment/EmployeeExecutiveAllowance/Schedule SUDAH DIKELUARKAN dari daftar ini
      * (2026-08-11) karena masing-masing sekarang punya Filament Resource sendiri -
-     * permissionnya biar digenerate `shield:generate` seperti Incentive, bukan manual lagi
+     * permissionnya biar digenerate `shield:generate` seperti EmployeeIncentive, bukan manual lagi
      * ($subjects sekarang kosong, method ini no-op sampai ada subject manual baru lagi).
      * Tambahkan subject baru ke $subjects HANYA kalau modelnya tidak/tidak akan punya
      * Filament Resource.

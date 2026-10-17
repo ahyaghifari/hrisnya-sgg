@@ -5,7 +5,7 @@ namespace App\Imports\Payroll;
 use App\Exports\Payroll\PayrollSlipRekapExport;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 
@@ -80,30 +80,19 @@ class PayrollRevisionImport implements ToCollection
                 continue; // baris judul divisi / baris kosong, bukan error
             }
 
-            $user = User::whereNip($nip)->first();
+            // Employee tidak punya global scope 'non_karyawan' seperti User, jadi akun eksekutif
+            // (PAYROLL_ELIGIBLE_EXECUTIVE_IDS) ikut ketemu tanpa pencarian kedua. Payroll di bawah
+            // otomatis kosong kalau barisnya kebetulan milik company lain.
+            $employee = Employee::query()->where('nip', $nip)->first();
 
-            if (! $user) {
-                // Belum ketemu di karyawan biasa - coba 2 akun eksekutif non-karyawan (Presiden
-                // Direktur/Sekretaris Direktur, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS) yang
-                // sengaja dibuang dari User::query() lewat global scope 'non_karyawan'. Tetap
-                // khusus company holding TANPA perlu cek company_id eksplisit di sini - mereka
-                // cuma pernah punya baris Payroll untuk company holding (lihat
-                // PayrollService::generatePayroll()), jadi query Payroll di bawah otomatis
-                // kosong kalau baris ini kebetulan ada di file company lain.
-                $user = User::withoutGlobalScope('non_karyawan')
-                    ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
-                    ->whereNip($nip)
-                    ->first();
-            }
-
-            if (! $user) {
+            if (! $employee) {
                 $this->errors[] = "Baris {$rowNum}: NIP {$nip} tidak ditemukan.";
 
                 continue;
             }
 
             $payroll = Payroll::query()
-                ->where('user_id', $user->id)
+                ->where('employee_id', $employee->id)
                 ->where('payroll_period_id', $this->period->id)
                 ->with('items')
                 ->first();
@@ -136,7 +125,7 @@ class PayrollRevisionImport implements ToCollection
                 $this->diffs[] = [
                     'payroll_id' => $payroll->id,
                     'nip' => $nip,
-                    'nama' => (string) $user->name,
+                    'nama' => (string) $employee->nama_lengkap,
                     'label' => $column['label'],
                     'component' => $column['component']->value,
                     'old' => $oldAmount,

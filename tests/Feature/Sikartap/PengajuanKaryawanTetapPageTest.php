@@ -10,7 +10,7 @@ use App\Models\Master\EmployeeTypes;
 use App\Models\Setting;
 use App\Models\Sikartap\Sikartap;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use App\Models\User\UserProfiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -31,12 +31,12 @@ class PengajuanKaryawanTetapPageTest extends TestCase
         $user = User::factory()->create(['company_id' => $company->id]);
 
         UserProfiles::create(['user_id' => $user->id, 'employee_type_id' => $type->id, 'joining_date' => now()->subMonths($joinedMonthsAgo)->toDateString()]);
-        UserContract::create([
-            'user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $type->id,
-            'contract_start_date' => now()->subMonths(6)->toDateString(), 'contract_end_date' => now()->addMonths(6)->toDateString(),
+        EmployeeContract::create([
+            'employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $type->id,
+            'start_date' => now()->subMonths(6)->toDateString(), 'end_date' => now()->addMonths(6)->toDateString(),
         ]);
 
-        return $user->fresh(['profile.employeeType', 'currentContract']);
+        return $user->fresh(['profile.employeeType']);
     }
 
     private function setBukaTutup(User $user, bool $modeBukaTutup, bool $dibuka): void

@@ -7,7 +7,8 @@ use App\Enum\Payroll\PayrollComponentEnum;
 use App\Imports\Payroll\JasaUnitDetailImport;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
-use App\Models\Payroll\JasaUnitDetail;
+use App\Models\Employee\Employee;
+use App\Models\Payroll\PayrollJasaUnitDetail;
 use App\Models\Payroll\JasaUnitType;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollPeriod;
@@ -45,7 +46,7 @@ class JasaUnitInputPage extends Component
     public ?string $companyId = null;
     public ?string $periodId = null;
 
-    /** @var array<int, array{id:?string, user_id:?string, jasa_unit_type_id:?string, amount:?string}> */
+    /** @var array<int, array{id:?string, employee_id:?string, jasa_unit_type_id:?string, amount:?string}> */
     public array $rows = [];
 
     public bool $showImportModal = false;
@@ -145,23 +146,23 @@ class JasaUnitInputPage extends Component
             ->where('component', PayrollComponentEnum::JASA_UNIT->value)
             ->pluck('employee_type_id');
 
-        return User::query()
-            ->whereCompany($this->companyId)
-            ->where('is_active', true)
-            ->whereHas('profile', fn ($q) => $q->whereIn('employee_type_id', $eligibleTypeIds))
-            ->orderByName()
+        return Employee::query()
+            ->where('company_id', $this->companyId)
+            ->where('status', 'aktif')
+            ->whereIn('employee_type_id', $eligibleTypeIds)
+            ->orderBy('nama_lengkap')
             ->get();
     }
 
     /** Jasa yang di-assign ke divisi jabatan aktif karyawan terpilih (lihat JasaUnitTypesPage) -
      * karyawan belum dipilih atau belum punya jabatan/divisi -> kosong. */
-    public function jasaOptionsFor(?string $userId)
+    public function jasaOptionsFor(?string $employeeId)
     {
-        if (! $userId) {
+        if (! $employeeId) {
             return collect();
         }
 
-        $orgStructureId = User::find($userId)?->activeJobPosition?->jobPosition?->org_structure_id;
+        $orgStructureId = Employee::find($employeeId)?->jobPosition?->org_structure_id;
 
         if (! $orgStructureId) {
             return collect();
@@ -179,7 +180,7 @@ class JasaUnitInputPage extends Component
      * di dropdown (dropdown-nya sendiri otomatis kefilter ulang lewat jasaOptionsFor()). */
     public function updatedRows($value, string $name): void
     {
-        if (! str_ends_with($name, '.user_id')) {
+        if (! str_ends_with($name, '.employee_id')) {
             return;
         }
 
@@ -199,12 +200,12 @@ class JasaUnitInputPage extends Component
             return;
         }
 
-        $this->rows = JasaUnitDetail::query()
+        $this->rows = PayrollJasaUnitDetail::query()
             ->where('payroll_period_id', $this->periodId)
             ->get()
-            ->map(fn (JasaUnitDetail $d) => [
+            ->map(fn (PayrollJasaUnitDetail $d) => [
                 'id' => $d->id,
-                'user_id' => $d->user_id,
+                'employee_id' => $d->employee_id,
                 'jasa_unit_type_id' => $d->jasa_unit_type_id,
                 'amount' => (string) $d->amount,
             ])
@@ -221,7 +222,7 @@ class JasaUnitInputPage extends Component
     {
         abort_unless($this->canEdit, 403);
 
-        $this->rows[] = ['id' => null, 'user_id' => null, 'jasa_unit_type_id' => null, 'amount' => ''];
+        $this->rows[] = ['id' => null, 'employee_id' => null, 'jasa_unit_type_id' => null, 'amount' => ''];
     }
 
     public function removeRow(int $index): void
@@ -231,7 +232,7 @@ class JasaUnitInputPage extends Component
         $row = $this->rows[$index] ?? null;
 
         if ($row && $row['id']) {
-            JasaUnitDetail::where('id', $row['id'])->delete();
+            PayrollJasaUnitDetail::where('id', $row['id'])->delete();
         }
 
         unset($this->rows[$index]);
@@ -244,11 +245,11 @@ class JasaUnitInputPage extends Component
         abort_unless($this->periodId, 422);
 
         $this->validate([
-            'rows.*.user_id' => 'required|exists:users,id',
+            'rows.*.employee_id' => 'required|exists:employees,id',
             'rows.*.jasa_unit_type_id' => 'required|exists:jasa_unit_types,id',
             'rows.*.amount' => 'required|numeric|min:0.01',
         ], [], [
-            'rows.*.user_id' => 'karyawan',
+            'rows.*.employee_id' => 'karyawan',
             'rows.*.jasa_unit_type_id' => 'jasa',
             'rows.*.amount' => 'nominal',
         ]);
@@ -256,7 +257,7 @@ class JasaUnitInputPage extends Component
         foreach ($this->rows as $i => $row) {
             $data = [
                 'payroll_period_id' => $this->periodId,
-                'user_id' => $row['user_id'],
+                'employee_id' => $row['employee_id'],
                 'jasa_unit_type_id' => $row['jasa_unit_type_id'],
                 'amount' => $row['amount'],
                 'created_by' => Auth::id(),
@@ -266,9 +267,9 @@ class JasaUnitInputPage extends Component
                 // Instance update() (fill()->save()), BUKAN Model::where(...)->update() query
                 // builder mentah - itu tidak menjalankan cast PayrollEncrypted, amount akan
                 // kesimpan PLAINTEXT & crash pas dibaca lagi (DecryptException).
-                JasaUnitDetail::find($row['id'])?->update($data);
+                PayrollJasaUnitDetail::find($row['id'])?->update($data);
             } else {
-                $created = JasaUnitDetail::create($data);
+                $created = PayrollJasaUnitDetail::create($data);
                 $this->rows[$i]['id'] = $created->id;
             }
         }

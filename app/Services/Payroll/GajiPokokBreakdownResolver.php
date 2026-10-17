@@ -18,7 +18,7 @@ class GajiPokokBreakdownResolver
     /** @return array{0: ?float, 1: ?float} [base, percentKenaikan] */
     public static function resolve(Payroll $payroll): array
     {
-        $profile = $payroll->user?->profile;
+        $profile = $payroll->employee;
         $pangkat = $profile?->pangkat;
         $kelas = $profile?->kelas;
         $pangkatSalary = $pangkat?->pangkatSalary;
@@ -32,7 +32,7 @@ class GajiPokokBreakdownResolver
         $category = $profile->employeeType?->category;
         $rate = ($category === null || $category === EmployeeTypeCategory::ORIENTASI)
             ? 0.0
-            : (GajiPokokKenaikanOverride::activeRateFor($profile->user_id)
+            : (GajiPokokKenaikanOverride::activeRateFor($payroll->employee_id)
                 ?? (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $payroll->payrollPeriod?->company_id, default: 8));
 
         return [(float) $pangkatSalary->base_salary, $rate];

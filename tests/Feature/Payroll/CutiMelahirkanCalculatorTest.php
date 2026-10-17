@@ -100,7 +100,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $user = $this->employeeWithGajiPokok(1_600_000, 8);
 
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // 14 hari cuti DALAM periode ini (irisan) - tanggal dibikin persis di dalam periode.
         $this->approvedMaternityLeave($user, '2026-07-01', '2026-07-14');
@@ -109,7 +109,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $context->grossSalary = 3_000_000; // simulasi THP sebelum potongan cuti = 3.000.000
         $context->totalDeductions = 0;
 
-        (new CutiCalculator())->calculate($user, $payroll, $period, $context);
+        (new CutiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertEqualsWithDelta(684_923.08, $context->totalDeductions, 0.02);
         $this->assertDatabaseHas('payroll_items', [
@@ -127,7 +127,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $user = $this->employeeWithGajiPokok(1_600_000, 8); // Gaji Pokok Akhir = 1.728.000
 
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // 31 hari cuti (periode penuh) - jauh melebihi E=26.
         $this->approvedMaternityLeave($user, '2026-07-01', '2026-07-31');
@@ -136,7 +136,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $context->grossSalary = 3_000_000;
         $context->totalDeductions = 0;
 
-        (new CutiCalculator())->calculate($user, $payroll, $period, $context);
+        (new CutiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // Potongan = 3.000.000 - 1.728.000 = 1.272.000 -> yang tersisa cuma Gaji Pokok Akhir.
         $this->assertEqualsWithDelta(1_272_000.0, $context->totalDeductions, 0.01);
@@ -155,7 +155,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $user = $this->employeeWithGajiPokok(1_600_000, 8);
 
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         PayrollItem::create([
             'payroll_id' => $payroll->id, 'name' => 'Tunjangan Jabatan', 'type' => 'earning',
@@ -172,7 +172,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $context->grossSalary = 1_500_000;
         $context->totalDeductions = 0;
 
-        (new CutiCalculator())->calculate($user, $payroll, $period, $context);
+        (new CutiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 1.000.000 x 14/26 = 538.461,54 - Lembur (500.000) tidak ikut dipotong sama sekali.
         $this->assertEqualsWithDelta(1_000_000 * 14 / 26, $context->totalDeductions, 0.01);
@@ -187,12 +187,12 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $user = $this->employeeWithGajiPokok(1_600_000, 8);
 
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         $context->grossSalary = 3_000_000;
 
-        (new CutiCalculator())->calculate($user, $payroll, $period, $context);
+        (new CutiCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->totalDeductions);
         $this->assertDatabaseMissing('payroll_items', [

@@ -3,15 +3,15 @@
 namespace App\Services\Payroll\Calculators;
 
 use App\Enum\Payroll\PayrollComponentTypeEnum;
-use App\Models\Payroll\ExecutiveAllowance;
+use App\Models\Employee\EmployeeExecutiveAllowance;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Baris pendapatan/potongan manual khusus User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS (Presiden
- * Direktur & Sekretaris Direktur) - lihat ExecutiveAllowance. Always-on (tidak digate lewat
+ * Direktur & Sekretaris Direktur) - lihat EmployeeExecutiveAllowance. Always-on (tidak digate lewat
  * company_payroll_components) karena roster-nya sendiri yang menentukan ada-tidaknya baris,
  * bukan toggle per company - aman dipanggil untuk SEMUA user tiap generate, no-op kalau
  * rosternya kosong (karyawan biasa).
@@ -25,9 +25,9 @@ use App\Models\User;
  */
 class ExecutiveAllowanceCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $rows = ExecutiveAllowance::where('user_id', $user->id)
+        $rows = EmployeeExecutiveAllowance::where('employee_id', $payroll->employee_id)
             ->where('is_active', true)
             ->get();
 

@@ -36,10 +36,10 @@ class BpjsKetenagakerjaanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new BpjsKetenagakerjaanCalculator())->calculate($user, $payroll, $period, $context);
+        (new BpjsKetenagakerjaanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 3.000.000 * 2% = 60.000
         $this->assertSame(60_000.0, $context->totalDeductions);
@@ -59,10 +59,10 @@ class BpjsKetenagakerjaanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new BpjsKetenagakerjaanCalculator())->calculate($user, $payroll, $period, $context);
+        (new BpjsKetenagakerjaanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 5.000.000 * 2% = 100.000
         $this->assertSame(100_000.0, $context->totalDeductions);
@@ -80,10 +80,10 @@ class BpjsKetenagakerjaanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new BpjsKetenagakerjaanCalculator())->calculate($user, $payroll, $period, $context);
+        (new BpjsKetenagakerjaanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->totalDeductions);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);

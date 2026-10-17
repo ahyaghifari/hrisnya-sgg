@@ -47,13 +47,13 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 10);
         $this->makeLateRecord($user, '2026-07-10', 15);
 
         $context = new PayrollContext();
-        (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new KeterlambatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(50_000.0, $context->totalDeductions);
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'keterlambatan', 'quantity' => 2, 'amount' => 50000]);
@@ -67,14 +67,14 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 10);
         $this->makeLateRecord($user, '2026-07-10', 15);
         $this->makeLateRecord($user, '2026-07-15', 20);
 
         $context = new PayrollContext();
-        (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new KeterlambatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 3 kejadian, lolos grace 1 - denda kena ke SEMUA 3 kejadian (bukan cuma kelebihannya)
         $this->assertSame(75_000.0, $context->totalDeductions);
@@ -89,13 +89,13 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 10);
         $this->makeLateRecord($user, '2026-07-10', 15);
 
         $context = new PayrollContext();
-        (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new KeterlambatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->totalDeductions);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);
@@ -108,14 +108,14 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // Toleransi sudah selesai di level jadwal (status='late' cuma di-set kalau sudah lewat
         // toleransi) - di sini tidak ada threshold menit kedua, 1 menit pun kena hitung.
         $this->makeLateRecord($user, '2026-07-05', 1);
 
         $context = new PayrollContext();
-        (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new KeterlambatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(25_000.0, $context->totalDeductions);
     }
@@ -129,14 +129,14 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-05-01', 'end_date' => '2026-05-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-04-15', 10); // sebelum window - JANGAN kehitung
         $this->makeLateRecord($user, '2026-05-14', 10); // di dalam window 21 Apr - 20 Mei - HARUS kehitung
         $this->makeLateRecord($user, '2026-05-25', 10); // setelah window (window salah lama: Mei21-Jun20) - JANGAN kehitung
 
         $context = new PayrollContext();
-        (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new KeterlambatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(25_000.0, $context->totalDeductions);
     }
@@ -148,7 +148,7 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 10); // ditutup izin - JANGAN kena denda
         $this->makeLateRecord($user, '2026-07-10', 15); // tidak ada izin - HARUS kena denda
@@ -158,7 +158,7 @@ class KeterlambatanCalculatorTest extends TestCase
         AttendanceRequestPermissionDetails::create(['request_id' => $request->id, 'category' => $category, 'date' => '2026-07-05']);
 
         $context = new PayrollContext();
-        (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new KeterlambatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(25_000.0, $context->totalDeductions);
         $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'keterlambatan', 'quantity' => 1, 'amount' => 25000]);
@@ -169,12 +169,12 @@ class KeterlambatanCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 30);
 
         $context = new PayrollContext();
-        (new KeterlambatanCalculator())->calculate($user, $payroll, $period, $context);
+        (new KeterlambatanCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->totalDeductions);
     }

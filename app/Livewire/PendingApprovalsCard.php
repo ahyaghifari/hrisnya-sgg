@@ -585,7 +585,7 @@ class PendingApprovalsCard extends Component
         // Approval Engine (2026-09-06) - penilai di-resolve dari sikartap_reviewers.
         $orientationRequests = collect();
         if ($this->wants('orientation_request')) {
-            $orientationRequests = \App\Models\OrientationSubmission::with(['user', 'userOrientation'])
+            $orientationRequests = \App\Models\OrientationSubmission::with(['user', 'employeeContract'])
                 ->where('status', 'diajukan')
                 ->whereHas('user')
                 ->get()
@@ -613,7 +613,7 @@ class PendingApprovalsCard extends Component
         // Engine, penilai di-resolve dari sikartap_reviewers context `contract`).
         $contractRequests = collect();
         if ($this->wants('contract_request')) {
-            $contractRequests = \App\Models\ContractSubmission::with(['user', 'userContract'])
+            $contractRequests = \App\Models\ContractSubmission::with(['user', 'employeeContract'])
                 ->where('status', 'diajukan')
                 ->whereHas('user')
                 ->get()

@@ -58,7 +58,7 @@ class InsentifAutoEndToEndTest extends TestCase
 
         app(PayrollService::class)->generatePayroll($period);
 
-        $payroll = Payroll::where('user_id', $employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $employee->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $this->assertDatabaseHas('payroll_items', [
             'payroll_id' => $payroll->id,
@@ -104,7 +104,7 @@ class InsentifAutoEndToEndTest extends TestCase
 
         app(PayrollService::class)->generatePayroll($period);
 
-        $payroll = Payroll::where('user_id', $employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $employee->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         // Insentif tetap dapat baris Rp0 (bukan hilang total) - komponen ini aktif+eligible,
         // cuma hasil hitungnya nol (2026-08-02, "semua komponen mesti digenerate meskipun kosong").

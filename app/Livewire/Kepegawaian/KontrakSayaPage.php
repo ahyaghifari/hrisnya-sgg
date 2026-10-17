@@ -36,7 +36,7 @@ class KontrakSayaPage extends Component
 
         $contract = $this->contract;
         $this->submissionId = $contract
-            ? ContractSubmission::where('user_contract_id', $contract->id)->latest()->value('id')
+            ? ContractSubmission::where('employee_contract_id', $contract->id)->latest()->value('id')
             : null;
 
         if ($this->current) {
@@ -46,7 +46,7 @@ class KontrakSayaPage extends Component
 
     public function getContractProperty()
     {
-        return Auth::user()->currentContract;
+        return Auth::user()->employee?->currentContract;
     }
 
     public function getCurrentProperty(): ?ContractSubmission
@@ -78,7 +78,7 @@ class KontrakSayaPage extends Component
 
     public function getWindowOpensAtProperty(): ?Carbon
     {
-        $end = $this->contract?->contract_end_date;
+        $end = $this->contract?->end_date;
 
         if (! $end || $this->leadDays <= 0) {
             return null;
@@ -91,7 +91,7 @@ class KontrakSayaPage extends Component
     {
         $contract = $this->contract;
 
-        if (! $contract || ContractSubmission::where('user_contract_id', $contract->id)->exists()) {
+        if (! $contract || ContractSubmission::where('employee_contract_id', $contract->id)->exists()) {
             return false;
         }
 
@@ -118,7 +118,7 @@ class KontrakSayaPage extends Component
 
         $submission = ContractSubmission::create([
             'user_id' => Auth::id(),
-            'user_contract_id' => $contract->id,
+            'employee_contract_id' => $contract->id,
             'company_id' => Auth::user()->company_id,
             'status' => 'draft',
         ]);
@@ -138,7 +138,7 @@ class KontrakSayaPage extends Component
             'decision_note' => null,
             'decided_by' => null,
             'decided_at' => null,
-            'new_contract_id' => null,
+            'new_employee_contract_id' => null,
         ]);
 
         Notification::make()->title('Pengajuan dibuka lagi — lengkapi lalu kirim ulang')->success()->send();

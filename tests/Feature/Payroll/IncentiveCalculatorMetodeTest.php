@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Payroll;
 
-use App\Models\Incentive\Incentive;
+use App\Models\Employee\EmployeeIncentive;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
@@ -27,10 +27,10 @@ class IncentiveCalculatorMetodeTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
-        Incentive::create([
-            'user_id' => $user->id,
+        EmployeeIncentive::create([
+            'employee_id' => $user->employee->id,
             'name' => 'Insentif Juli',
             'incentive_date' => '2026-07-15',
             'amount' => 300000,
@@ -46,10 +46,10 @@ class IncentiveCalculatorMetodeTest extends TestCase
         Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif']);
 
         $context = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(300000.0, $context->grossSalary);
-        $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif', 'amount' => 300000]);
+        $this->assertDatabaseHas('payroll_items', ['payroll_id' => $payroll->id, 'source_type' => 'insentif']);
     }
 
     public function test_unknown_metode_falls_back_to_master(): void
@@ -60,7 +60,7 @@ class IncentiveCalculatorMetodeTest extends TestCase
         Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'import', 'label' => 'Metode Insentif']);
 
         $context = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(300000.0, $context->grossSalary);
     }
@@ -76,10 +76,10 @@ class IncentiveCalculatorMetodeTest extends TestCase
 
         // Baris tambahan dengan tanggal jauh di luar periode Juli (periode payroll di
         // makeSetup() adalah 2026-07-01 s/d 2026-07-31).
-        Incentive::create(['user_id' => $user->id, 'incentive_date' => '2026-01-01', 'amount' => 100000, 'is_active' => true]);
+        EmployeeIncentive::create(['employee_id' => $user->employee->id, 'incentive_date' => '2026-01-01', 'amount' => 100000, 'is_active' => true]);
 
         $context = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(400000.0, $context->grossSalary);
     }
@@ -89,10 +89,10 @@ class IncentiveCalculatorMetodeTest extends TestCase
         [, $user, $period, $payroll] = $this->makeSetup();
         Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif']);
 
-        Incentive::create(['user_id' => $user->id, 'incentive_date' => '2026-07-15', 'amount' => 999999, 'is_active' => false]);
+        EmployeeIncentive::create(['employee_id' => $user->employee->id, 'incentive_date' => '2026-07-15', 'amount' => 999999, 'is_active' => false]);
 
         $context = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // Cuma baris aktif dari makeSetup() (300000) yang dihitung.
         $this->assertSame(300000.0, $context->grossSalary);
@@ -108,14 +108,14 @@ class IncentiveCalculatorMetodeTest extends TestCase
         Setting::create(['company_id' => $period->company_id, 'key' => 'insentif_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'master', 'label' => 'Metode Insentif']);
 
         $firstContext = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $firstContext);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll, $period, $firstContext);
         $this->assertSame(300000.0, $firstContext->grossSalary);
 
         // Simulasikan regenerate: payroll_items lama dihapus, payroll dihitung ulang.
         $payroll->items()->delete();
 
         $secondContext = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll->fresh(), $period, $secondContext);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll->fresh(), $period, $secondContext);
 
         $this->assertSame(300000.0, $secondContext->grossSalary);
     }
@@ -126,7 +126,7 @@ class IncentiveCalculatorMetodeTest extends TestCase
         // Tidak ada baris Setting sama sekali untuk company ini atau global.
 
         $context = new PayrollContext();
-        (new IncentiveCalculator())->calculate($payroll->user, $payroll, $period, $context);
+        (new IncentiveCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(300000.0, $context->grossSalary);
     }

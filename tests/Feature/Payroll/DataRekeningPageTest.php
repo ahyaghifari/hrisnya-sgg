@@ -96,13 +96,16 @@ class DataRekeningPageTest extends TestCase
         $this->actingAs($finance);
 
         Livewire::test(DataRekeningPage::class)
-            ->call('openEditModal', $employee->id)
+            ->call('openEditModal', $employee->employee->id)
             ->set('editBankName', 'Mandiri')
             ->set('editBankAccountNumber', '9876543210')
             ->set('editBankAccountName', $employee->name)
             ->call('save');
 
+        // Ditulis ke employee_identities; user_profiles ikut ditulis supaya sinkron lama tidak menimpa balik.
+        $identity = $employee->employee->fresh()->identity;
+        $this->assertSame('Mandiri', $identity->bank_name);
+        $this->assertSame('9876543210', $identity->bank_account_number);
         $this->assertSame('Mandiri', $employee->fresh()->profile->bank_name);
-        $this->assertSame('9876543210', $employee->fresh()->profile->bank_account_number);
     }
 }

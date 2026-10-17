@@ -36,12 +36,12 @@
                 @foreach ($employees as $employee)
                     <div class="pwa-list-row" style="align-items:center;">
                         <div style="flex:1;min-width:0;">
-                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $employee->name }}</p>
+                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $employee->nama_lengkap }}</p>
                             <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">{{ $employee->nip ?: 'NIP belum diisi' }}</p>
                             <p style="font-size:11px;color:var(--text-faint);margin-top:2px;">
-                                {{ $employee->profile?->bank_name ?: 'Bank belum diisi' }}
-                                @if ($employee->profile?->bank_account_number)
-                                    &middot; {{ $employee->profile->bank_account_number }}
+                                {{ $employee->identity?->bank_name ?: 'Bank belum diisi' }}
+                                @if ($employee->identity?->bank_account_number)
+                                    &middot; {{ $employee->identity->bank_account_number }}
                                 @endif
                             </p>
                         </div>
@@ -79,11 +79,11 @@
                 <tbody>
                     @foreach ($employees as $employee)
                         <tr wire:key="'rekening-'.{{ $employee->id }}" style="border-bottom:1px solid var(--border-soft);">
-                            <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $employee->name }}</td>
+                            <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $employee->nama_lengkap }}</td>
                             <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->nip ?: '-' }}</td>
-                            <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->profile?->bank_name ?: '-' }}</td>
-                            <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->profile?->bank_account_number ?: '-' }}</td>
-                            <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->profile?->bank_account_name ?: '-' }}</td>
+                            <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->identity?->bank_name ?: '-' }}</td>
+                            <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->identity?->bank_account_number ?: '-' }}</td>
+                            <td style="padding:9px 14px;white-space:nowrap;">{{ $employee->identity?->bank_account_name ?: '-' }}</td>
                             @if ($this->canEdit)
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     <button type="button" wire:click="openEditModal('{{ $employee->id }}')" class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">
@@ -109,7 +109,7 @@
     </div>
 
     {{-- Modal Edit Rekening --}}
-    @if ($editingUserId)
+    @if ($editingEmployeeId)
         <div class="modal-overlay" wire:click="closeEditModal">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 14px;">Edit Data Rekening</h3>

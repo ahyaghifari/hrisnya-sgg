@@ -142,7 +142,7 @@
 
             @forelse ($this->unpaidPayrolls as $payroll)
                 <a href="{{ route('keuangan.payroll.show', $payroll) }}" wire:navigate style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);text-decoration:none;">
-                    <span style="font-size:12.5px;color:var(--text-body);">{{ $payroll->user?->name ?? '-' }}</span>
+                    <span style="font-size:12.5px;color:var(--text-body);">{{ $payroll->employee?->nama_lengkap ?? '-' }}</span>
                     <span style="font-size:12.5px;font-weight:700;color:var(--text-heading);">Rp {{ number_format($payroll->net_salary, 0, ',', '.') }}</span>
                 </a>
             @empty
@@ -166,7 +166,7 @@
             @forelse ($this->activeIncentivesList as $incentive)
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);">
                     <div>
-                        <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $incentive->user?->name ?? '-' }}</p>
+                        <p style="font-size:12.5px;font-weight:600;color:var(--text-heading);margin:0;">{{ $incentive->employee?->nama_lengkap ?? '-' }}</p>
                         @if ($incentive->name)
                             <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">{{ $incentive->name }}</p>
                         @endif
@@ -178,7 +178,7 @@
             @endforelse
 
             <div style="margin-top:16px;display:flex;justify-content:space-between;">
-                @can('viewAny', \App\Models\Incentive\Incentive::class)
+                @can('viewAny', \App\Models\Employee\EmployeeIncentive::class)
                     <a href="{{ route('keuangan.insentif') }}" wire:navigate class="btn-ghost" style="font-size:12px;"><i class="fa-solid fa-hand-holding-dollar"></i> Kelola Insentif</a>
                 @endcan
                 <button type="button" wire:click="closeModal" class="btn-ghost">Tutup</button>
@@ -195,7 +195,7 @@
 
             @forelse ($this->activeKoperasiList as $member)
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);">
-                    <span style="font-size:12.5px;color:var(--text-body);">{{ $member->user?->name ?? '-' }}</span>
+                    <span style="font-size:12.5px;color:var(--text-body);">{{ $member->employee?->nama_lengkap ?? '-' }}</span>
                     <span style="font-size:12.5px;font-weight:700;color:var(--text-heading);">Rp {{ number_format($member->amount, 0, ',', '.') }}</span>
                 </div>
             @empty
@@ -203,7 +203,7 @@
             @endforelse
 
             <div style="margin-top:16px;display:flex;justify-content:space-between;">
-                @can('viewAny', \App\Models\Payroll\UserKoperasi::class)
+                @can('viewAny', \App\Models\Employee\EmployeeKoperasi::class)
                     <a href="{{ route('keuangan.koperasi') }}" wire:navigate class="btn-ghost" style="font-size:12px;"><i class="fa-solid fa-people-group"></i> Kelola Koperasi</a>
                 @endcan
                 <button type="button" wire:click="closeModal" class="btn-ghost">Tutup</button>

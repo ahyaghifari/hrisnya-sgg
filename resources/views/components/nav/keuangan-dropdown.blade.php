@@ -11,13 +11,13 @@
     // tidak punya Filament Resource/Policy sendiri).
     $canViewOmset = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OMSET->value);
     $canViewInputJasaUnit = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_INPUT_JASA_UNIT->value);
-    $canViewIncentive = auth()->user()->can('ViewAny:Incentive');
-    $canViewExecutiveAllowance = auth()->user()->can('ViewAny:ExecutiveAllowance');
+    $canViewIncentive = auth()->user()->can('ViewAny:EmployeeIncentive');
+    $canViewExecutiveAllowance = auth()->user()->can('ViewAny:EmployeeExecutiveAllowance');
     $canViewKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_KOMPONEN_GAJI->value);
     $canViewPenerimaKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_PENERIMA_KOMPONEN_GAJI->value);
     $canViewMappingKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_MAPPING_KOMPONEN_GAJI->value);
-    $canViewKoperasi = auth()->user()->can('ViewAny:UserKoperasi');
-    $canViewBpjsDependent = auth()->user()->can('ViewAny:BpjsDependent');
+    $canViewKoperasi = auth()->user()->can('ViewAny:EmployeeKoperasi');
+    $canViewBpjsDependent = auth()->user()->can('ViewAny:EmployeeBpjsDependent');
     $canViewOverrideKomponenGaji = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_OVERRIDE_KOMPONEN_GAJI->value);
     $canViewKenaikanGajiPokok = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_KENAIKAN_GAJI_POKOK->value);
     $canViewJasaUnitType = auth()->user()->can('ViewAny:JasaUnitType');

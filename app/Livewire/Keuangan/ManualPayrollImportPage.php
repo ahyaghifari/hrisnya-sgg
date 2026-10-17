@@ -137,8 +137,8 @@ class ManualPayrollImportPage extends Component
         $search = trim($this->search);
 
         $payrolls = $this->applySlipStatusFilter($this->baseSlipQuery())
-            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($q2) => $q2->searchNameOrNip($search)))
-            ->with(['user', 'payrollPeriod'])
+            ->when($search !== '', fn ($q) => $q->whereHas('employee', fn ($q2) => $q2->where(fn ($q3) => $q3->where('nama_lengkap', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"))))
+            ->with(['employee', 'payrollPeriod'])
             ->orderByDesc('created_at')
             ->get();
 
@@ -178,11 +178,11 @@ class ManualPayrollImportPage extends Component
         abort_unless($this->canUpdatePayroll, 403);
 
         $newlyPaid = Payroll::whereIn('id', $this->selected)->where('is_paid', false)
-            ->with(['user', 'payrollPeriod'])->get();
+            ->with(['employee', 'payrollPeriod'])->get();
 
         Payroll::whereIn('id', $newlyPaid->pluck('id'))->update(['is_paid' => true]);
         foreach ($newlyPaid as $payroll) {
-            $payroll->user?->notify(new PayrollPaid($payroll));
+            $payroll->employee?->user?->notify(new PayrollPaid($payroll));
         }
 
         $this->selected = [];
@@ -194,11 +194,11 @@ class ManualPayrollImportPage extends Component
         abort_unless($this->canUpdatePayroll, 403);
         abort_unless($this->selectedAllPaid, 403, 'Semua payroll yang dipilih harus sudah dibayar dulu.');
 
-        $payrolls = Payroll::whereIn('id', $this->selected)->with('user.profile')->get();
+        $payrolls = Payroll::whereIn('id', $this->selected)->with('employee.user')->get();
         $skipped = 0;
 
         foreach ($payrolls as $payroll) {
-            if (! ($payroll->user?->profile?->email_pribadi ?: $payroll->user?->email)) {
+            if (! ($payroll->employee?->email_pribadi ?: $payroll->employee?->user?->email)) {
                 $skipped++;
 
                 continue;
@@ -238,14 +238,14 @@ class ManualPayrollImportPage extends Component
         abort_unless($this->canUpdatePayroll, 403);
 
         $payroll = Payroll::where('id', $payrollId)->where('is_paid', false)
-            ->with(['user', 'payrollPeriod'])->first();
+            ->with(['employee', 'payrollPeriod'])->first();
 
         if (! $payroll) {
             return;
         }
 
         $payroll->update(['is_paid' => true]);
-        $payroll->user?->notify(new PayrollPaid($payroll));
+        $payroll->employee?->user?->notify(new PayrollPaid($payroll));
 
         Notification::make()->title('Payroll ditandai sudah dibayar')->success()->send();
     }
@@ -254,10 +254,10 @@ class ManualPayrollImportPage extends Component
     {
         abort_unless($this->canUpdatePayroll, 403);
 
-        $payroll = Payroll::where('id', $payrollId)->where('is_paid', true)->with('user.profile')->first();
+        $payroll = Payroll::where('id', $payrollId)->where('is_paid', true)->with('employee.user')->first();
         abort_unless($payroll, 403, 'Payroll harus sudah dibayar dulu.');
 
-        if (! ($payroll->user?->profile?->email_pribadi ?: $payroll->user?->email)) {
+        if (! ($payroll->employee?->email_pribadi ?: $payroll->employee?->user?->email)) {
             Notification::make()->title('Karyawan belum punya email')->warning()->send();
 
             return;

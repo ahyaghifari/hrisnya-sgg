@@ -250,7 +250,7 @@ class PayrollItemsRelationManager extends RelationManager
             'payroll_adjustment',
             $payroll->payrollPeriod?->company_id,
             'payroll_item:' . $record->id,
-            $record->name . ' — ' . $payroll->user?->name . ' (' . $note . ')',
+            $record->name . ' — ' . $payroll->employee?->nama_lengkap . ' (' . $note . ')',
             $oldAmount,
             $newAmount,
         );

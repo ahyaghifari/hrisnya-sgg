@@ -4,8 +4,9 @@ namespace App\Livewire\Kepegawaian;
 
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
-use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeContract;
+
 use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -17,14 +18,14 @@ use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 /**
- * Padanan portal dari admin UserContractResource — bisa EDIT lewat modal (koreksi tanggal/surat
+ * Padanan portal dari admin EmployeeContractResource — bisa EDIT lewat modal (koreksi tanggal/surat
  * yang salah/telat), TAPI TIDAK ada Tambah maupun Hapus (2026-08-22, instruksi user). Baris baru
  * SELALU lewat alur "Perpanjangan Kontrak" (Perubahan Status Karyawan -> UserTransitionService),
  * yang sudah divalidasi (resolveContractEndDate(): batas maks tahun kontrak, usia pensiun) &
  * tercatat approval-nya - modal Tambah generik di sini bakal jadi jalur kedua yang bisa
  * melewati validasi itu. Hapus juga sengaja tidak ada - baris ini nempel ke riwayat approval
- * transisi, penghapusan tetap lewat admin panel (UserContractResource) kalau memang perlu.
- * Otorisasi Edit tetap lewat UserContractPolicy (Shield Update:UserContract) yang sama dengan
+ * transisi, penghapusan tetap lewat admin panel (EmployeeContractResource) kalau memang perlu.
+ * Otorisasi Edit tetap lewat EmployeeContractPolicy (Shield Update:EmployeeContract) yang sama dengan
  * admin panel.
  */
 #[Layout('components.layout', ['title' => 'Kontrak Karyawan'])]
@@ -39,7 +40,7 @@ class KontrakPage extends Component
     #[Url]
     public string $search = '';
 
-    /** 'semua' | 'aktif' | 'berakhir' - berdasar contract_end_date terhadap hari ini. */
+    /** 'semua' | 'aktif' | 'berakhir' - berdasar end_date terhadap hari ini. */
     #[Url]
     public string $status = 'semua';
 
@@ -48,7 +49,7 @@ class KontrakPage extends Component
     public ?string $editingId = null;
 
     public ?string $formCompanyId = null;
-    public ?string $formUserId = null;
+    public ?string $formEmployeeId = null;
     public ?string $formEmployeeTypeId = null;
     public ?string $formStartDate = null;
     public ?string $formEndDate = null;
@@ -59,7 +60,7 @@ class KontrakPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can('viewAny', UserContract::class), 403);
+        abort_unless(Auth::user()->can('viewAny', EmployeeContract::class), 403);
 
         if (! Auth::user()->canFilterByCompany()) {
             $this->companyId = Auth::user()->company_id;
@@ -98,14 +99,14 @@ class KontrakPage extends Component
         }
 
         // Ganti perusahaan di modal -> pilihan karyawan/tipe karyawan lama tidak relevan lagi.
-        $this->formUserId = null;
+        $this->formEmployeeId = null;
         $this->formEmployeeTypeId = null;
     }
 
     /** Non-global cuma boleh kelola kontrak karyawan company sendiri - permission Shield
-     * Update:UserContract sendirian tidak cek batas company sama sekali (pola sama
+     * Update:EmployeeContract sendirian tidak cek batas company sama sekali (pola sama
      * DocumentFormPage::canManage()). */
-    protected function canManage(UserContract $contract): bool
+    protected function canManage(EmployeeContract $contract): bool
     {
         if (Auth::user()->canFilterByCompany()) {
             return true;
@@ -119,13 +120,13 @@ class KontrakPage extends Component
         return Companies::pluck('name', 'id');
     }
 
-    public function getFormUserOptionsProperty()
+    public function getFormEmployeeOptionsProperty()
     {
         if (! $this->formCompanyId) {
             return collect();
         }
 
-        return User::whereCompany($this->formCompanyId)->orderByName()->get()->pluck('name', 'id');
+        return Employee::where('company_id', $this->formCompanyId)->orderBy('nama_lengkap')->pluck('nama_lengkap', 'id');
     }
 
     public function getFormEmployeeTypeOptionsProperty()
@@ -141,17 +142,18 @@ class KontrakPage extends Component
     {
         $today = Carbon::today()->toDateString();
 
-        return UserContract::query()
-            ->with(['user.company', 'employeeType'])
+        return EmployeeContract::query()
+            ->kontrak()
+            ->with(['employee.company', 'employeeType'])
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
-            ->when($this->status === 'aktif', fn ($q) => $q->where('contract_end_date', '>=', $today))
-            ->when($this->status === 'berakhir', fn ($q) => $q->where('contract_end_date', '<', $today))
+            ->when($this->status === 'aktif', fn ($q) => $q->where('end_date', '>=', $today))
+            ->when($this->status === 'berakhir', fn ($q) => $q->where('end_date', '<', $today))
             ->when(trim($this->search) !== '', function ($q) {
                 $search = trim($this->search);
 
-                $q->whereHas('user', fn ($q2) => $q2->searchNameOrNip($search));
+                $q->whereHas('employee', fn ($q2) => $q2->where(fn ($q3) => $q3->where('nama_lengkap', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%")));
             })
-            ->orderByDesc('contract_start_date')
+            ->orderByDesc('start_date')
             ->paginate(10)
             ->appends([
                 'companyId' => $this->companyId,
@@ -164,7 +166,7 @@ class KontrakPage extends Component
 
     public function openEditModal(string $id): void
     {
-        $contract = UserContract::findOrFail($id);
+        $contract = EmployeeContract::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $contract), 403);
         abort_unless($this->canManage($contract), 403);
@@ -172,10 +174,10 @@ class KontrakPage extends Component
         $this->editingId = $contract->id;
         $this->editingExistingFilePath = $contract->file_path;
         $this->formCompanyId = $contract->company_id;
-        $this->formUserId = $contract->user_id;
+        $this->formEmployeeId = $contract->employee_id;
         $this->formEmployeeTypeId = $contract->employee_type_id;
-        $this->formStartDate = $contract->contract_start_date?->toDateString();
-        $this->formEndDate = $contract->contract_end_date?->toDateString();
+        $this->formStartDate = $contract->start_date?->toDateString();
+        $this->formEndDate = $contract->end_date?->toDateString();
         $this->formFile = null;
         $this->resetErrorBag();
         $this->showFormModal = true;
@@ -192,14 +194,14 @@ class KontrakPage extends Component
             'formCompanyId' => ['required', 'exists:m_companies,id'],
             // exists:users,id doang cuma cek karyawannya ada, TIDAK cek company_id-nya - closure
             // ini mencegah user non-global nempelin kontrak ke karyawan perusahaan lain lewat
-            // formUserId yang di-tamper (pola sama DocumentFormPage::rules()).
-            'formUserId' => ['required', 'exists:users,id', function (string $attribute, mixed $value, \Closure $fail): void {
+            // formEmployeeId yang di-tamper (pola sama DocumentFormPage::rules()).
+            'formEmployeeId' => ['required', 'exists:employees,id', function (string $attribute, mixed $value, \Closure $fail): void {
                 if (Auth::user()->canFilterByCompany()) {
                     return;
                 }
 
-                $belongsToOwnCompany = User::whereKey($value)
-                    ->whereCompany(Auth::user()->company_id)
+                $belongsToOwnCompany = Employee::whereKey($value)
+                    ->where('company_id', Auth::user()->company_id)
                     ->exists();
 
                 if (! $belongsToOwnCompany) {
@@ -217,7 +219,7 @@ class KontrakPage extends Component
     {
         abort_if($this->editingId === null, 400);
 
-        $contract = UserContract::findOrFail($this->editingId);
+        $contract = EmployeeContract::findOrFail($this->editingId);
 
         abort_unless(Auth::user()->can('update', $contract), 403);
         abort_unless($this->canManage($contract), 403);
@@ -231,7 +233,7 @@ class KontrakPage extends Component
 
         $this->validate($this->formRules(), [], [
             'formCompanyId' => 'perusahaan',
-            'formUserId' => 'karyawan',
+            'formEmployeeId' => 'karyawan',
             'formEmployeeTypeId' => 'tipe karyawan',
             'formStartDate' => 'tanggal mulai',
             'formEndDate' => 'tanggal selesai',
@@ -240,10 +242,10 @@ class KontrakPage extends Component
 
         $data = [
             'company_id' => $this->formCompanyId,
-            'user_id' => $this->formUserId,
+            'employee_id' => $this->formEmployeeId,
             'employee_type_id' => $this->formEmployeeTypeId,
-            'contract_start_date' => $this->formStartDate,
-            'contract_end_date' => $this->formEndDate,
+            'start_date' => $this->formStartDate,
+            'end_date' => $this->formEndDate,
         ];
 
         if ($this->formFile) {
@@ -251,7 +253,7 @@ class KontrakPage extends Component
                 Storage::disk('public')->delete($contract->file_path);
             }
 
-            $data['file_path'] = $this->formFile->store('user-contracts/' . $this->formUserId, 'public');
+            $data['file_path'] = $this->formFile->store('user-contracts/' . $this->formEmployeeId, 'public');
         }
 
         $contract->update($data);

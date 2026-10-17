@@ -40,7 +40,7 @@ class PayrollRevisionImportTest extends TestCase
         $user = User::create(['name' => 'Karyawan Uji', 'email' => "{$nip}@test.local", 'password' => bcrypt('secret'), 'nip' => $nip, 'company_id' => $company->id, 'is_active' => true]);
 
         $payroll = Payroll::create([
-            'user_id' => $user->id,
+            'employee_id' => $user->employee->id,
             'payroll_period_id' => $period->id,
             'gross_salary' => 5_000_000,
             'total_deductions' => 0,
@@ -57,7 +57,7 @@ class PayrollRevisionImportTest extends TestCase
             'source_type' => PayrollComponentEnum::GAJI_POKOK->value,
         ]);
 
-        return $payroll->fresh(['payrollPeriod', 'user']);
+        return $payroll->fresh(['payrollPeriod', 'employee']);
     }
 
     /** Bikin baris file dari header PERSIS hasil export - persis skenario nyata (user upload
@@ -121,7 +121,7 @@ class PayrollRevisionImportTest extends TestCase
         $exec = User::create(['id' => $execId, 'name' => 'Presiden Direktur Uji', 'email' => 'presdir@test.local', 'password' => bcrypt('secret'), 'nip' => '00001', 'company_id' => $company->id, 'is_active' => true]);
 
         $payroll = Payroll::create([
-            'user_id' => $exec->id,
+            'employee_id' => $exec->employee->id,
             'payroll_period_id' => $period->id,
             'gross_salary' => 5_000_000,
             'total_deductions' => 0,

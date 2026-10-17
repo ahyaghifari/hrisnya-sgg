@@ -8,7 +8,7 @@ use App\Models\Master\EmployeeTypes;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\Payroll\UserKoperasi;
+use App\Models\Employee\EmployeeKoperasi;
 use App\Models\User;
 use App\Models\User\UserProfiles;
 use App\Services\Payroll\PayrollService;
@@ -16,7 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Koperasi anggota aktif (user_koperasi) dibaca LANGSUNG oleh KoperasiCalculator tiap Generate
+ * Koperasi anggota aktif (employee_koperasi) dibaca LANGSUNG oleh KoperasiCalculator tiap Generate
  * Payroll — TIDAK lewat payroll_manual_lines (2026-08-22, beda dari Bon/Insentif import).
  */
 class KoperasiSyncTest extends TestCase
@@ -31,7 +31,7 @@ class KoperasiSyncTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'employee_type_id' => $employeeType->id]);
         CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::KOPERASI->value, 'is_active' => true]);
         PayrollComponentRecipient::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::KOPERASI->value, 'employee_type_id' => $employeeType->id]);
-        UserKoperasi::create(['user_id' => $user->id, 'amount' => 150000, 'is_active' => true]);
+        EmployeeKoperasi::create(['employee_id' => $user->employee->id, 'amount' => 150000, 'is_active' => true]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
@@ -39,7 +39,7 @@ class KoperasiSyncTest extends TestCase
 
         $this->assertDatabaseMissing('payroll_manual_lines', ['component' => 'koperasi']);
 
-        $payroll = \App\Models\Payroll\Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = \App\Models\Payroll\Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
         $item = $payroll->items()->where('source_type', 'koperasi')->first();
 
         $this->assertNotNull($item);
@@ -54,13 +54,13 @@ class KoperasiSyncTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'employee_type_id' => $employeeType->id]);
         CompanyPayrollComponent::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::KOPERASI->value, 'is_active' => true]);
         PayrollComponentRecipient::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::KOPERASI->value, 'employee_type_id' => $employeeType->id]);
-        UserKoperasi::create(['user_id' => $user->id, 'amount' => 150000, 'is_active' => false]);
+        EmployeeKoperasi::create(['employee_id' => $user->employee->id, 'amount' => 150000, 'is_active' => false]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
         app(PayrollService::class)->generatePayroll($period);
 
-        $payroll = \App\Models\Payroll\Payroll::where('user_id', $user->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = \App\Models\Payroll\Payroll::where('employee_id', $user->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         // Koperasi tetap komponen aktif di company ini - baris Rp0 tetap muncul di slip (perilaku
         // umum semua komponen aktif, lihat PayrollService::runComponent()), cuma tidak ada

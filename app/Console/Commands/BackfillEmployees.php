@@ -78,6 +78,7 @@ class BackfillEmployees extends Command
             }
         });
 
+        $this->line('employee_id payroll diperbaiki: ' . $sync->linkPayrollEmployeeIds() . ' baris');
         $this->info('Selesai. Gagal: ' . $failed);
 
         return $failed ? self::FAILURE : self::SUCCESS;

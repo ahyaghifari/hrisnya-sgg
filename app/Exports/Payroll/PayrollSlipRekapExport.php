@@ -29,7 +29,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * Rekap gaji 1 periode, format & urutan kolom mengikuti contoh Excel finance
  * (knowledge/gaji-juni.xlsx, 2026-08-22 - font Times New Roman 11 + highlight header per kolom
  * ikut persis file itu, lihat HEADER_HIGHLIGHT_COLORS & styles()) - dikelompokkan per DIVISI (org level 2, lihat
- * UserProfiles::getDivisionAttribute()) dengan baris judul divisi disisipkan di antara baris
+ * Employee::getDivisionAttribute()) dengan baris judul divisi disisipkan di antara baris
  * karyawan (kolom lain di baris judul dibiarkan kosong, bukan di-merge - cukup buat dibaca
  * finance, tidak perlu identik piksel).
  */
@@ -290,7 +290,7 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
                 ->sum(fn (PayrollItem $item) => (float) $item->amount);
         };
 
-        $profileOf = fn (Payroll $payroll) => $payroll->user?->profile;
+        $profileOf = fn (Payroll $payroll) => $payroll->employee;
         $joiningDateOf = function (Payroll $payroll) use ($profileOf) {
             $joiningDate = $profileOf($payroll)?->joining_date;
 
@@ -315,11 +315,11 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
 
         $rsDefinitions = [
             $info('NO', fn ($_, $no) => $no),
-            $info('NAMA', fn ($p) => $p->user?->name),
+            $info('NAMA', fn ($p) => $p->employee?->nama_lengkap),
             $info('PERIODE GAJI', fn ($p) => $p->payrollPeriod?->end_date?->translatedFormat('d/m/Y')),
             $info('TGL PEMBAYARAN GAJI', fn ($p) => $p->payrollPeriod?->payment_date?->translatedFormat('d/m/Y')),
-            $info('ID', fn ($p) => $p->user?->nip, null, true),
-            $info('NIK', fn ($p) => $profileOf($p)?->no_nik, null, true),
+            $info('ID', fn ($p) => $p->employee?->nip, null, true),
+            $info('NIK', fn ($p) => $profileOf($p)?->identity?->no_nik, null, true),
             $info('STATUS PERKAWINAN', fn ($p) => $profileOf($p)?->marital_status),
             $info('Tanggal Lahir', fn ($p) => $profileOf($p)?->date_of_birth ? Carbon::parse($profileOf($p)->date_of_birth)->format('d/m/Y') : null),
             $info('JABATAN', fn ($p) => $p->import_meta['jabatan'] ?? $profileOf($p)?->jobPosition?->name),
@@ -357,17 +357,17 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
             $calc('TOTAL POTONGAN', fn ($p) => (float) $p->total_deductions),
             $calc('TOTAL GAJI YANG DITERIMA SKEMA BARU', fn ($p) => (float) $p->net_salary, 'F20EC1'),
 
-            $info('NO REKENING', fn ($p) => $profileOf($p)?->bank_account_number, null, true),
-            $info('NAMA REKENING', fn ($p) => $profileOf($p)?->bank_account_name),
-            $info('Alamat Email', fn ($p) => $profileOf($p)?->email_pribadi ?: $p->user?->email),
+            $info('NO REKENING', fn ($p) => $profileOf($p)?->identity?->bank_account_number, null, true),
+            $info('NAMA REKENING', fn ($p) => $profileOf($p)?->identity?->bank_account_name),
+            $info('Alamat Email', fn ($p) => $profileOf($p)?->email_pribadi ?: $p->employee?->user?->email),
         ];
 
         $definitions = $sameLayout ? $rsDefinitions : [
             ['component' => null, 'label' => 'NO', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($_, $no) => $no],
-            ['component' => null, 'label' => 'NAMA', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $payroll->user?->name],
+            ['component' => null, 'label' => 'NAMA', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $payroll->employee?->nama_lengkap],
             ['component' => null, 'label' => 'PERIODE GAJI', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $payroll->payrollPeriod?->end_date?->translatedFormat('d/m/Y')],
             ['component' => null, 'label' => 'TGL PEMBAYARAN GAJI', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $payroll->payrollPeriod?->payment_date?->translatedFormat('d/m/Y')],
-            ['component' => null, 'label' => 'ID', 'format' => null, 'forceText' => true, 'editable' => false, 'get' => fn ($payroll) => $payroll->user?->nip],
+            ['component' => null, 'label' => 'ID', 'format' => null, 'forceText' => true, 'editable' => false, 'get' => fn ($payroll) => $payroll->employee?->nip],
             ['component' => null, 'label' => 'Tanggal Lahir', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->date_of_birth ? Carbon::parse($profileOf($payroll)->date_of_birth)->format('d/m/Y') : null],
             ['component' => null, 'label' => 'JABATAN', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->jobPosition?->name],
             ['component' => null, 'label' => 'STATUS KARYAWAN', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->employeeType?->name],
@@ -406,11 +406,11 @@ class PayrollSlipRekapExport extends DefaultValueBinder implements FromCollectio
             ['component' => null, 'label' => 'TOTAL POTONGAN', 'format' => self::CURRENCY_FORMAT, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => (float) $payroll->total_deductions],
             ['component' => null, 'label' => 'TOTAL GAJI YANG DITERIMA', 'format' => self::CURRENCY_FORMAT, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => (float) $payroll->net_salary],
 
-            ['component' => null, 'label' => 'NIK', 'format' => null, 'forceText' => true, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->no_nik],
+            ['component' => null, 'label' => 'NIK', 'format' => null, 'forceText' => true, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->identity?->no_nik],
             ['component' => null, 'label' => 'STATUS PERKAWINAN', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->marital_status],
-            ['component' => null, 'label' => 'NO REKENING', 'format' => null, 'forceText' => true, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->bank_account_number],
-            ['component' => null, 'label' => 'NAMA REKENING', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->bank_account_name],
-            ['component' => null, 'label' => 'Alamat Email', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->email_pribadi ?: $payroll->user?->email],
+            ['component' => null, 'label' => 'NO REKENING', 'format' => null, 'forceText' => true, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->identity?->bank_account_number],
+            ['component' => null, 'label' => 'NAMA REKENING', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->identity?->bank_account_name],
+            ['component' => null, 'label' => 'Alamat Email', 'format' => null, 'forceText' => false, 'editable' => false, 'get' => fn ($payroll) => $profileOf($payroll)?->email_pribadi ?: $payroll->employee?->user?->email],
         ];
 
         return array_values(array_filter($definitions, fn (array $d) => $isActive($d['component'])));

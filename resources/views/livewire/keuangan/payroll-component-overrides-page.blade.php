@@ -40,8 +40,8 @@
                     <tbody>
                         @forelse ($this->overrides as $override)
                             <tr wire:key="'override-'.{{ $override->id }}" style="border-bottom:1px solid var(--border-soft);">
-                                <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $override->user?->name ?? '-' }}</td>
-                                <td style="padding:9px 14px;white-space:nowrap;">{{ $override->user?->nip ?? '-' }}</td>
+                                <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $override->employee?->nama_lengkap ?? '-' }}</td>
+                                <td style="padding:9px 14px;white-space:nowrap;">{{ $override->employee?->nip ?? '-' }}</td>
                                 <td style="padding:9px 14px;white-space:nowrap;">{{ $override->component->label() }}</td>
                                 <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp {{ number_format($override->amount, 0, ',', '.') }}</td>
                                 <td style="padding:9px 14px;">{{ $override->note ?: '-' }}</td>
@@ -91,14 +91,14 @@
                     <div>
                         <label class="form-label">Karyawan</label>
                         <div wire:ignore>
-                            <select data-tom-select data-placeholder="-- Pilih Karyawan --" wire:model="addUserId">
+                            <select data-tom-select data-placeholder="-- Pilih Karyawan --" wire:model="addEmployeeId">
                                 <option value="">-- Pilih Karyawan --</option>
-                                @foreach ($this->availableUsers as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->nip }})</option>
+                                @foreach ($this->availableEmployees as $employee)
+                                    <option value="{{ $employee->id }}">{{ $employee->nama_lengkap }} ({{ $employee->nip }})</option>
                                 @endforeach
                             </select>
                         </div>
-                        @error('addUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('addEmployeeId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>

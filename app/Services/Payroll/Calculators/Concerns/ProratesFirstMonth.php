@@ -4,7 +4,7 @@ namespace App\Services\Payroll\Calculators\Concerns;
 
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use Carbon\Carbon;
 
 /**
@@ -33,10 +33,10 @@ trait ProratesFirstMonth
      * @return array{ratio: float, note: string}|null null = tidak perlu diprorate (karyawan
      * lama, atau Tanggal Bergabung belum diisi / di luar periode ini).
      */
-    protected function firstMonthProrate(User $user, PayrollPeriod $period): ?array
+    protected function firstMonthProrate(Employee $employee, PayrollPeriod $period): ?array
     {
-        // Tanggal Bergabung - kolom string biasa di DB (bukan di-cast Carbon oleh model).
-        $joiningDate = $user->profile?->joining_date ? Carbon::parse($user->profile->joining_date) : null;
+        // Tanggal Bergabung - dibaca dari employees.joining_date (di-cast Carbon).
+        $joiningDate = $employee->joining_date ? Carbon::parse($employee->joining_date) : null;
 
         // Syarat prorate: (1) Tanggal Bergabung ADA, (2) jatuh SETELAH awal periode (baru masuk
         // di tengah bulan, bukan sudah dari awal), (3) masih di dalam rentang periode ini.
@@ -65,25 +65,25 @@ trait ProratesFirstMonth
      * Tanggal TTD kontrak PERTAMA (Orientasi->Kontrak, instruksi user 2026-09-15) kalau JATUH di
      * periode ini DAN setting `kontrak_prorate_metode` company ini = 'tiered' DAN tanggalnya > 5
      * (1-5 tetap dianggap penuh, tidak perlu prorate apapun - null juga di sini, caller pakai
-     * jalur normal). "PERTAMA" (oldest by contract_start_date) penting - perpanjangan kontrak
+     * jalur normal). "PERTAMA" (oldest by start_date) penting - perpanjangan kontrak
      * SELALU butuh kontrak lama sudah ada (lihat ContractExtensionService::followUpDuration,
-     * lempar exception kalau `currentContract` kosong), jadi baris UserContract PALING AWAL
+     * lempar exception kalau `currentContract` kosong), jadi baris kontrak (employee_contracts) PALING AWAL
      * milik user pasti dari OrientationService::followUpContract, tidak pernah dari
      * perpanjangan - aman dipakai sebagai penanda "ini benar TTD pertama", bukan perpanjangan.
      */
-    protected function resolveContractTransitionSignDate(User $user, PayrollPeriod $period): ?Carbon
+    protected function resolveContractTransitionSignDate(Employee $employee, PayrollPeriod $period): ?Carbon
     {
         if (Setting::resolve('kontrak_prorate_metode', $period->company_id, default: 'penuh') !== 'tiered') {
             return null;
         }
 
-        $firstContract = $user->contracts()->oldest('contract_start_date')->first();
+        $firstContract = $employee->contracts()->oldest('start_date')->first();
 
-        if (! $firstContract || ! $firstContract->contract_start_date) {
+        if (! $firstContract || ! $firstContract->start_date) {
             return null;
         }
 
-        $signDate = Carbon::parse($firstContract->contract_start_date);
+        $signDate = Carbon::parse($firstContract->start_date);
 
         if (! $signDate->between($period->start_date, $period->end_date) || $signDate->day <= 5) {
             return null;
@@ -102,9 +102,9 @@ trait ProratesFirstMonth
      * @return array{ratio: float, note: string}|null null = tidak ada transisi kontrak yang
      * relevan bulan ini, pakai jalur normal (firstMonthProrate kalau ada, atau penuh).
      */
-    protected function contractTransitionRatio(User $user, PayrollPeriod $period): ?array
+    protected function contractTransitionRatio(Employee $employee, PayrollPeriod $period): ?array
     {
-        $signDate = $this->resolveContractTransitionSignDate($user, $period);
+        $signDate = $this->resolveContractTransitionSignDate($employee, $period);
 
         if (! $signDate) {
             return null;

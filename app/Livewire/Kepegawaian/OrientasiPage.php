@@ -41,7 +41,7 @@ class OrientasiPage extends Component
         // periode lama di-collapse.
         $period = $this->period;
         $this->submissionId = $period
-            ? OrientationSubmission::where('user_orientation_id', $period->id)->latest()->value('id')
+            ? OrientationSubmission::where('employee_contract_id', $period->id)->latest()->value('id')
             : null;
 
         if ($this->current?->presentation_proposed_at) {
@@ -62,17 +62,17 @@ class OrientasiPage extends Component
         return OrientationSubmission::where('user_id', Auth::id())->latest()->get();
     }
 
-    /** Periode orientasi karyawan SAAT INI (baris user_orientations terbaru). Pengajuan
+    /** Periode orientasi karyawan SAAT INI (baris employee_contracts type orientasi terbaru). Pengajuan
      *  penilaian selalu menempel ke periode ini; kalau null berarti periode belum tercatat. */
-    public function getPeriodProperty(): ?\App\Models\User\UserOrientation
+    public function getPeriodProperty(): ?\App\Models\Employee\EmployeeContract
     {
-        return Auth::user()->orientations()->orderByDesc('start_date')->first();
+        return Auth::user()->employee?->orientations()->orderByDesc('start_date')->first();
     }
 
     /** Periode-periode lama (sebelum yang aktif) — ditampilkan collapse sebagai riwayat. */
     public function getPastPeriodsProperty()
     {
-        return Auth::user()->orientations()->orderByDesc('start_date')->get()->slice(1)->values();
+        return (Auth::user()->employee?->orientations()->orderByDesc('start_date')->get() ?? collect())->slice(1)->values();
     }
 
     /** Ambang hari sebelum periode berakhir, pengajuan orientasi baru boleh dibuat. 0 = bebas. */
@@ -110,7 +110,7 @@ class OrientasiPage extends Component
     {
         $period = $this->period;
 
-        if (! $period || OrientationSubmission::where('user_orientation_id', $period->id)->exists()) {
+        if (! $period || OrientationSubmission::where('employee_contract_id', $period->id)->exists()) {
             return false;
         }
 
@@ -145,7 +145,7 @@ class OrientasiPage extends Component
 
         $submission = OrientationSubmission::create([
             'user_id' => Auth::id(),
-            'user_orientation_id' => $period->id,
+            'employee_contract_id' => $period->id,
             'company_id' => Auth::user()->company_id,
             'status' => 'draft',
         ]);

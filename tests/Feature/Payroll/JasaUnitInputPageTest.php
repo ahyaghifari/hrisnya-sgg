@@ -11,12 +11,12 @@ use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
 use App\Models\Payroll\CompanyPayrollComponent;
-use App\Models\Payroll\JasaUnitDetail;
+use App\Models\Payroll\PayrollJasaUnitDetail;
 use App\Models\Payroll\JasaUnitType;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
-use App\Models\User\UserJobPositions;
+
 use App\Models\User\UserProfiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -63,12 +63,8 @@ class JasaUnitInputPageTest extends TestCase
             'status' => 'approved',
         ]);
 
-        UserJobPositions::create([
-            'user_id' => $user->id,
-            'job_position_id' => $jobPosition->id,
-            'start_date' => now()->subYear(),
-            'status' => 'active',
-        ]);
+        // Jabatan sekarang dari employees.job_position_id, disalin dari profil lewat observer.
+        UserProfiles::updateOrCreate(['user_id' => $user->id], ['job_position_id' => $jobPosition->id]);
     }
 
     public function test_eligible_employees_list_is_not_scoped_to_any_division(): void
@@ -117,7 +113,7 @@ class JasaUnitInputPageTest extends TestCase
 
         $component = Livewire::actingAs($viewer)->test(JasaUnitInputPage::class);
 
-        $jasaForStaffIgd = $component->instance()->jasaOptionsFor($staffIgd->id);
+        $jasaForStaffIgd = $component->instance()->jasaOptionsFor($staffIgd->employee->id);
         $this->assertCount(1, $jasaForStaffIgd);
         $this->assertSame('Jasa Perujuk Rawat', $jasaForStaffIgd->first()->name);
 
@@ -133,7 +129,7 @@ class JasaUnitInputPageTest extends TestCase
         Livewire::actingAs($viewer)->test(JasaUnitInputPage::class)
             ->call('addRow')
             ->set('rows.0.jasa_unit_type_id', 'some-jasa-id')
-            ->set('rows.0.user_id', 'some-user-id')
+            ->set('rows.0.employee_id', 'some-employee-id')
             ->assertSet('rows.0.jasa_unit_type_id', null);
     }
 
@@ -159,13 +155,13 @@ class JasaUnitInputPageTest extends TestCase
         Livewire::actingAs($viewer)->test(JasaUnitInputPage::class)
             ->set('periodId', $period->id)
             ->call('addRow')
-            ->set('rows.0.user_id', $staff->id)
+            ->set('rows.0.employee_id', $staff->employee->id)
             ->set('rows.0.jasa_unit_type_id', $jasa->id)
             ->set('rows.0.amount', '150000')
             ->call('save');
 
-        $detail = JasaUnitDetail::where('payroll_period_id', $period->id)
-            ->where('user_id', $staff->id)
+        $detail = PayrollJasaUnitDetail::where('payroll_period_id', $period->id)
+            ->where('employee_id', $staff->employee->id)
             ->where('jasa_unit_type_id', $jasa->id)
             ->first();
         $this->assertNotNull($detail);

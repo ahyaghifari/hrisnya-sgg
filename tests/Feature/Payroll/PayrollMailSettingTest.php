@@ -98,7 +98,7 @@ class PayrollMailSettingTest extends TestCase
         UserProfiles::create(['user_id' => $employee->id, 'date_of_birth' => '1994-03-04', 'email_pribadi' => 'emp@mail.test']);
         $period = PayrollPeriod::create(['company_id' => $c->id, 'start_date' => '2026-06-01', 'end_date' => '2026-06-30']);
         $payroll = Payroll::create([
-            'user_id' => $employee->id, 'payroll_period_id' => $period->id,
+            'employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id,
             'gross_salary' => 1_000_000, 'net_salary' => 1_000_000, 'is_paid' => true,
         ]);
 

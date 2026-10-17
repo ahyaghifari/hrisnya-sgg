@@ -8,7 +8,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Attendance\AttendancePeriodResolver;
 use Carbon\Carbon;
 
@@ -37,7 +37,7 @@ abstract class AbstractIzinFlatCalculator implements PayrollComponentCalculator
     abstract protected function componentLabel(): string;
     abstract protected function componentType(): string;
 
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $flatAmount = Setting::resolve('izin_potongan_flat', $period->company_id, default: 0);
 
@@ -57,7 +57,7 @@ abstract class AbstractIzinFlatCalculator implements PayrollComponentCalculator
 
         $details = AttendanceRequestPermissionDetails::query()
             ->whereHas('attendanceRequest', fn ($q) => $q
-                ->where('user_id', $user->id)
+                ->where('user_id', $employee->user_id)
                 ->where('type', 'permission')
                 ->where('status', AttendanceReqStatus::APPROVED->value))
             ->whereBetween('date', [$izinPeriodStart, $izinPeriodEnd])

@@ -4,7 +4,7 @@ namespace App\Services\Payroll\Calculators;
 
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Payroll\Calculators\Concerns\ResolvesProrateDivisor;
 
 /**
@@ -25,7 +25,7 @@ class IzinSeharianKeseluruhanCalculator extends AbstractIzinSeharianCalculator
 {
     use ResolvesProrateDivisor;
 
-    protected function rateHarian(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): float
+    protected function rateHarian(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): float
     {
         $divisor = $this->prorateDivisor($period, $period->end_date);
 

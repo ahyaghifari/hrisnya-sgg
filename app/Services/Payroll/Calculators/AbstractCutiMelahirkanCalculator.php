@@ -9,7 +9,7 @@ use App\Models\Attendance\AttendanceRequestLeaveDetails;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Payroll\Calculators\Concerns\ResolvesProrateDivisor;
 use Carbon\Carbon;
 
@@ -30,11 +30,11 @@ abstract class AbstractCutiMelahirkanCalculator implements PayrollComponentCalcu
     use ResolvesProrateDivisor;
 
     /** Nominal potongan (Rp per periode) - null/<=0 = tidak ada yang dipotong. */
-    abstract protected function resolveAmount(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context, int $divisor, int $days): ?float;
+    abstract protected function resolveAmount(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context, int $divisor, int $days): ?float;
 
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $days = $this->maternityLeaveDaysInPeriod($user, $period);
+        $days = $this->maternityLeaveDaysInPeriod($employee, $period);
 
         if ($days <= 0) {
             return;
@@ -46,7 +46,7 @@ abstract class AbstractCutiMelahirkanCalculator implements PayrollComponentCalcu
             return;
         }
 
-        $amount = $this->resolveAmount($user, $payroll, $period, $context, $divisor, $days);
+        $amount = $this->resolveAmount($employee, $payroll, $period, $context, $divisor, $days);
 
         if ($amount === null || $amount <= 0) {
             return;
@@ -74,14 +74,14 @@ abstract class AbstractCutiMelahirkanCalculator implements PayrollComponentCalcu
      * keseluruhan pengajuan, bisa melintasi periode lain - cuti melahirkan 90 hari kalender
      * hampir pasti melintasi 2-3 periode payroll, lihat LeaveTypeCategoryEnum::countsCalendarDays()).
      */
-    private function maternityLeaveDaysInPeriod(User $user, PayrollPeriod $period): int
+    private function maternityLeaveDaysInPeriod(Employee $employee, PayrollPeriod $period): int
     {
         $periodStart = Carbon::parse($period->start_date);
         $periodEnd = Carbon::parse($period->end_date);
 
         $details = AttendanceRequestLeaveDetails::query()
             ->whereHas('request', fn ($q) => $q
-                ->where('user_id', $user->id)
+                ->where('user_id', $employee->user_id)
                 ->where('type', 'leave')
                 ->where('status', AttendanceReqStatus::APPROVED->value))
             ->whereIn('category', [

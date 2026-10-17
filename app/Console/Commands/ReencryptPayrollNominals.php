@@ -27,14 +27,14 @@ class ReencryptPayrollNominals extends Command
     private array $numericTables = [
         ['table' => 'payrolls', 'columns' => ['gross_salary', 'net_salary', 'total_deductions']],
         ['table' => 'payroll_items', 'columns' => ['amount', 'unit_amount']],
-        ['table' => 'incentives', 'columns' => ['amount']],
-        ['table' => 'user_koperasi', 'columns' => ['amount']],
+        ['table' => 'employee_incentives', 'columns' => ['amount']],
+        ['table' => 'employee_koperasi', 'columns' => ['amount']],
         ['table' => 'omset_details', 'columns' => ['amount']],
-        ['table' => 'executive_allowances', 'columns' => ['amount']],
+        ['table' => 'employee_executive_allowances', 'columns' => ['amount']],
         ['table' => 'position_allowances', 'columns' => ['amount']],
         ['table' => 'legacy_position_allowances', 'columns' => ['amount']],
         ['table' => 'transport_allowances', 'columns' => ['amount']],
-        ['table' => 'jasa_unit_details', 'columns' => ['amount']],
+        ['table' => 'payroll_jasa_unit_details', 'columns' => ['amount']],
         ['table' => 'payroll_manual_lines', 'columns' => ['amount']],
         ['table' => 'tenure_allowances', 'columns' => ['amount']],
     ];

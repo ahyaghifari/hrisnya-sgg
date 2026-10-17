@@ -31,7 +31,7 @@ class PayrollComponentEditTest extends TestCase
         $user = User::create(['name' => 'Karyawan Uji', 'email' => 'karyawan@test.local', 'password' => bcrypt('secret'), 'nip' => '00123', 'company_id' => $company->id, 'is_active' => true]);
 
         $payroll = Payroll::create([
-            'user_id' => $user->id,
+            'employee_id' => $user->employee->id,
             'payroll_period_id' => $period->id,
             'gross_salary' => 5_000_000,
             'total_deductions' => 0,
@@ -48,7 +48,7 @@ class PayrollComponentEditTest extends TestCase
             'source_type' => PayrollComponentEnum::GAJI_POKOK->value,
         ]);
 
-        return $payroll->fresh(['payrollPeriod', 'user']);
+        return $payroll->fresh(['payrollPeriod', 'employee']);
     }
 
     private function actingAsUserWithPermissions(Companies $company, array $permissions): User
@@ -106,7 +106,7 @@ class PayrollComponentEditTest extends TestCase
         $payroll = $this->makePayrollWithGajiPokok($company);
         $payroll->update(['is_paid' => true]);
 
-        Livewire::test(PayrollDetailPage::class, ['payroll' => $payroll->fresh(['payrollPeriod', 'user'])])
+        Livewire::test(PayrollDetailPage::class, ['payroll' => $payroll->fresh(['payrollPeriod', 'employee'])])
             ->call('openComponentEditModal', PayrollComponentEnum::GAJI_POKOK->value)
             ->assertForbidden();
     }

@@ -240,7 +240,7 @@
         // kalau bukan hasil import. Lihat knowledge/markdown/import-payroll-excel-manual.md §1.6.
         $meta = $payroll->import_meta ?? [];
 
-        $joiningDate = ($meta['tanggal_masuk'] ?? null) ?: $payroll->user->profile?->joining_date;
+        $joiningDate = ($meta['tanggal_masuk'] ?? null) ?: $payroll->employee?->joining_date;
         $masaKerja = '-';
 
         if ($joiningDate) {
@@ -280,21 +280,21 @@
     <!-- INFO -->
     <div class="info">
         <table>
-            <tr><td>Nama</td><td>: {{ $payroll->user->name }}</td></tr>
-            <tr><td>Jabatan</td><td>: {{ ($meta['jabatan'] ?? null) ?: ($payroll->user->activeJobPosition->jobPosition->name ?? '-') }}</td></tr>
-            @php $jeScore = $payroll->user->activeJobPosition?->jobPosition?->job_evaluation_score; @endphp
+            <tr><td>Nama</td><td>: {{ $payroll->employee?->nama_lengkap }}</td></tr>
+            <tr><td>Jabatan</td><td>: {{ ($meta['jabatan'] ?? null) ?: ($payroll->employee?->jobPosition->name ?? '-') }}</td></tr>
+            @php $jeScore = $payroll->employee?->jobPosition?->job_evaluation_score; @endphp
             @if (! is_null($jeScore) && \App\Enum\Payroll\JobEvaluationSlipCompany::shows($payroll->payrollPeriod->company->code ?? null))
                 <tr><td>Nilai Job Evaluation (JE)</td><td>: {{ $jeScore }}</td></tr>
             @endif
-            <tr><td>NIP</td><td>: {{ $payroll->user->nip ?? '-' }}</td></tr>
+            <tr><td>NIP</td><td>: {{ $payroll->employee?->nip ?? '-' }}</td></tr>
             <tr><td>Masa Kerja</td><td>: {{ $masaKerja }}</td></tr>
-            <tr><td>Status Karyawan</td><td>: {{ ($meta['status_karyawan'] ?? null) ?: ($payroll->user->profile?->employeeType?->name ?? '-') }}</td></tr>
-            @unless (in_array($payroll->user_id, \App\Models\User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true))
+            <tr><td>Status Karyawan</td><td>: {{ ($meta['status_karyawan'] ?? null) ?: ($payroll->employee?->employeeType?->name ?? '-') }}</td></tr>
+            @unless (in_array($payroll->employee?->user_id, \App\Models\User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS, true))
                 @php
                     // Ambil level kelas saja (angka). Buang prefiks "Kelas " kalau sumbernya
                     // terlanjur membawa kata itu (import_meta lama / relasi) - biar tidak jadi
                     // "Kelas : Kelas 2".
-                    $kelasLevel = ($meta['kelas'] ?? null) ?: ($payroll->user->profile?->kelas?->level ?? null);
+                    $kelasLevel = ($meta['kelas'] ?? null) ?: ($payroll->employee?->kelas?->level ?? null);
                     $kelasLevel = $kelasLevel !== null ? trim(preg_replace('/^\s*kelas\s*/i', '', (string) $kelasLevel)) : '-';
                 @endphp
                 <tr><td>Kelas</td><td>: {{ $kelasLevel !== '' ? $kelasLevel : '-' }}</td></tr>
@@ -410,8 +410,8 @@
         <div>
             Diterima oleh,
             <span class="ttd-space">&nbsp;</span>
-            <strong>{{ $payroll->user->name }}</strong><br>
-            {{ $payroll->user->activeJobPosition->jobPosition->name ?? '-' }}
+            <strong>{{ $payroll->employee?->nama_lengkap }}</strong><br>
+            {{ $payroll->employee?->jobPosition->name ?? '-' }}
         </div>
     </div>
 

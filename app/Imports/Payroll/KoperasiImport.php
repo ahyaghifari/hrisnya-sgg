@@ -4,8 +4,8 @@ namespace App\Imports\Payroll;
 
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Payroll\PayrollComponentRecipient;
-use App\Models\Payroll\UserKoperasi;
-use App\Models\User;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeKoperasi;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -39,8 +39,8 @@ class KoperasiImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            $user = User::with('profile')->whereNip($nip)->whereCompany($this->companyId)->first();
-            if (! $user) {
+            $employee = Employee::where('nip', $nip)->where('company_id', $this->companyId)->first();
+            if (! $employee) {
                 $this->errors[] = "Baris {$n} ({$nip}): NIP tidak ditemukan di perusahaan ini.";
                 continue;
             }
@@ -51,7 +51,7 @@ class KoperasiImport implements ToCollection, WithHeadingRow
                 default => null,
             };
 
-            $member = UserKoperasi::where('user_id', $user->id)->first();
+            $member = EmployeeKoperasi::where('employee_id', $employee->id)->first();
 
             // Instance ->update()/->create() wajib: 'amount' cast PayrollEncrypted (lihat KoperasiPage::saveEdit).
             if ($member) {
@@ -60,13 +60,13 @@ class KoperasiImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            if (! $user->is_active
-                || ! PayrollComponentRecipient::isEligible($user->company_id, PayrollComponentEnum::KOPERASI->value, $user->profile?->employee_type_id)) {
+            if ($employee->status !== 'aktif'
+                || ! PayrollComponentRecipient::isEligible($employee->company_id, PayrollComponentEnum::KOPERASI->value, $employee->employee_type_id)) {
                 $this->errors[] = "Baris {$n} ({$nip}): karyawan nonaktif / tipenya belum terdaftar sebagai penerima Koperasi.";
                 continue;
             }
 
-            UserKoperasi::create(['user_id' => $user->id, 'amount' => $amount, 'is_active' => $active ?? true]);
+            EmployeeKoperasi::create(['employee_id' => $employee->id, 'amount' => $amount, 'is_active' => $active ?? true]);
             $this->created++;
         }
     }

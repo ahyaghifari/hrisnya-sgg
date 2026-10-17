@@ -5,7 +5,8 @@ namespace App\Livewire\Keuangan;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
-use App\Models\Incentive\Incentive;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeIncentive;
 use App\Models\Master\Companies;
 use App\Models\Payroll\CompanyPayrollComponent;
 use App\Models\Setting;
@@ -20,7 +21,7 @@ use Livewire\Component;
  * reuse Table/Form Filament. Cari/company/status lewat Livewire (server-side) — SEBELUMNYA
  * cari+filter pakai List.js di browser, tapi List.js mengunci baris tbody-nya sendiri sehingga
  * tidak ikut ke-morph Livewire tiap company ganti (baris lama nyangkut terus), jadi dicabut.
- * Otorisasi Create/Update/Delete:Incentive dicek manual (lihat IncentivePolicy) supaya guard
+ * Otorisasi Create/Update/Delete:EmployeeIncentive dicek manual (lihat EmployeeIncentivePolicy) supaya guard
  * yang sebelumnya nempel di Filament Action tidak ikut hilang pas direplace.
  */
 #[Layout('components.layout', ['title' => 'Insentif'])]
@@ -33,7 +34,7 @@ class IncentivesPage extends Component
 
     public bool $showFormModal = false;
     public ?string $editingId = null;
-    public ?string $formUserId = null;
+    public ?string $formEmployeeId = null;
     public ?string $formName = null;
     public ?string $formDate = null;
     public ?string $formAmount = null;
@@ -41,7 +42,7 @@ class IncentivesPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can('viewAny', Incentive::class), 403);
+        abort_unless(Auth::user()->can('viewAny', EmployeeIncentive::class), 403);
 
         $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
         $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
@@ -77,12 +78,12 @@ class IncentivesPage extends Component
     {
         $search = trim($this->search);
 
-        return Incentive::query()
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($this->companyId)))
+        return EmployeeIncentive::query()
+            ->when($this->companyId, fn ($q) => $q->whereHas('employee', fn ($q2) => $q2->where('company_id', $this->companyId)))
             ->when($search !== '', fn ($q) => $q->where(fn ($q2) => $q2
                 ->where('name', 'like', "%{$search}%")
-                ->orWhereHas('user', fn ($q3) => $q3->searchName($search))))
-            ->with('user.company')
+                ->orWhereHas('employee', fn ($q3) => $q3->where('nama_lengkap', 'like', "%{$search}%"))))
+            ->with('employee.company')
             ->orderByDesc('incentive_date')
             ->get();
     }
@@ -90,23 +91,23 @@ class IncentivesPage extends Component
     public function getEmployeesProperty()
     {
         return $this->companyId
-            ? User::whereCompany($this->companyId)->whereHas('profile')->orderByName()->get()
+            ? Employee::where('company_id', $this->companyId)->orderBy('nama_lengkap')->get()
             : collect();
     }
 
     public function getCanCreateProperty(): bool
     {
-        return Auth::user()->can('create', Incentive::class);
+        return Auth::user()->can('create', EmployeeIncentive::class);
     }
 
     // ── Form Tambah/Edit ─────────────────────────────────────────────────────
 
     public function openCreateModal(): void
     {
-        abort_unless(Auth::user()->can('create', Incentive::class), 403);
+        abort_unless(Auth::user()->can('create', EmployeeIncentive::class), 403);
 
         $this->editingId = null;
-        $this->formUserId = null;
+        $this->formEmployeeId = null;
         $this->formName = null;
         $this->formDate = null;
         $this->formAmount = null;
@@ -117,12 +118,12 @@ class IncentivesPage extends Component
 
     public function openEditModal(string $id): void
     {
-        $incentive = Incentive::findOrFail($id);
+        $incentive = EmployeeIncentive::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $incentive), 403);
 
         $this->editingId = $incentive->id;
-        $this->formUserId = $incentive->user_id;
+        $this->formEmployeeId = $incentive->employee_id;
         $this->formName = $incentive->name;
         $this->formDate = optional($incentive->incentive_date)->format('Y-m-d');
         $this->formAmount = (string) $incentive->amount;
@@ -139,17 +140,17 @@ class IncentivesPage extends Component
     public function saveForm(): void
     {
         $ability = $this->editingId ? 'update' : 'create';
-        $subject = $this->editingId ? Incentive::findOrFail($this->editingId) : Incentive::class;
+        $subject = $this->editingId ? EmployeeIncentive::findOrFail($this->editingId) : EmployeeIncentive::class;
         abort_unless(Auth::user()->can($ability, $subject), 403);
 
         $this->validate([
-            'formUserId' => 'required|exists:users,id',
+            'formEmployeeId' => 'required|exists:employees,id',
             'formAmount' => 'required|numeric|min:0.01',
             'formName' => 'nullable|string|max:255',
             'formDate' => 'nullable|date',
             'formNote' => 'nullable|string',
         ], [], [
-            'formUserId' => 'penerima',
+            'formEmployeeId' => 'penerima',
             'formAmount' => 'nominal',
             'formName' => 'nama program',
             'formDate' => 'tanggal',
@@ -157,7 +158,7 @@ class IncentivesPage extends Component
         ]);
 
         $data = [
-            'user_id' => $this->formUserId,
+            'employee_id' => $this->formEmployeeId,
             'name' => $this->formName,
             // Sekadar keterangan "diterima sejak kapan" — IncentiveCalculator tidak lagi
             // memfilter berdasarkan tanggal ini (lihat is_active), default ke hari ini kalau
@@ -171,9 +172,9 @@ class IncentivesPage extends Component
             // ->find()->update() (instance), BUKAN whereKey()->update() (query builder) - yang
             // terakhir melewati cast PayrollEncrypted, nulis 'amount' plaintext mentah (bug
             // ditemukan 2026-08-21, sama pola KoperasiPage::saveEdit()).
-            Incentive::findOrFail($this->editingId)->update($data);
+            EmployeeIncentive::findOrFail($this->editingId)->update($data);
         } else {
-            Incentive::create([...$data, 'is_active' => true]);
+            EmployeeIncentive::create([...$data, 'is_active' => true]);
         }
 
         $this->showFormModal = false;
@@ -186,7 +187,7 @@ class IncentivesPage extends Component
 
     public function toggleActive(string $id): void
     {
-        $incentive = Incentive::findOrFail($id);
+        $incentive = EmployeeIncentive::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $incentive), 403);
 
@@ -195,7 +196,7 @@ class IncentivesPage extends Component
 
     public function removeIncentive(string $id): void
     {
-        $incentive = Incentive::findOrFail($id);
+        $incentive = EmployeeIncentive::findOrFail($id);
 
         abort_unless(Auth::user()->can('delete', $incentive), 403);
 

@@ -39,7 +39,7 @@ class MyPayrollSlipPage extends Component
     public function mount(Payroll $payroll): void
     {
         abort_unless(
-            $payroll->user_id === Auth::id() && $payroll->is_paid,
+            $payroll->employee?->user_id === Auth::id() && $payroll->is_paid,
             403
         );
 

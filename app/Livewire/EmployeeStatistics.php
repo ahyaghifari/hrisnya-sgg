@@ -15,6 +15,7 @@ use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Employee\EmployeeNakesDocument;
 use App\Models\Master\Religions;
+use App\Models\Employee\Employee;
 use App\Models\Payroll\Payroll;
 use App\Models\User;
 use App\Models\User\UserProfileDocument;
@@ -733,8 +734,8 @@ class EmployeeStatistics extends Component
         $category = $rawCategory instanceof EmployeeTypeCategory ? $rawCategory->value : $rawCategory;
         $join = $profile?->joining_date ? Carbon::parse($profile->joining_date) : null;
 
-        $orientations = $this->record->orientations()->orderBy('start_date')->get();
-        $contracts = $this->record->contracts()->with('employeeType')->orderBy('contract_start_date')->get();
+        $orientations = $this->record->employee?->orientations()->orderBy('start_date')->get() ?? collect();
+        $contracts = $this->record->employee?->contracts()->with('employeeType')->orderBy('start_date')->get() ?? collect();
 
         $nodes = [];
 
@@ -760,8 +761,8 @@ class EmployeeStatistics extends Component
             $cCat = $cCat instanceof EmployeeTypeCategory ? $cCat->value : $cCat;
 
             if ($cCat === EmployeeTypeCategory::TETAP->value) {
-                $tetapStart ??= $c->contract_start_date;
-                $nodes[] = ['phase' => 'tetap', 'title' => 'Diangkat karyawan tetap', 'start' => $c->contract_start_date, 'end' => null, 'meta' => null];
+                $tetapStart ??= $c->start_date;
+                $nodes[] = ['phase' => 'tetap', 'title' => 'Diangkat karyawan tetap', 'start' => $c->start_date, 'end' => null, 'meta' => null];
 
                 continue;
             }
@@ -770,8 +771,8 @@ class EmployeeStatistics extends Component
             $nodes[] = [
                 'phase' => 'kontrak',
                 'title' => $kontrakCount === 1 ? 'Kontrak pertama' : "Perpanjangan kontrak ke-{$kontrakCount}",
-                'start' => $c->contract_start_date,
-                'end' => $c->contract_end_date,
+                'start' => $c->start_date,
+                'end' => $c->end_date,
                 'meta' => null,
             ];
         }
@@ -787,7 +788,7 @@ class EmployeeStatistics extends Component
         $summary = ['headline' => null, 'sub' => null, 'ended' => null, 'progress' => null];
 
         if ($category === EmployeeTypeCategory::ORIENTASI->value) {
-            $cur = $this->record->currentOrientation;
+            $cur = $this->record->employee?->currentOrientation;
             $summary['headline'] = 'Orientasi';
             if ($cur?->end_date) {
                 $summary['ended'] = Carbon::parse($cur->end_date);
@@ -795,15 +796,15 @@ class EmployeeStatistics extends Component
                 $summary['progress'] = $cur->start_date ? $this->phaseProgress(Carbon::parse($cur->start_date), $summary['ended']) : null;
             }
         } elseif ($category === EmployeeTypeCategory::KONTRAK->value) {
-            $cur = $this->record->currentContract;
+            $cur = $this->record->employee?->currentContract;
             $summary['headline'] = $kontrakCount > 1 ? "Kontrak (perpanjangan ke-{$kontrakCount})" : 'Kontrak';
-            if ($cur?->contract_end_date) {
-                $summary['ended'] = Carbon::parse($cur->contract_end_date);
+            if ($cur?->end_date) {
+                $summary['ended'] = Carbon::parse($cur->end_date);
                 $summary['sub'] = 'Berakhir ' . $summary['ended']->translatedFormat('d M Y');
-                $summary['progress'] = $cur->contract_start_date ? $this->phaseProgress(Carbon::parse($cur->contract_start_date), $summary['ended']) : null;
+                $summary['progress'] = $cur->start_date ? $this->phaseProgress(Carbon::parse($cur->start_date), $summary['ended']) : null;
             }
         } elseif ($category === EmployeeTypeCategory::TETAP->value) {
-            // TMT resmi (user_profiles.tmt_tetap) diutamakan, fallback ke baris UserContract
+            // TMT resmi (user_profiles.tmt_tetap) diutamakan, fallback ke baris kontrak (employee_contracts)
             // kategori tetap pertama. SENGAJA tidak fallback ke Tanggal Bergabung di sini
             // (beda dari fase lain) - "Sejak [tanggal bergabung]" salah paham, seolah TMT
             // tetapnya persis hari masuk kerja, padahal cuma belum tercatat.
@@ -1014,7 +1015,7 @@ class EmployeeStatistics extends Component
     public function getMyPayrollHistoryProperty()
     {
         return Payroll::query()
-            ->where('user_id', $this->record->id)
+            ->whereIn('employee_id', Employee::query()->select('id')->where('user_id', $this->record->id))
             ->where('is_paid', true)
             ->with('payrollPeriod')
             ->get()

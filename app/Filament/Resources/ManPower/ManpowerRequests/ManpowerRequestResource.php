@@ -27,7 +27,7 @@ class ManpowerRequestResource extends Resource
 
     protected static string | UnitEnum | null $navigationGroup = 'Kepegawaian';
 
-    protected static ?int $navigationSort = 6; // urutan grup Kepegawaian, lihat UserOrientationResource
+    protected static ?int $navigationSort = 6; // urutan grup Kepegawaian, lihat EmployeeOrientationResource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCircleStack;
 

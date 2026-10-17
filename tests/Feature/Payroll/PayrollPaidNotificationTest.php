@@ -45,7 +45,7 @@ class PayrollPaidNotificationTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $companyId, 'start_date' => '2026-06-01', 'end_date' => '2026-06-30']);
 
         return Payroll::create([
-            'user_id' => $employee->id,
+            'employee_id' => $employee->employee->id,
             'payroll_period_id' => $period->id,
             'gross_salary' => 1000000,
             'net_salary' => 1000000,
@@ -62,7 +62,7 @@ class PayrollPaidNotificationTest extends TestCase
             ->test(PayrollDetailPage::class, ['payroll' => $payroll])
             ->call('markAsPaid');
 
-        Notification::assertSentTo($payroll->user, PayrollPaid::class);
+        Notification::assertSentTo($payroll->employee->user, PayrollPaid::class);
     }
 
     public function test_bulk_mark_paid_notifies_only_newly_paid_employees(): void

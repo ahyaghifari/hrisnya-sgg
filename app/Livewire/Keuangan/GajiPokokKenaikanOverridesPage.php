@@ -5,7 +5,7 @@ namespace App\Livewire\Keuangan;
 use App\Enum\CustomPermissionEnum;
 use App\Models\Master\Companies;
 use App\Models\Payroll\GajiPokokKenaikanOverride;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -27,7 +27,7 @@ class GajiPokokKenaikanOverridesPage extends Component
     public string $search = '';
 
     public bool $showAddModal = false;
-    public ?string $addUserId = null;
+    public ?string $addEmployeeId = null;
     public ?string $addRate = null;
     public ?string $addNote = null;
 
@@ -66,23 +66,23 @@ class GajiPokokKenaikanOverridesPage extends Component
         $search = trim($this->search);
 
         return GajiPokokKenaikanOverride::query()
-            ->whereHas('user', fn ($q) => $q->whereCompany($this->companyId)
-                ->when($search !== '', fn ($q2) => $q2->searchNameOrNip($search)))
-            ->with('user')
+            ->whereHas('employee', fn ($q) => $q->where('company_id', $this->companyId)
+                ->when($search !== '', fn ($q2) => $q2->where(fn ($q3) => $q3->where('nama_lengkap', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"))))
+            ->with('employee')
             ->latest()
             ->get();
     }
 
-    public function getAvailableUsersProperty()
+    public function getAvailableEmployeesProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
-        return User::query()
-            ->whereCompany($this->companyId)
-            ->where('is_active', true)
-            ->orderByName()
+        return Employee::query()
+            ->where('company_id', $this->companyId)
+            ->where('status', 'aktif')
+            ->orderBy('nama_lengkap')
             ->get();
     }
 
@@ -90,7 +90,7 @@ class GajiPokokKenaikanOverridesPage extends Component
     {
         abort_unless($this->canEdit, 403);
 
-        $this->addUserId = null;
+        $this->addEmployeeId = null;
         $this->addRate = null;
         $this->addNote = null;
         $this->resetErrorBag();
@@ -107,22 +107,22 @@ class GajiPokokKenaikanOverridesPage extends Component
         abort_unless($this->canEdit, 403);
 
         $this->validate([
-            'addUserId' => 'required|exists:users,id',
+            'addEmployeeId' => 'required|exists:employees,id',
             'addRate' => 'required|numeric|min:0|max:100',
         ], [], [
-            'addUserId' => 'karyawan',
+            'addEmployeeId' => 'karyawan',
             'addRate' => 'persen kenaikan',
         ]);
 
         abort_if(
-            GajiPokokKenaikanOverride::where('user_id', $this->addUserId)->exists(),
+            GajiPokokKenaikanOverride::where('employee_id', $this->addEmployeeId)->exists(),
             409,
             'Karyawan ini sudah punya baris Kenaikan Gaji Pokok — ubah persennya dari daftar, bukan tambah lagi.'
         );
 
         try {
             GajiPokokKenaikanOverride::create([
-                'user_id' => $this->addUserId,
+                'employee_id' => $this->addEmployeeId,
                 'rate' => $this->addRate,
                 'note' => $this->addNote,
                 'is_active' => true,

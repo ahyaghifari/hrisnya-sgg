@@ -57,14 +57,14 @@ class IzinSeharianCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
 
         $context = new PayrollContext();
         $context->addEarning(3_100_000); // T8, dibulatkan biar 31 hari (Juli) pas dibagi
 
-        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+        (new IzinSeharianCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // rate_harian = 3.100.000 / 31 hari = 100.000, 1 kejadian => potongan 100.000
         $this->assertSame(100_000.0, $context->totalDeductions);
@@ -81,7 +81,7 @@ class IzinSeharianCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-15');
@@ -89,7 +89,7 @@ class IzinSeharianCalculatorTest extends TestCase
         $context = new PayrollContext();
         $context->addEarning(3_100_000);
 
-        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+        (new IzinSeharianCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // rate_harian 100.000 * 2 kejadian = 200.000
         $this->assertSame(200_000.0, $context->totalDeductions);
@@ -100,14 +100,14 @@ class IzinSeharianCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-08-01');
 
         $context = new PayrollContext();
         $context->addEarning(3_100_000);
 
-        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+        (new IzinSeharianCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->totalDeductions);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);
@@ -124,7 +124,7 @@ class IzinSeharianCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-05-01', '2026-05-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-04-15'); // sebelum window - JANGAN kehitung
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-05-14'); // di dalam window 21 Apr - 20 Mei - HARUS kehitung
@@ -133,7 +133,7 @@ class IzinSeharianCalculatorTest extends TestCase
         $context = new PayrollContext();
         $context->addEarning(3_100_000);
 
-        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+        (new IzinSeharianCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // Cuma 1 kejadian (14 Mei) yang kehitung.
         $this->assertSame(100_000.0, $context->totalDeductions);
@@ -144,13 +144,13 @@ class IzinSeharianCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
 
         $context = new PayrollContext(); // grossSalary tetap 0 — belum ada earning terkumpul
 
-        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+        (new IzinSeharianCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->totalDeductions);
         $this->assertDatabaseMissing('payroll_items', ['payroll_id' => $payroll->id]);
@@ -168,7 +168,7 @@ class IzinSeharianCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // Baris Gaji Pokok yang SEHARUSNYA sudah dibuat GajiPokokCalculator sebelum Izin Seharian
         // jalan (urutan orchestrator PayrollService) - disimulasikan langsung di sini.
@@ -188,7 +188,7 @@ class IzinSeharianCalculatorTest extends TestCase
         $context = new PayrollContext();
         $context->addEarning(50_000_000);
 
-        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+        (new IzinSeharianCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // (3.000.000 / 26) * 70% = 80.769,23..., dibulatkan 2 desimal
         $expected = round((3_000_000 / 26) * 0.7, 2);
@@ -203,7 +203,7 @@ class IzinSeharianCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         PayrollItem::create([
             'payroll_id' => $payroll->id, 'name' => 'Gaji Pokok', 'type' => 'earning',
@@ -215,7 +215,7 @@ class IzinSeharianCalculatorTest extends TestCase
         $context = new PayrollContext();
         $context->addEarning(50_000_000); // dibuktikan tidak dipakai, sama seperti test di atas
 
-        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+        (new IzinSeharianCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // (3.100.000 / 31 hari kalender Juli) * 70% = 70.000
         $this->assertSame(70_000.0, $context->totalDeductions);
@@ -229,14 +229,14 @@ class IzinSeharianCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
 
         $context = new PayrollContext();
         $context->addEarning(2_500_000);
 
-        (new IzinSeharianCalculator())->calculate($user, $payroll, $period, $context);
+        (new IzinSeharianCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // rate_harian = 2.500.000 / 25 (hari kerja efektif, BUKAN 31 hari kalender Juli) = 100.000
         $this->assertSame(100_000.0, $context->totalDeductions);

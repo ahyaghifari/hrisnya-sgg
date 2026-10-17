@@ -2,7 +2,7 @@
 
 namespace App\Exports\Payroll;
 
-use App\Models\Payroll\UserKoperasi;
+use App\Models\Employee\EmployeeKoperasi;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
@@ -16,14 +16,14 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class KoperasiExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithStyles, WithCustomValueBinder
 {
-    /** @param Collection<int, UserKoperasi> $members */
+    /** @param Collection<int, EmployeeKoperasi> $members */
     public function __construct(protected Collection $members) {}
 
     public function collection(): Collection
     {
-        return $this->members->map(fn (UserKoperasi $member) => [
-            $member->user?->nip ?? '-',
-            $member->user?->name ?? '-',
+        return $this->members->map(fn (EmployeeKoperasi $member) => [
+            $member->employee?->nip ?? '-',
+            $member->employee?->nama_lengkap ?? '-',
             (float) $member->amount,
             $member->is_active ? 'Aktif' : 'Nonaktif',
         ]);

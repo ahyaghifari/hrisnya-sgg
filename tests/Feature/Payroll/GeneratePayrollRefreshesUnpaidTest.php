@@ -55,7 +55,7 @@ class GeneratePayrollRefreshesUnpaidTest extends TestCase
         $service = app(PayrollService::class);
 
         $service->generatePayroll($s['period']);
-        $firstPayroll = Payroll::where('user_id', $s['user']->id)->where('payroll_period_id', $s['period']->id)->firstOrFail();
+        $firstPayroll = Payroll::where('employee_id', $s['user']->employee->id)->where('payroll_period_id', $s['period']->id)->firstOrFail();
         $firstPayrollId = $firstPayroll->id;
 
         // Data karyawan berubah SETELAH generate pertama (mis. kelas naik) - kalau "Generate"
@@ -67,7 +67,7 @@ class GeneratePayrollRefreshesUnpaidTest extends TestCase
 
         $service->generatePayroll($s['period']);
 
-        $refreshedPayroll = Payroll::where('user_id', $s['user']->id)->where('payroll_period_id', $s['period']->id)->firstOrFail();
+        $refreshedPayroll = Payroll::where('employee_id', $s['user']->employee->id)->where('payroll_period_id', $s['period']->id)->firstOrFail();
 
         // Baris payroll baru (ID beda - dihapus & dibikin ulang), bukan baris lama yang di-skip.
         $this->assertNotSame($firstPayrollId, $refreshedPayroll->id);
@@ -85,7 +85,7 @@ class GeneratePayrollRefreshesUnpaidTest extends TestCase
         $service = app(PayrollService::class);
 
         $service->generatePayroll($s['period']);
-        $paidPayroll = Payroll::where('user_id', $s['user']->id)->where('payroll_period_id', $s['period']->id)->firstOrFail();
+        $paidPayroll = Payroll::where('employee_id', $s['user']->employee->id)->where('payroll_period_id', $s['period']->id)->firstOrFail();
         $paidPayroll->update(['is_paid' => true]);
 
         $service->generatePayroll($s['period']);

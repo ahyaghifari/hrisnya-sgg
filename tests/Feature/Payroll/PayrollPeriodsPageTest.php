@@ -301,7 +301,8 @@ class PayrollPeriodsPageTest extends TestCase
             'end_date' => '2026-07-31',
             'processed_at' => now(),
         ]);
-        $payroll = \App\Models\Payroll\Payroll::create(['user_id' => User::factory()->create()->id, 'payroll_period_id' => $period->id]);
+        $owner = User::factory()->create();
+        $payroll = \App\Models\Payroll\Payroll::create(['employee_id' => $owner->employee->id, 'payroll_period_id' => $period->id]);
         \App\Models\Payroll\PayrollItem::create([
             'payroll_id' => $payroll->id,
             'name' => 'Insentif',

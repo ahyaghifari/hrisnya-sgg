@@ -22,8 +22,8 @@
     @if ($contract)
         <div style="background:var(--info-soft-bg);border:1px solid var(--info-soft-border);border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;">
             <span style="font-size:11.5px;font-weight:700;color:var(--info-soft-text);text-transform:uppercase;letter-spacing:.04em;">Kontrak Berjalan</span>
-            <span style="font-size:13px;color:var(--text-body);">{{ $contract->contract_start_date?->format('d M Y') }} &ndash; {{ $contract->contract_end_date?->format('d M Y') }}</span>
-            @php $sisa = $contract->contract_end_date ? now()->startOfDay()->diffInDays($contract->contract_end_date, false) : null; @endphp
+            <span style="font-size:13px;color:var(--text-body);">{{ $contract->start_date?->format('d M Y') }} &ndash; {{ $contract->end_date?->format('d M Y') }}</span>
+            @php $sisa = $contract->end_date ? now()->startOfDay()->diffInDays($contract->end_date, false) : null; @endphp
             @if ($sisa !== null)
                 <span style="font-size:12px;font-weight:600;color:{{ $sisa < 0 ? 'var(--danger-text)' : ($sisa <= 30 ? '#b45309' : 'var(--text-muted)') }};">
                     {{ $sisa < 0 ? 'Berakhir ' . abs($sisa) . ' hari lalu' : $sisa . ' hari lagi' }}
@@ -66,7 +66,7 @@
                     <p style="font-size:12px;color:var(--text-muted);margin:0 0 3px;">Keputusan Penilai</p>
                     <p style="font-size:14px;font-weight:700;color:{{ $dColor }};margin:0;">{{ $dLabel }}</p>
                     @if ($current->decision === 'perpanjang' && $current->newContract)
-                        <p style="font-size:12px;color:var(--text-body);margin:6px 0 0;">Kontrak baru: {{ $current->newContract->contract_start_date?->format('d M Y') }} &ndash; {{ $current->newContract->contract_end_date?->format('d M Y') }} ({{ $current->decision_durasi_bulan }} bln)</p>
+                        <p style="font-size:12px;color:var(--text-body);margin:6px 0 0;">Kontrak baru: {{ $current->newContract->start_date?->format('d M Y') }} &ndash; {{ $current->newContract->end_date?->format('d M Y') }} ({{ $current->decision_durasi_bulan }} bln)</p>
                     @endif
                     @if ($current->decision_note)
                         <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">{{ $current->decision_note }}</p>

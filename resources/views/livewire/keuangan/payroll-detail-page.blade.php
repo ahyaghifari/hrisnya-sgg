@@ -47,14 +47,14 @@
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">
                 <div>
                     <p style="font-size:10.5px;color:var(--text-faint);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;">Karyawan</p>
-                    <p style="font-size:13.5px;font-weight:700;margin:0;">{{ $payroll->user?->name ?? '-' }}</p>
-                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">NIP {{ $payroll->user?->nip ?? '-' }}</p>
+                    <p style="font-size:13.5px;font-weight:700;margin:0;">{{ $payroll->employee?->nama_lengkap ?? '-' }}</p>
+                    <p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;">NIP {{ $payroll->employee?->nip ?? '-' }}</p>
                 </div>
                 @php
                     $meta = $payroll->import_meta ?? [];
-                    $jobPosition = $payroll->user?->activeJobPosition?->jobPosition;
+                    $jobPosition = $payroll->employee?->jobPosition;
                     $jeScore = $jobPosition?->job_evaluation_score;
-                    $kelasLevel = ($meta['kelas'] ?? null) ?: ($payroll->user?->profile?->kelas?->level ?? null);
+                    $kelasLevel = ($meta['kelas'] ?? null) ?: ($payroll->employee?->kelas?->level ?? null);
                     $kelasLevel = $kelasLevel !== null ? trim(preg_replace('/^\s*kelas\s*/i', '', (string) $kelasLevel)) : null;
                 @endphp
                 <div>
@@ -141,7 +141,7 @@
                 @if ($payroll->is_paid && $this->canEditPayroll)
                     {{-- Email tujuan sama persis prioritasnya dengan SendPayrollSlipJob - email
                     pribadi diutamakan, fallback ke email akun kalau kosong. --}}
-                    <button type="button" wire:click="sendSlipEmail" wire:confirm="Kirim slip gaji ke email {{ $payroll->user?->profile?->email_pribadi ?: $payroll->user?->email }}?" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#2563eb;">
+                    <button type="button" wire:click="sendSlipEmail" wire:confirm="Kirim slip gaji ke email {{ $payroll->employee?->email_pribadi ?: $payroll->employee?->user?->email }}?" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#2563eb;">
                         <i class="fa-solid fa-envelope"></i> {{ $payroll->slip_sent_at ? 'Kirim Ulang' : 'Kirim' }} Slip ke Email
                     </button>
                     <button type="button" wire:click="openCancelPaidModal" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#dc2626;">
@@ -268,7 +268,7 @@
         <div class="modal-overlay" wire:click="closeManualLineModal">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">{{ $editingManualLineId ? "Ubah {$manualLineLabel}" : "Tambah {$manualLineLabel}" }}</h3>
-                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->user?->name }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}.</p>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->employee?->nama_lengkap }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}.</p>
 
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     @if ($manualLineComponent === \App\Enum\Payroll\PayrollComponentEnum::BON->value && $this->bonMetode === 'detail')
@@ -306,7 +306,7 @@
         <div class="modal-overlay" wire:click="closeComponentEditModal">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Ubah {{ $editingComponentLabel }}</h3>
-                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->user?->name }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}. Langsung tersimpan ke slip ini, TIDAK perlu Regenerate.</p>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->employee?->nama_lengkap }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}. Langsung tersimpan ke slip ini, TIDAK perlu Regenerate.</p>
 
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div>
@@ -336,7 +336,7 @@
         <div class="modal-overlay" wire:click="closeCancelPaidModal">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Batalkan Tanda Sudah Dibayar</h3>
-                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->user?->name }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}. Notifikasi "Gaji Sudah Dibayar" yang sudah terkirim ke karyawan TIDAK ditarik balik.</p>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">Untuk {{ $payroll->employee?->nama_lengkap }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}. Notifikasi "Gaji Sudah Dibayar" yang sudah terkirim ke karyawan TIDAK ditarik balik.</p>
 
                 <div>
                     <label class="form-label">Catatan (wajib diisi — alasan pembatalan)</label>
@@ -356,7 +356,7 @@
         <div class="modal-overlay" wire:click="closePaymentHistoryModal">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <h3 style="font-size:16px;font-weight:700;color:var(--text-heading);margin:0 0 4px;">Riwayat Pembayaran</h3>
-                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">{{ $payroll->user?->name }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}.</p>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 14px;">{{ $payroll->employee?->nama_lengkap }} — periode {{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}.</p>
 
                 @forelse ($this->paymentHistory as $entry)
                     <div style="padding:8px 0;border-top:1px solid var(--border-soft);">
@@ -366,7 +366,7 @@
                             </span>
                             <span style="font-size:10.5px;color:var(--text-faint);">{{ $entry->created_at->translatedFormat('d M Y H:i') }}</span>
                         </div>
-                        <p style="font-size:11.5px;color:var(--text-body);margin:6px 0 0;">Oleh {{ $entry->user?->name ?? '-' }}</p>
+                        <p style="font-size:11.5px;color:var(--text-body);margin:6px 0 0;">Oleh {{ $entry->employee?->nama_lengkap ?? '-' }}</p>
                         @if ($entry->reasonFromLabel())
                             <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 0;">"{{ $entry->reasonFromLabel() }}"</p>
                         @endif

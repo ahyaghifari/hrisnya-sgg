@@ -4,12 +4,12 @@ namespace App\Livewire\Keuangan;
 
 use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
-use App\Models\Incentive\Incentive;
+use App\Models\Employee\EmployeeIncentive;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\Payroll\UserKoperasi;
+use App\Models\Employee\EmployeeKoperasi;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -120,7 +120,7 @@ class PayrollDashboardPage extends Component
     {
         return $this->periodPayrolls()
             ->where('is_paid', false)
-            ->with('user')
+            ->with('employee')
             ->get()
             ->sortByDesc('net_salary')
             ->take(20)
@@ -166,7 +166,7 @@ class PayrollDashboardPage extends Component
     }
 
     /**
-     * Tabel `incentives` cuma sumber data buat metode 'master' - company metode 'auto' dihitung
+     * Tabel `employee_incentives` cuma sumber data buat metode 'master' - company metode 'auto' dihitung
      * LIVE per user saat payroll di-generate (selisih Tunjangan Jabatan lama vs baru, tidak ada
      * baris master sama sekali), jadi card "Insentif Aktif" TIDAK PERNAH bisa merepresentasikan
      * company metode itu lewat query ini. Dulu diam-diam nunjukkan 0 orang/Rp0 - sekarang
@@ -180,8 +180,8 @@ class PayrollDashboardPage extends Component
 
     protected function scopedIncentives()
     {
-        return Incentive::query()
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($this->companyId)))
+        return EmployeeIncentive::query()
+            ->when($this->companyId, fn ($q) => $q->whereHas('employee', fn ($q2) => $q2->where('company_id', $this->companyId)))
             ->where('is_active', true);
     }
 
@@ -199,13 +199,13 @@ class PayrollDashboardPage extends Component
     /** Buat modal "Insentif Aktif". `amount` dienkripsi - sort/limit di PHP setelah get(). */
     public function getActiveIncentivesListProperty()
     {
-        return $this->scopedIncentives()->with('user')->get()->sortByDesc('amount')->take(20)->values();
+        return $this->scopedIncentives()->with('employee')->get()->sortByDesc('amount')->take(20)->values();
     }
 
     protected function scopedKoperasi()
     {
-        return UserKoperasi::query()
-            ->when($this->companyId, fn ($q) => $q->whereHas('user', fn ($q2) => $q2->whereCompany($this->companyId)))
+        return EmployeeKoperasi::query()
+            ->when($this->companyId, fn ($q) => $q->whereHas('employee', fn ($q2) => $q2->where('company_id', $this->companyId)))
             ->where('is_active', true);
     }
 
@@ -223,7 +223,7 @@ class PayrollDashboardPage extends Component
     /** Buat modal "Anggota Koperasi Aktif". `amount` dienkripsi - sort/limit di PHP setelah get(). */
     public function getActiveKoperasiListProperty()
     {
-        return $this->scopedKoperasi()->with('user')->get()->sortByDesc('amount')->take(20)->values();
+        return $this->scopedKoperasi()->with('employee')->get()->sortByDesc('amount')->take(20)->values();
     }
 
     /** Panel & modal "Periode Terbaru" — riwayat singkat, link ke halaman Periode Gaji buat detail penuh. */

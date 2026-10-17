@@ -7,7 +7,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use App\Services\Payroll\PayrollService;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -24,7 +24,7 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  * edited_manually=true otomatis membuat baris ini SELAMAT dari Generate/Regenerate berikutnya
  * (Calculator Bon di-skip untuk user ini, lihat PayrollContext::protectedSourceTypes) -
  * PayrollsPage::confirmImport() tetap memanggil regenerateSinglePayroll() tiap user yang
- * berhasil (getSuccessUserIds()) supaya komponen LAIN di payroll itu (mis. perbaikan Calculator
+ * berhasil (getSuccessEmployeeIds()) supaya komponen LAIN di payroll itu (mis. perbaikan Calculator
  * terbaru) ikut ter-refresh, bukan supaya nominal Bon-nya "masuk" - itu sudah masuk duluan di sini.
  *
  * Idempotent per (periode, user): upload ulang untuk NIP yang sama MENGGANTI nominal
@@ -48,9 +48,9 @@ class BonImport implements ToCollection, WithHeadingRow
     private array $errors = [];
     private int $successCount = 0;
     private array $previewRows = [];
-    /** @var array<int, string> user_id yang baris-nya berhasil diimport - dipakai
+    /** @var array<int, string> employee_id yang baris-nya berhasil diimport - dipakai
      * PayrollsPage::confirmImport() buat regenerate payroll otomatis (mode Bon "Simple"). */
-    private array $successUserIds = [];
+    private array $successEmployeeIds = [];
 
     public function __construct(
         protected string $payrollPeriodId,
@@ -71,15 +71,15 @@ class BonImport implements ToCollection, WithHeadingRow
                 continue; // baris kosong, bukan error
             }
 
-            $user = User::whereNip($nip)->first();
-            $error = $this->validateRow($user, $amount, $nip, $companyId);
+            $employee = Employee::where('nip', $nip)->first();
+            $error = $this->validateRow($employee, $amount, $nip, $companyId);
 
             if ($this->preview) {
                 $this->previewRows[] = [
                     'row' => $rowNum,
                     'nip' => $nip,
                     'nama_import' => $namaImport,
-                    'nama_sistem' => $user?->name,
+                    'nama_sistem' => $employee?->nama_lengkap,
                     'nominal' => $amount,
                     'error' => $error,
                 ];
@@ -94,7 +94,7 @@ class BonImport implements ToCollection, WithHeadingRow
             }
 
             $payroll = Payroll::query()
-                ->where('user_id', $user->id)
+                ->where('employee_id', $employee->id)
                 ->where('payroll_period_id', $this->payrollPeriodId)
                 ->first();
 
@@ -106,22 +106,22 @@ class BonImport implements ToCollection, WithHeadingRow
             );
 
             $this->successCount++;
-            $this->successUserIds[] = $user->id;
+            $this->successEmployeeIds[] = $employee->id;
         }
     }
 
-    private function validateRow(?User $user, float $amount, string $nip, ?string $companyId): ?string
+    private function validateRow(?Employee $employee, float $amount, string $nip, ?string $companyId): ?string
     {
         if (Setting::resolve('bon_metode', $companyId, default: 'simple') === 'detail') {
             return "NIP {$nip}: company ini pakai mode Bon \"Detail\" - gunakan Import Bon (otomatis pakai format rincian nip/nama_potongan/nominal untuk mode ini) atau tambah rincian lewat halaman detail payroll.";
         }
 
-        if (! $user) {
+        if (! $employee) {
             return "NIP {$nip} tidak ditemukan.";
         }
 
         $payroll = Payroll::query()
-            ->where('user_id', $user->id)
+            ->where('employee_id', $employee->id)
             ->where('payroll_period_id', $this->payrollPeriodId)
             ->first();
 
@@ -137,7 +137,7 @@ class BonImport implements ToCollection, WithHeadingRow
             return "NIP {$nip}: nominal harus lebih dari 0.";
         }
 
-        if (! PayrollComponentRecipient::isEligible($companyId, PayrollComponentEnum::BON->value, $user->profile?->employee_type_id)) {
+        if (! PayrollComponentRecipient::isEligible($companyId, PayrollComponentEnum::BON->value, $employee->employee_type_id)) {
             return "NIP {$nip}: tipe karyawan ini belum terdaftar sebagai penerima Bon di halaman Penerima Komponen Gaji — nominal tidak akan muncul di payroll meski diimport.";
         }
 
@@ -155,9 +155,9 @@ class BonImport implements ToCollection, WithHeadingRow
     }
 
     /** @return array<int, string> */
-    public function getSuccessUserIds(): array
+    public function getSuccessEmployeeIds(): array
     {
-        return $this->successUserIds;
+        return $this->successEmployeeIds;
     }
 
     public function getPreview(): array

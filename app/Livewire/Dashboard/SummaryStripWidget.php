@@ -6,7 +6,7 @@ use App\Enum\UserTransitionStatusEnum;
 use App\Enum\UserTransitionTypeEnum;
 use App\Models\LMS\LmsCourseUsers;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use App\Models\User\UserTransition;
 use Livewire\Component;
 
@@ -68,7 +68,7 @@ class SummaryStripWidget extends Component
             ->count();
     }
 
-    /** Kontrak (periode TERBARU per user, via User::activeContract()) yang berakhir dalam 90
+    /** Kontrak (periode TERBARU per user, via EmployeeContract::latestKontrakPerEmployeeInCompany()) yang berakhir dalam 90
      * hari ke depan - gabungan bucket Urgent(<30 hari)+Perhatian(30-90 hari) di widget Status
      * Kepegawaian, ditampilkan di sini sebagai 1 angka ringkas. */
     private function kontrakBerakhir(string $companyId): int
@@ -76,8 +76,8 @@ class SummaryStripWidget extends Component
         $now = now()->startOfDay();
         $horizon = $now->copy()->addDays(90);
 
-        return UserContract::latestPerUserInCompany($companyId)
-            ->filter(fn ($c) => $c->contract_end_date->between($now, $horizon))
+        return EmployeeContract::latestKontrakPerEmployeeInCompany($companyId)
+            ->filter(fn ($c) => $c->end_date->between($now, $horizon))
             ->count();
     }
 

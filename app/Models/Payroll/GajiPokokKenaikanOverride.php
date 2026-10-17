@@ -3,6 +3,7 @@
 namespace App\Models\Payroll;
 
 use App\Models\User;
+use App\Models\Employee\Employee;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,7 +22,7 @@ class GajiPokokKenaikanOverride extends Model
     protected $table = 'gaji_pokok_kenaikan_overrides';
 
     protected $fillable = [
-        'user_id',
+        'employee_id',
         'rate',
         'note',
         'is_active',
@@ -35,19 +36,20 @@ class GajiPokokKenaikanOverride extends Model
         ];
     }
 
-    public function user(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Employee::class);
     }
 
-    /** Rate aktif (%) buat user ini kalau ada, dipakai GajiPokokCalculator/BreakdownResolver. */
-    public static function activeRateFor(?string $userId): ?float
+
+    /** Rate aktif (%) buat karyawan ini kalau ada, dipakai GajiPokokCalculator/BreakdownResolver. */
+    public static function activeRateFor(?string $employeeId): ?float
     {
-        if (! $userId) {
+        if (! $employeeId) {
             return null;
         }
 
-        $rate = static::query()->where('user_id', $userId)->where('is_active', true)->value('rate');
+        $rate = static::query()->where('employee_id', $employeeId)->where('is_active', true)->value('rate');
 
         return $rate !== null ? (float) $rate : null;
     }

@@ -16,7 +16,7 @@ class PayrollContext
     /** source_type komponen yang barisnya sudah di-edit manual (edited_manually=true) di
      * payroll SEBELUMNYA - Calculator komponen ini WAJIB di-skip saat Generate/Regenerate,
      * baris lamanya sudah dibawa pindah apa adanya ke payroll baru (lihat
-     * PayrollService::generateForUser()). */
+     * PayrollService::generateForEmployee()). */
     public array $protectedSourceTypes = [];
 
     public function addEarning(float $amount): void

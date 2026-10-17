@@ -50,7 +50,7 @@ class ExecutivePayrollAutoComponentTest extends TestCase
 
         app(PayrollService::class)->generatePayroll($period);
 
-        $payroll = Payroll::where('user_id', $exec->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $exec->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         // Tunjangan Masa Kerja tetap otomatis kehitung (masuk ExecutiveAutoComponentEnum) -
         // 'amount' terenkripsi (PayrollEncrypted), cek lewat model bukan assertDatabaseHas mentah.
@@ -87,8 +87,8 @@ class ExecutivePayrollAutoComponentTest extends TestCase
 
         // Gaji Pokok eksekutif dipilih dari "Dari Komponen Gaji" (bukan Manual bebas), sama
         // seperti dilakukan lewat ExecutiveAllowancesPage::saveForm() saat formSource='component'.
-        \App\Models\Payroll\ExecutiveAllowance::create([
-            'user_id' => $exec->id,
+        \App\Models\Employee\EmployeeExecutiveAllowance::create([
+            'employee_id' => \App\Models\Employee\Employee::where('user_id', $exec->id)->value('id'),
             'component' => PayrollComponentEnum::GAJI_POKOK->value,
             'type' => 'earning',
             'label' => 'Gaji Pokok',
@@ -100,7 +100,7 @@ class ExecutivePayrollAutoComponentTest extends TestCase
 
         app(PayrollService::class)->generatePayroll($period);
 
-        $payroll = Payroll::where('user_id', $exec->id)->where('payroll_period_id', $period->id)->firstOrFail();
+        $payroll = Payroll::where('employee_id', $exec->employee->id)->where('payroll_period_id', $period->id)->firstOrFail();
 
         $gajiPokokItem = $payroll->items()->where('source_type', PayrollComponentEnum::GAJI_POKOK->value)->first();
         $this->assertNotNull($gajiPokokItem, 'Baris Gaji Pokok harus tetap ke-tag source_type gaji_pokok, bukan null.');

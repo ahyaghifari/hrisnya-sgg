@@ -6,6 +6,7 @@ use App\Filament\Resources\Payroll\Payrolls\PayrollResource;
 use App\Helpers\PermissionHelper;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\Employee\Employee;
 use App\Models\User;
 use App\Services\Payroll\PayrollService;
 use Filament\Forms\Components\Select;
@@ -47,7 +48,7 @@ class CreatePayroll extends CreateRecord
                     ->live()
                     ->searchable(),
 
-                Select::make('user_id')
+                Select::make('employee_id')
                     ->label('Karyawan')
                     ->options(function (Get $get) {
                         $period = PayrollPeriod::find($get('payroll_period_id'));
@@ -56,30 +57,17 @@ class CreatePayroll extends CreateRecord
                             return [];
                         }
 
-                        $existingUserIds = Payroll::where('payroll_period_id', $period->id)->pluck('user_id');
-
-                        $regular = User::whereCompany($period->company_id)
-                            ->where('is_active', true)
-                            ->whereNotIn('id', $existingUserIds)
-                            ->orderByName()
-                            ->get()
-                            ->pluck('name', 'id');
-
-                        // Presiden Direktur & Sekretaris Direktur dibuang query User biasa
-                        // lewat global scope 'non_karyawan' - disertakan eksplisit di sini
-                        // supaya bisa dipilih juga, lihat User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS.
-                        $executives = User::withoutGlobalScope('non_karyawan')
-                            ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
-                            ->whereCompany($period->company_id)
-                            ->where('is_active', true)
-                            ->whereNotIn('id', $existingUserIds)
-                            ->orderByName()
-                            ->get()
-                            ->pluck('name', 'id');
-
-                        return $regular->merge($executives);
-                    })
-                    ->required()
+                        // Super Admin bukan penerima gaji; Presiden Direktur & Sekretaris Direktur tetap
+                        // bisa dipilih (User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS).
+                        return Employee::query()
+                            ->where('company_id', $period->company_id)
+                            ->where('status', 'aktif')
+                            ->whereNotNull('user_id')
+                            ->whereNotIn('user_id', array_diff(User::NON_KARYAWAN_IDS, User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS))
+                            ->whereNotIn('id', Payroll::where('payroll_period_id', $period->id)->select('employee_id'))
+                            ->orderBy('nama_lengkap')
+                            ->pluck('nama_lengkap', 'id');
+                    })                    ->required()
                     ->searchable()
                     ->disabled(fn (Get $get) => blank($get('payroll_period_id')))
                     ->helperText('Cuma karyawan yang belum punya payroll di periode ini yang muncul.'),
@@ -89,10 +77,10 @@ class CreatePayroll extends CreateRecord
     protected function handleRecordCreation(array $data): Model
     {
         $period = PayrollPeriod::findOrFail($data['payroll_period_id']);
-        $user = User::findOrFail($data['user_id']);
+        $employee = Employee::findOrFail($data['employee_id']);
 
         try {
-            return app(PayrollService::class)->generateSingleForUser($user, $period, Auth::id());
+            return app(PayrollService::class)->generateSingleForEmployee($employee, $period, Auth::id());
         } catch (\RuntimeException $e) {
             Notification::make()->title($e->getMessage())->danger()->send();
 

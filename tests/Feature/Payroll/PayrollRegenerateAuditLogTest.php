@@ -60,14 +60,14 @@ class PayrollRegenerateAuditLogTest extends TestCase
         $fixture = $this->makeFixture();
 
         $service = app(PayrollService::class);
-        $payroll = $service->generateSingleForUser($fixture['user'], $fixture['period']);
+        $payroll = $service->generateSingleForEmployee($fixture['user']->employee, $fixture['period']);
         $this->assertSame(1_080_000.0, (float) $payroll->fresh()->gross_salary); // base 1jt flat x8% = 1,08jt (kelas tidak lagi berpengaruh)
 
         // Ubah basis gaji pokok company ini - regenerate seharusnya menghasilkan angka BEDA,
         // dan itu HARUS kecatat ke audit_logs.
         PangkatSalary::where('pangkat_id', $fixture['pangkat']->id)->update(['base_salary' => 2_000_000]);
 
-        $newPayroll = $service->regenerateSinglePayroll($payroll->fresh(['payrollPeriod', 'user']));
+        $newPayroll = $service->regenerateSinglePayroll($payroll->fresh(['payrollPeriod', 'employee']));
 
         $this->assertSame(2_160_000.0, (float) $newPayroll->fresh()->gross_salary);
 
@@ -83,11 +83,11 @@ class PayrollRegenerateAuditLogTest extends TestCase
         $fixture = $this->makeFixture();
 
         $service = app(PayrollService::class);
-        $payroll = $service->generateSingleForUser($fixture['user'], $fixture['period']);
+        $payroll = $service->generateSingleForEmployee($fixture['user']->employee, $fixture['period']);
 
         // Regenerate TANPA mengubah data master apa pun - angkanya harus tetap sama, tidak
         // perlu dicatat sebagai "perubahan".
-        $service->regenerateSinglePayroll($payroll->fresh(['payrollPeriod', 'user']));
+        $service->regenerateSinglePayroll($payroll->fresh(['payrollPeriod', 'employee']));
 
         $this->assertSame(0, AuditLog::where('module', 'payroll_regenerate')->count());
     }

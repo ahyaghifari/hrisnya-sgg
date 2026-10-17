@@ -77,16 +77,16 @@ class PajakGajiPokokExport extends DefaultValueBinder implements FromCollection,
     private function payrollRow(Payroll $payroll, int $no): array
     {
         $gajiPokokItem = $payroll->items->firstWhere('source_type', PayrollComponentEnum::GAJI_POKOK->value);
-        $profile = $payroll->user?->profile;
+        $employee = $payroll->employee;
 
         $row = [
             $no,
-            $payroll->user?->name,
-            $profile?->jobPosition?->name,
-            $profile?->employeeType?->name,
+            $payroll->employee?->nama_lengkap,
+            $employee?->jobPosition?->name,
+            $employee?->employeeType?->name,
             (float) ($gajiPokokItem?->amount ?? 0),
-            $profile?->no_nik,
-            $profile?->marital_status,
+            $employee?->identity?->no_nik,
+            $employee?->marital_status,
         ];
 
         if ($this->hasExtraColumns()) {

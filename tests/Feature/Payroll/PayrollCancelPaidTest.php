@@ -44,7 +44,7 @@ class PayrollCancelPaidTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31', 'processed_at' => now()]);
         $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Karyawan']);
-        $payroll = Payroll::create(['user_id' => $employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
+        $payroll = Payroll::create(['employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
 
         Livewire::actingAs($admin)
             ->test(ListPayrolls::class)
@@ -67,7 +67,7 @@ class PayrollCancelPaidTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31', 'processed_at' => now()]);
         $employee = User::factory()->create(['company_id' => $company->id]);
-        $payroll = Payroll::create(['user_id' => $employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
+        $payroll = Payroll::create(['employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
 
         Livewire::actingAs($admin)
             ->test(ListPayrolls::class)
@@ -83,7 +83,7 @@ class PayrollCancelPaidTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31', 'processed_at' => now()]);
         $employee = User::factory()->create(['company_id' => $company->id]);
-        $payroll = Payroll::create(['user_id' => $employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => false]);
+        $payroll = Payroll::create(['employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => false]);
 
         Livewire::actingAs($admin)
             ->test(ListPayrolls::class)
@@ -96,7 +96,7 @@ class PayrollCancelPaidTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31', 'processed_at' => now()]);
         $employee = User::factory()->create(['company_id' => $company->id]);
-        $payroll = Payroll::create(['user_id' => $employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => false]);
+        $payroll = Payroll::create(['employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => false]);
 
         Livewire::actingAs($admin)
             ->test(ListPayrolls::class)

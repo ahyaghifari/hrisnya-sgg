@@ -12,7 +12,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use App\Models\User\UserProfiles;
 use App\Services\Payroll\Calculators\GajiPokokCalculator;
 use App\Services\Payroll\Calculators\PayrollContext;
@@ -47,10 +47,10 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas3->id, 'employee_type_id' => $tetap->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // Flat 8%, lepas dari kelas: 3.000.000 * 1.08
         $this->assertSame(3_240_000.0, $context->grossSalary);
@@ -72,10 +72,10 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $orientasi->id, 'joining_date' => '2026-01-01']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(3_000_000.0, $context->grossSalary);
     }
@@ -92,13 +92,13 @@ class GajiPokokCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id]);
-        GajiPokokKenaikanOverride::create(['user_id' => $user->id, 'rate' => 16, 'is_active' => true]);
+        GajiPokokKenaikanOverride::create(['employee_id' => $user->employee->id, 'rate' => 16, 'is_active' => true]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // Master override 16% (bukan 8% dari setting company): 3.000.000 * 1.16
         $this->assertSame(3_480_000.0, $context->grossSalary);
@@ -118,13 +118,13 @@ class GajiPokokCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id]);
-        GajiPokokKenaikanOverride::create(['user_id' => $user->id, 'rate' => 16, 'is_active' => false]);
+        GajiPokokKenaikanOverride::create(['employee_id' => $user->employee->id, 'rate' => 16, 'is_active' => false]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(3_240_000.0, $context->grossSalary);
     }
@@ -144,10 +144,10 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $tetap->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(3_240_000.0, $context->grossSalary);
     }
@@ -169,10 +169,10 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(3_000_000.0, $context->grossSalary);
     }
@@ -187,10 +187,10 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]); // kelas_id kosong
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
     }
@@ -212,10 +212,10 @@ class GajiPokokCalculatorTest extends TestCase
         // Periode 1-31 Juli 2026. Join 27 Juli s.d. 31 Juli = 5 hari kalender, Minggu jatuh di
         // 26 & 2 Agustus (di luar rentang) - tidak ada yang di-exclude, worked days = 5.
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 5 hari kerja / 31 hari (Juli) * 3.000.000 - pembagi jumlah hari kalender bulan bergabung.
         $this->assertSame(round(3_000_000 * 5 / 31, 2), $context->grossSalary);
@@ -235,10 +235,10 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $orientasi->id, 'joining_date' => '2026-01-01']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(3_000_000.0, $context->grossSalary);
     }
@@ -258,10 +258,10 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 5 hari kerja / 25 (setting Hari Kerja Efektif per Bulan) * 3.000.000 - BUKAN dibagi 31
         // (hari kalender Juli) karena company ini pakai metode 'hari_kerja_efektif'.
@@ -284,10 +284,10 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 5 hari kerja / 31 hari (Juli) * 3.000.000
         $this->assertSame(round(3_000_000 * 5 / 31, 2), $context->grossSalary);
@@ -295,7 +295,7 @@ class GajiPokokCalculatorTest extends TestCase
 
     /**
      * Setup bareng untuk 4 test transisi Orientasi->Kontrak (instruksi user 2026-09-15): Kontrak
-     * kenaikan 10% (rate 0% dikunci di test biar hitungan prorate bersih), UserContract pertama
+     * kenaikan 10% (rate 0% dikunci di test biar hitungan prorate bersih), kontrak pertama (EmployeeContract)
      * = jejak TTD dari OrientationService::followUpContract().
      */
     private function makeContractTransitionUser(Companies $company, string $contractStartDate): User
@@ -312,12 +312,12 @@ class GajiPokokCalculatorTest extends TestCase
         // joining_date sengaja jauh sebelum periode biar tidak numpuk sama prorate karyawan baru.
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
 
-        UserContract::create([
-            'user_id' => $user->id,
+        EmployeeContract::create([
+            'employee_id' => $user->employee->id, 'type' => 'kontrak',
             'company_id' => $company->id,
             'employee_type_id' => $kontrak->id,
-            'contract_start_date' => $contractStartDate,
-            'contract_end_date' => now()->parse($contractStartDate)->addYear()->toDateString(),
+            'start_date' => $contractStartDate,
+            'end_date' => now()->parse($contractStartDate)->addYear()->toDateString(),
         ]);
 
         return $user;
@@ -331,10 +331,10 @@ class GajiPokokCalculatorTest extends TestCase
         $user = $this->makeContractTransitionUser($company, '2026-07-25');
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(3_300_000.0, $context->grossSalary);
     }
@@ -346,10 +346,10 @@ class GajiPokokCalculatorTest extends TestCase
         $user = $this->makeContractTransitionUser($company, '2026-07-03');
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(3_300_000.0, $context->grossSalary);
     }
@@ -362,10 +362,10 @@ class GajiPokokCalculatorTest extends TestCase
         $user = $this->makeContractTransitionUser($company, '2026-07-10');
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // 1-9 Juli = 8 hari kerja (Minggu 5 Juli di-exclude), 10-31 Juli = 19 hari kerja (Minggu
         // 12/19/26 di-exclude) - sama seperti ProratesFirstMonth::countProrateWorkDays (Senin-
@@ -381,10 +381,10 @@ class GajiPokokCalculatorTest extends TestCase
         $user = $this->makeContractTransitionUser($company, '2026-07-25');
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // >20 = bulan ini Orientasi penuh (base_salary polos, tanpa prorate).
         $this->assertSame(3_000_000.0, $context->grossSalary);
@@ -407,16 +407,16 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2024-01-01']);
 
         // Kontrak PERTAMA (TTD dari orientasi) tahun lalu - sudah lewat, bukan bulan ini.
-        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2025-01-10', 'contract_end_date' => '2026-01-09']);
+        EmployeeContract::create(['employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'start_date' => '2025-01-10', 'end_date' => '2026-01-09']);
         // PERPANJANGAN kontrak, TTD tanggal 25 Juli (>20) - ini BUKAN transisi Orientasi->Kontrak,
         // jadi tidak boleh dianggap "Orientasi penuh bulan ini".
-        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-25', 'contract_end_date' => '2027-07-24']);
+        EmployeeContract::create(['employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'start_date' => '2026-07-25', 'end_date' => '2027-07-24']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
-        (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
+        (new GajiPokokCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         // Kontrak penuh normal (rate 10%), bukan Orientasi 0% - kontrak pertamanya sudah dari tahun lalu.
         $this->assertSame(3_300_000.0, $context->grossSalary);

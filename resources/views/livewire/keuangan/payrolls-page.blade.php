@@ -50,7 +50,7 @@
                         </button>
                     @endif
                     {{-- Koperasi sengaja DICABUT dari sini (bukan dihapus) — sudah ada tabel
-                         master `user_koperasi` (halaman Koperasi) yang otomatis sync ke
+                         master `employee_koperasi` (halaman Koperasi) yang otomatis sync ke
                          payroll_manual_lines tiap Generate, jadi input manual per periode di
                          sini jadi redundan. Disembunyikan dulu, bukan dihapus permanen. --}}
                     @if ($periodId)
@@ -149,8 +149,8 @@
                                     </td>
                                 @endif
                                 <td style="padding:9px 14px;white-space:nowrap;">
-                                    <span style="font-weight:600;">{{ $payroll->user?->name ?? '-' }}</span>
-                                    <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $payroll->user?->nip ?? '-' }}</span>
+                                    <span style="font-weight:600;">{{ $payroll->employee?->nama_lengkap ?? '-' }}</span>
+                                    <span style="display:block;font-size:10.5px;color:var(--text-faint);">{{ $payroll->employee?->nip ?? '-' }}</span>
                                 </td>
                                 <td style="padding:9px 14px;white-space:nowrap;">{{ $payroll->payrollPeriod->start_date->format('d M Y') }} - {{ $payroll->payrollPeriod->end_date->format('d M Y') }}</td>
                                 @if ($payroll->decryptFailed)
@@ -177,11 +177,11 @@
                                         <a href="{{ route('keuangan.payroll.show', $payroll->id) }}" wire:navigate class="btn-ghost" style="padding:5px 12px;font-size:11.5px;">Lihat</a>
                                         @if ($this->canUpdatePayroll)
                                             @if (! $payroll->is_paid)
-                                                <button type="button" wire:click="markAsPaid('{{ $payroll->id }}')" wire:confirm="Tandai payroll {{ $payroll->user?->name }} sudah dibayar?" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;">
+                                                <button type="button" wire:click="markAsPaid('{{ $payroll->id }}')" wire:confirm="Tandai payroll {{ $payroll->employee?->nama_lengkap }} sudah dibayar?" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;">
                                                     <i class="fa-solid fa-check"></i> Tandai Dibayar
                                                 </button>
                                             @else
-                                                <button type="button" wire:click="sendSlip('{{ $payroll->id }}')" wire:confirm="Kirim slip gaji ke email {{ $payroll->user?->name }}?" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;color:#2563eb;">
+                                                <button type="button" wire:click="sendSlip('{{ $payroll->id }}')" wire:confirm="Kirim slip gaji ke email {{ $payroll->employee?->nama_lengkap }}?" class="btn-ghost" style="padding:5px 10px;font-size:11.5px;color:#2563eb;">
                                                     <i class="fa-solid fa-envelope"></i> Kirim Email
                                                 </button>
                                             @endif

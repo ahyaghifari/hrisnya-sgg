@@ -6,7 +6,7 @@ use App\Livewire\Kepegawaian\KontrakPage;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -21,7 +21,7 @@ class KontrakPageTest extends TestCase
 
     private function actingWithPermission(array $extra = [], ?string $companyId = null): User
     {
-        $names = ['ViewAny:UserContract', ...$extra];
+        $names = ['ViewAny:EmployeeContract', ...$extra];
 
         foreach ($names as $name) {
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
@@ -51,19 +51,19 @@ class KontrakPageTest extends TestCase
         $employeeType = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id]);
         $employee = User::factory()->create(['company_id' => $company->id]);
 
-        $active = UserContract::create([
-            'user_id' => $employee->id,
+        $active = EmployeeContract::create([
+            'employee_id' => $employee->employee->id, 'type' => 'kontrak',
             'company_id' => $company->id,
             'employee_type_id' => $employeeType->id,
-            'contract_start_date' => now()->subMonth(),
-            'contract_end_date' => now()->addMonths(6),
+            'start_date' => now()->subMonth(),
+            'end_date' => now()->addMonths(6),
         ]);
-        $expired = UserContract::create([
-            'user_id' => $employee->id,
+        $expired = EmployeeContract::create([
+            'employee_id' => $employee->employee->id, 'type' => 'kontrak',
             'company_id' => $company->id,
             'employee_type_id' => $employeeType->id,
-            'contract_start_date' => now()->subYears(2),
-            'contract_end_date' => now()->subYear(),
+            'start_date' => now()->subYears(2),
+            'end_date' => now()->subYear(),
         ]);
 
         $component = Livewire::actingAs($actor)
@@ -86,17 +86,17 @@ class KontrakPageTest extends TestCase
     public function test_can_edit_contract_via_modal(): void
     {
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
-        $actor = $this->actingWithPermission(['Update:UserContract'], $company->id);
+        $actor = $this->actingWithPermission(['Update:EmployeeContract'], $company->id);
 
         $employeeType = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id]);
         $employee = User::factory()->create(['company_id' => $company->id]);
 
-        $contract = UserContract::create([
-            'user_id' => $employee->id,
+        $contract = EmployeeContract::create([
+            'employee_id' => $employee->employee->id, 'type' => 'kontrak',
             'company_id' => $company->id,
             'employee_type_id' => $employeeType->id,
-            'contract_start_date' => now()->subMonth(),
-            'contract_end_date' => now()->addMonths(6),
+            'start_date' => now()->subMonth(),
+            'end_date' => now()->addMonths(6),
         ]);
 
         $newEndDate = now()->addMonths(12)->toDateString();
@@ -109,27 +109,27 @@ class KontrakPageTest extends TestCase
             ->call('saveForm')
             ->assertHasNoErrors();
 
-        $this->assertSame($newEndDate, $contract->fresh()->contract_end_date->toDateString());
+        $this->assertSame($newEndDate, $contract->fresh()->end_date->toDateString());
     }
 
-    /** Regresi IDOR (2026-08-25): permission Shield Update:UserContract sendirian tidak cek
+    /** Regresi IDOR (2026-08-25): permission Shield Update:EmployeeContract sendirian tidak cek
      * batas company sama sekali - user non-global HARUS tetap ditolak megang kontrak company lain
      * biarpun punya permission update. */
     public function test_non_global_user_cannot_edit_contract_from_other_company(): void
     {
         $ownCompany = Companies::create(['code' => 'OWN', 'name' => 'Own Company', 'location' => 'Test', 'is_active' => true]);
         $otherCompany = Companies::create(['code' => 'OTH', 'name' => 'Other Company', 'location' => 'Test', 'is_active' => true]);
-        $actor = $this->actingWithPermission(['Update:UserContract'], $ownCompany->id);
+        $actor = $this->actingWithPermission(['Update:EmployeeContract'], $ownCompany->id);
 
         $employeeType = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $otherCompany->id]);
         $employee = User::factory()->create(['company_id' => $otherCompany->id]);
 
-        $contract = UserContract::create([
-            'user_id' => $employee->id,
+        $contract = EmployeeContract::create([
+            'employee_id' => $employee->employee->id, 'type' => 'kontrak',
             'company_id' => $otherCompany->id,
             'employee_type_id' => $employeeType->id,
-            'contract_start_date' => now()->subMonth(),
-            'contract_end_date' => now()->addMonths(6),
+            'start_date' => now()->subMonth(),
+            'end_date' => now()->addMonths(6),
         ]);
 
         Livewire::actingAs($actor)
@@ -146,12 +146,12 @@ class KontrakPageTest extends TestCase
         $employeeType = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id]);
         $employee = User::factory()->create(['company_id' => $company->id]);
 
-        $contract = UserContract::create([
-            'user_id' => $employee->id,
+        $contract = EmployeeContract::create([
+            'employee_id' => $employee->employee->id, 'type' => 'kontrak',
             'company_id' => $company->id,
             'employee_type_id' => $employeeType->id,
-            'contract_start_date' => now()->subMonth(),
-            'contract_end_date' => now()->addMonths(6),
+            'start_date' => now()->subMonth(),
+            'end_date' => now()->addMonths(6),
         ]);
 
         Livewire::actingAs($actor)

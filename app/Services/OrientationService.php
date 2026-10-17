@@ -362,7 +362,7 @@ class OrientationService
     /**
      * Tindak lanjut HR untuk keputusan LANJUT_KONTRAK: langsung angkat karyawan orientasi jadi
      * Kontrak di sini (tanpa lewat Perubahan Status Karyawan) — flip `employee_type_id` di
-     * profil (+ kelas minimal dari pangkat) & catat 1 baris `user_contracts`. Status `selesai`.
+     * profil (+ kelas minimal dari pangkat) & catat 1 baris `employee_contracts` (type kontrak). Status `selesai`.
      *
      * Tipe karyawan tujuan TIDAK dipilih HR — otomatis tipe kategori Kontrak milik company ini
      * (kategori sudah baku lewat EmployeeTypeCategory::KONTRAK; per company hanya ada satu).
@@ -400,12 +400,14 @@ class OrientationService
             }
             $profile?->update($updates);
 
-            \App\Models\User\UserContract::create([
-                'user_id' => $submission->user_id,
+            \App\Models\Employee\EmployeeContract::create([
+                'employee_id' => $submission->user?->employee?->id,
                 'company_id' => $submission->company_id,
+                'type' => \App\Models\Employee\EmployeeContract::TYPE_KONTRAK,
                 'employee_type_id' => $type->id,
-                'contract_start_date' => Carbon::parse($contractStartDate)->toDateString(),
-                'contract_end_date' => Carbon::parse($contractEndDate)->toDateString(),
+                'start_date' => Carbon::parse($contractStartDate)->toDateString(),
+                'end_date' => Carbon::parse($contractEndDate)->toDateString(),
+                'previous_contract_id' => $submission->employee_contract_id,
             ]);
 
             $submission->update(['status' => 'selesai']);

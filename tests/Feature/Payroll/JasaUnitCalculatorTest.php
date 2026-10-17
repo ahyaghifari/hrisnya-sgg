@@ -4,7 +4,7 @@ namespace Tests\Feature\Payroll;
 
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Master\Companies;
-use App\Models\Payroll\JasaUnitDetail;
+use App\Models\Payroll\PayrollJasaUnitDetail;
 use App\Models\Payroll\JasaUnitType;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
@@ -28,16 +28,16 @@ class JasaUnitCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $ambulan = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Ambulan']);
         $infus = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Paket Infus']);
 
-        JasaUnitDetail::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'jasa_unit_type_id' => $ambulan->id, 'amount' => 150_000]);
-        JasaUnitDetail::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'jasa_unit_type_id' => $infus->id, 'amount' => 50_000]);
+        PayrollJasaUnitDetail::create(['payroll_period_id' => $period->id, 'employee_id' => $user->employee->id, 'jasa_unit_type_id' => $ambulan->id, 'amount' => 150_000]);
+        PayrollJasaUnitDetail::create(['payroll_period_id' => $period->id, 'employee_id' => $user->employee->id, 'jasa_unit_type_id' => $infus->id, 'amount' => 50_000]);
 
         $context = new PayrollContext();
-        (new JasaUnitCalculator())->calculate($user, $payroll, $period, $context);
+        (new JasaUnitCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(200_000.0, $context->grossSalary);
 
@@ -52,13 +52,13 @@ class JasaUnitCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $jasa = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Perujuk Rawat']);
-        JasaUnitDetail::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'jasa_unit_type_id' => $jasa->id, 'amount' => 0]);
+        PayrollJasaUnitDetail::create(['payroll_period_id' => $period->id, 'employee_id' => $user->employee->id, 'jasa_unit_type_id' => $jasa->id, 'amount' => 0]);
 
         $context = new PayrollContext();
-        (new JasaUnitCalculator())->calculate($user, $payroll, $period, $context);
+        (new JasaUnitCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
         $this->assertSame(0, PayrollItem::where('payroll_id', $payroll->id)->count());
@@ -70,13 +70,13 @@ class JasaUnitCalculatorTest extends TestCase
         $user = User::factory()->create(['company_id' => $company->id]);
         $otherUser = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $jasa = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Ambulan']);
-        JasaUnitDetail::create(['payroll_period_id' => $period->id, 'user_id' => $otherUser->id, 'jasa_unit_type_id' => $jasa->id, 'amount' => 100_000]);
+        PayrollJasaUnitDetail::create(['payroll_period_id' => $period->id, 'employee_id' => $otherUser->employee->id, 'jasa_unit_type_id' => $jasa->id, 'amount' => 100_000]);
 
         $context = new PayrollContext();
-        (new JasaUnitCalculator())->calculate($user, $payroll, $period, $context);
+        (new JasaUnitCalculator())->calculate($payroll->employee, $payroll, $period, $context);
 
         $this->assertSame(0.0, $context->grossSalary);
     }

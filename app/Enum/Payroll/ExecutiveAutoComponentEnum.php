@@ -14,7 +14,7 @@ namespace App\Enum\Payroll;
  * Kerja cuma butuh `joining_date` + tabel TenureAllowance, sama persis buat siapa pun. Tetap
  * ikut toggle aktif/nonaktif `company_payroll_components` seperti biasa, dan dipanggil LANGSUNG
  * (bukan lewat PayrollService::runComponent(), yang gerbang penerimanya otomatis blokir
- * employee_type_id null) - lihat PayrollService::generateForUser().
+ * employee_type_id null) - lihat PayrollService::generateForEmployee().
  *
  * Value tiap case WAJIB sama persis dengan PayrollComponentEnum yang bersangkutan -
  * toComponent()/toComponents() konversi ke situ buat dipakai PayrollCalculatorRegistry.

@@ -5,6 +5,7 @@ namespace App\Models\Payroll;
 use App\Casts\PayrollEncrypted;
 use App\Enum\Payroll\PayrollComponentTypeEnum;
 use App\Models\User;
+use App\Models\Employee\Employee;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,7 +18,7 @@ class Payroll extends Model
     protected $table = 'payrolls';
 
     protected $fillable = [
-        'user_id',
+        'employee_id',
         'payroll_period_id',
         'gross_salary',
         'total_deductions',
@@ -41,14 +42,11 @@ class Payroll extends Model
         'net_salary' => PayrollEncrypted::class,
     ];
 
-    public function user(): BelongsTo
+    public function employee(): BelongsTo
     {
-        // withoutGlobalScope('non_karyawan') - Presiden Direktur/Sekretaris Direktur (lihat
-        // User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS) tetap punya baris Payroll walau ID-nya masuk
-        // NON_KARYAWAN_IDS, tanpa ini relasi user() selalu null buat mereka (nama tampil "-"
-        // di semua halaman list/detail payroll) - 2026-08-12.
-        return $this->belongsTo(User::class)->withoutGlobalScope('non_karyawan');
+        return $this->belongsTo(Employee::class);
     }
+
 
     public function payrollPeriod(): BelongsTo
     {

@@ -19,13 +19,13 @@ class PayrollForm
                 Section::make('Employee Information')
                     ->schema([
                         Grid::make(3)->schema([
-                            TextEntry::make('user.name')
+                            TextEntry::make('employee.nama_lengkap')
                                 ->label('Employee'),
 
-                            TextEntry::make('user.nip')
+                            TextEntry::make('employee.nip')
                                 ->label('NIP'),
 
-                            TextEntry::make('user.company.name')
+                            TextEntry::make('employee.company.name')
                                 ->label('Company'),
                         ]),
                     ])->columnSpanFull(),

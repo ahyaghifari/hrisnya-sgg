@@ -108,6 +108,99 @@ class Employee extends Model
         return $this->belongsTo(User::class, 'user_id')->withoutGlobalScopes()->withTrashed();
     }
 
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Master\Companies::class, 'company_id');
+    }
+
+    /** Keanggotaan koperasi karyawan ini (potongan bulanan), kalau ada. */
+    public function koperasi(): HasOne
+    {
+        return $this->hasOne(EmployeeKoperasi::class);
+    }
+
+    /** Insentif karyawan ini (boleh banyak). */
+    public function incentives(): HasMany
+    {
+        return $this->hasMany(EmployeeIncentive::class);
+    }
+
+    /** Tanggungan BPJS Kesehatan karyawan ini, kalau ada. */
+    public function bpjsDependent(): HasOne
+    {
+        return $this->hasOne(EmployeeBpjsDependent::class);
+    }
+
+    /** Baris tunjangan/potongan manual eksekutif (hanya dua eksekutif payroll-eligible). */
+    public function executiveAllowances(): HasMany
+    {
+        return $this->hasMany(EmployeeExecutiveAllowance::class);
+    }
+
+    /** Riwayat kontrak (1 baris = 1 periode kontrak yang sudah disetujui), lihat EmployeeContract. */
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(EmployeeContract::class)->kontrak();
+    }
+
+    /** Riwayat periode orientasi (1 baris = 1 periode/perpanjangan). Dibuat lewat Rekrutmen. */
+    public function orientations(): HasMany
+    {
+        return $this->hasMany(EmployeeContract::class)->orientasi();
+    }
+
+    /**
+     * Kontrak paling baru YANG SUDAH MULAI (start_date <= hari ini). Filter tanggal penting: baris kontrak
+     * yang dibuat duluan dengan start_date di masa depan (transisi belum efektif) tidak boleh dianggap
+     * 'current' sebelum waktunya.
+     */
+    public function currentContract(): HasOne
+    {
+        return $this->hasOne(EmployeeContract::class)
+            ->where('type', EmployeeContract::TYPE_KONTRAK)
+            ->where('start_date', '<=', now())
+            ->latestOfMany('start_date');
+    }
+
+    /** Periode orientasi terbaru yang SUDAH MULAI - pola currentContract(). */
+    public function currentOrientation(): HasOne
+    {
+        return $this->hasOne(EmployeeContract::class)
+            ->where('type', EmployeeContract::TYPE_ORIENTASI)
+            ->where('start_date', '<=', now())
+            ->latestOfMany('start_date');
+    }
+
+    /** Struktur organisasi efektif = struktur milik jabatannya (sama seperti UserProfiles). */
+    public function getEffectiveOrgStructureAttribute(): ?\App\Models\Master\OrgStructure
+    {
+        return $this->jobPosition?->orgStructure;
+    }
+
+    public function getDepartmentAttribute()
+    {
+        $org = $this->effective_org_structure;
+
+        if (! $org) {
+            return null;
+        }
+
+        return $org->level === \App\Enum\OrgStructurLevel::LEVEL_DEPARTMENT->value
+            ? $org
+            : ($org->parent?->parent ?? $org->parent);
+    }
+
+    public function getDivisionAttribute()
+    {
+        $org = $this->effective_org_structure;
+
+        if (! $org) {
+            return null;
+        }
+
+        return $org->level === \App\Enum\OrgStructurLevel::LEVEL_DIVISION->value ? $org : $org->parent;
+    }
+
     public function religion(): BelongsTo
     {
         return $this->belongsTo(Religions::class, 'religion_id');
@@ -116,6 +209,11 @@ class Employee extends Model
     public function jobPosition(): BelongsTo
     {
         return $this->belongsTo(JobPositions::class, 'job_position_id');
+    }
+
+    public function employeeType(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Master\EmployeeTypes::class, 'employee_type_id');
     }
 
     public function pangkat(): BelongsTo

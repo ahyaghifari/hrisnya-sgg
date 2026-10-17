@@ -10,6 +10,7 @@ use App\Models\User\UserProfiles;
 use App\Services\Identity\EmployeeSyncService;
 use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Parity check (roadmap_migrasi_bertahap_identity_hris.md bagian 7): membandingkan data lama
@@ -51,7 +52,22 @@ class VerifyIdentity extends Command
                 }
             });
 
+        $this->verifyPayrollLinks();
+
         return $this->report();
+    }
+
+    /** payroll: employee_id di tiap tabel = employees.id milik user_id-nya (daftar NIP yang menyimpang). */
+    private function verifyPayrollLinks(): void
+    {
+        foreach (EmployeeSyncService::PAYROLL_LINKED_TABLES as $t) {
+            $bad = DB::table($t)
+                ->leftJoin('employees as e', 'e.user_id', '=', "{$t}.user_id")
+                ->where(fn ($q) => $q->whereNull("{$t}.employee_id")->orWhereColumn("{$t}.employee_id", '<>', 'e.id'))
+                ->distinct()->pluck('e.nip')->map(fn ($nip) => $nip ?? '(tanpa employee)')->all();
+
+            $this->stats["payroll: {$t}.employee_id"] = ['checked' => DB::table($t)->count(), 'bad' => $bad];
+        }
     }
 
     private function verifyUser(User $user, array $maps): void

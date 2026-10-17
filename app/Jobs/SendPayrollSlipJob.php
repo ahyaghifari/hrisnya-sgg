@@ -45,7 +45,7 @@ class SendPayrollSlipJob implements ShouldQueue
     public function handle(PayrollService $service, \App\Services\Payroll\PayrollMailer $mailer): void
     {
         $payroll = Payroll::with([
-            'user.profile',
+            'employee.user',
             'payrollPeriod.signer.activeJobPosition.jobPosition',
             'payrollPeriod.generatedBy.activeJobPosition.jobPosition',
         ])->find($this->payrollId);
@@ -57,7 +57,7 @@ class SendPayrollSlipJob implements ShouldQueue
         // Email pribadi (user_profiles.email_pribadi) diprioritaskan buat kirim slip - email akun
         // (users.email) kadang cuma format standar perusahaan buat login, belum tentu benar-benar
         // dicek karyawan buat terima dokumen pribadi. Fallback ke email akun kalau kosong.
-        $recipientEmail = $payroll->user?->profile?->email_pribadi ?: $payroll->user?->email;
+        $recipientEmail = $payroll->employee?->email_pribadi ?: $payroll->employee?->user?->email;
 
         if (! $recipientEmail) {
             return;

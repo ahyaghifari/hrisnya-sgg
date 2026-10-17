@@ -3,18 +3,18 @@
 namespace App\Services\Payroll\Calculators;
 
 use App\Enum\Payroll\PayrollComponentEnum;
-use App\Models\Incentive\Incentive;
+use App\Models\Employee\EmployeeIncentive;
 use App\Models\Payroll\LegacyPositionAllowance;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\PositionAllowance;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 
 /**
  * Metode ditentukan setting `insentif_metode` (company-scoped, lihat requiredSettings() di
- * PayrollComponentEnum::INSENTIF). "master" (Holding): roster ala Koperasi (`user_koperasi`) —
+ * PayrollComponentEnum::INSENTIF). "master" (Holding): roster ala Koperasi (`employee_koperasi`) —
  * semua baris `is_active=true` milik karyawan ikut DIJUMLAHKAN setiap Generate/Regenerate,
  * TIDAK difilter tanggal periode sama sekali. `incentive_date` cuma keterangan "diterima sejak
  * kapan", bukan syarat. Nonaktifkan lewat toggle di halaman Insentif kalau mau berhenti.
@@ -33,18 +33,18 @@ use App\Models\User;
  */
 class IncentiveCalculator implements PayrollComponentCalculator
 {
-    public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
+    public function calculate(Employee $employee, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $metode = Setting::resolve('insentif_metode', $period->company_id, default: 'master');
 
         if ($metode === 'auto') {
-            $this->calculateFromLegacyGap($user, $payroll, $context);
+            $this->calculateFromLegacyGap($employee, $payroll, $context);
 
             return;
         }
 
-        $incentives = Incentive::query()
-            ->where('user_id', $user->id)
+        $incentives = EmployeeIncentive::query()
+            ->where('employee_id', $payroll->employee_id)
             ->where('is_active', true)
             ->get();
 
@@ -73,10 +73,10 @@ class IncentiveCalculator implements PayrollComponentCalculator
         $context->addEarning($totalAmount);
     }
 
-    private function calculateFromLegacyGap(User $user, Payroll $payroll, PayrollContext $context): void
+    private function calculateFromLegacyGap(Employee $employee, Payroll $payroll, PayrollContext $context): void
     {
-        $pangkatId = $user->profile?->pangkat_id;
-        $kelasId = $user->profile?->kelas_id;
+        $pangkatId = $employee->pangkat_id;
+        $kelasId = $employee->kelas_id;
 
         if (! $pangkatId || ! $kelasId) {
             return;

@@ -31,7 +31,7 @@
                 <tbody>
                     @forelse ($this->allowances as $allowance)
                         <tr wire:key="'exec-allowance-'.{{ $allowance->id }}" style="border-bottom:1px solid var(--border-soft);">
-                            <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $allowance->user?->name ?? '-' }}</td>
+                            <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $allowance->employee?->nama_lengkap ?? '-' }}</td>
                             <td style="padding:9px 14px;white-space:nowrap;">
                                 <span style="padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;{{ $allowance->type === 'earning' ? 'background:rgba(22,163,74,0.1);color:#16a34a;' : 'background:rgba(220,38,38,0.1);color:#dc2626;' }}">
                                     {{ $allowance->type === 'earning' ? 'Pendapatan' : 'Potongan' }}
@@ -83,13 +83,13 @@
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div>
                         <label class="form-label">Penerima <span style="color:var(--danger-text);">*</span></label>
-                        <select class="form-input" wire:model="formUserId">
+                        <select class="form-input" wire:model="formEmployeeId">
                             <option value="">-- Pilih --</option>
                             @foreach ($this->employees as $employee)
-                                <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                                <option value="{{ $employee->id }}">{{ $employee->nama_lengkap }}</option>
                             @endforeach
                         </select>
-                        @error('formUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('formEmployeeId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
