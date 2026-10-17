@@ -6,7 +6,7 @@ use App\Enum\Payroll\PayrollComponentEnum;
 use App\Imports\Payroll\JasaUnitDetailImport;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
-use App\Models\Payroll\JasaUnitDetail;
+use App\Models\Payroll\PayrollJasaUnitDetail;
 use App\Models\Payroll\JasaUnitType;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollPeriod;
@@ -49,8 +49,8 @@ class JasaUnitDetailImportTest extends TestCase
         $this->assertSame(1, $import->getSuccessCount());
         $this->assertEmpty($import->getErrors());
 
-        $detail = JasaUnitDetail::where('payroll_period_id', $period->id)
-            ->where('user_id', $user->id)
+        $detail = PayrollJasaUnitDetail::where('payroll_period_id', $period->id)
+            ->where('employee_id', $user->employee->id)
             ->where('jasa_unit_type_id', $jasa->id)
             ->first();
         $this->assertNotNull($detail);
@@ -70,7 +70,7 @@ class JasaUnitDetailImportTest extends TestCase
 
         $this->assertSame(0, $import->getSuccessCount());
         $this->assertCount(1, $import->getErrors());
-        $this->assertSame(0, JasaUnitDetail::count());
+        $this->assertSame(0, PayrollJasaUnitDetail::count());
     }
 
     public function test_code_not_found_is_reported(): void
@@ -136,8 +136,8 @@ class JasaUnitDetailImportTest extends TestCase
         (new JasaUnitDetailImport($company->id, $period->id, null))
             ->collection(new Collection([['nip' => 'NIP001', 'kode' => 'JU-001', 'nominal' => 250000]]));
 
-        $this->assertSame(1, JasaUnitDetail::where('payroll_period_id', $period->id)->count());
-        $this->assertSame(250000.0, (float) JasaUnitDetail::where('payroll_period_id', $period->id)->first()->amount);
+        $this->assertSame(1, PayrollJasaUnitDetail::where('payroll_period_id', $period->id)->count());
+        $this->assertSame(250000.0, (float) PayrollJasaUnitDetail::where('payroll_period_id', $period->id)->first()->amount);
     }
 
     public function test_one_invalid_row_does_not_block_other_valid_rows(): void
@@ -156,6 +156,6 @@ class JasaUnitDetailImportTest extends TestCase
 
         $this->assertSame(1, $import->getSuccessCount());
         $this->assertCount(1, $import->getErrors());
-        $this->assertSame(1, JasaUnitDetail::where('payroll_period_id', $period->id)->count());
+        $this->assertSame(1, PayrollJasaUnitDetail::where('payroll_period_id', $period->id)->count());
     }
 }

@@ -178,7 +178,7 @@ class RoleAccessTreePage extends Component
     {
         $tree = PermissionTreeBuilder::build();
 
-        // Permission ExecutiveAllowance ("Data Eksekutif") cuma boleh diassign oleh Super Admin
+        // Permission EmployeeExecutiveAllowance ("Data Eksekutif") cuma boleh diassign oleh Super Admin
         // yang login - selain itu (termasuk Admin company holding) tidak lihat pilihan ini sama
         // sekali di tree, siapapun role yang lagi diedit (2026-08-12, instruksi user).
         if (! Auth::user()->hasRole(['super_admin', 'Super Admin'])) {
@@ -201,7 +201,7 @@ class RoleAccessTreePage extends Component
         $pruned = [];
 
         foreach ($nodes as $node) {
-            if (str_ends_with($node['id'], ':ExecutiveAllowance')) {
+            if (str_ends_with($node['id'], ':EmployeeExecutiveAllowance')) {
                 continue;
             }
 

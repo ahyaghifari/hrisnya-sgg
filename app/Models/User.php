@@ -7,8 +7,6 @@ namespace App\Models;
 use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Models\Concerns\LogsFieldAuditChanges;
 use App\Models\Master\Companies;
-use App\Models\Payroll\BpjsDependent;
-use App\Models\Payroll\UserKoperasi;
 use App\Models\Setting;
 use App\Models\Shift\ShiftScheduleAssignments;
 use App\Models\User\UserJobPositions;
@@ -369,16 +367,6 @@ class User extends Authenticatable implements FilamentUser
     public function rosterSortKey(): string
     {
         return (substr((string) $this->profile?->joining_date, 0, 10) ?: '9999-12-31') . '|' . mb_strtolower($this->name);
-    }
-
-    public function koperasi()
-    {
-        return $this->hasOne(UserKoperasi::class, 'user_id', 'id');
-    }
-
-    public function bpjsDependent()
-    {
-        return $this->hasOne(BpjsDependent::class, 'user_id', 'id');
     }
 
 

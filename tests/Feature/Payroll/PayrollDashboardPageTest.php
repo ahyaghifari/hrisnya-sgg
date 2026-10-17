@@ -4,12 +4,12 @@ namespace Tests\Feature\Payroll;
 
 use App\Enum\CustomPermissionEnum;
 use App\Livewire\Keuangan\PayrollDashboardPage;
-use App\Models\Incentive\Incentive;
+use App\Models\Employee\EmployeeIncentive;
 use App\Models\Master\Companies;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
 use App\Models\Payroll\PayrollPeriod;
-use App\Models\Payroll\UserKoperasi;
+use App\Models\Employee\EmployeeKoperasi;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -24,8 +24,9 @@ class PayrollDashboardPageTest extends TestCase
     private function actingAsFinance(string $companyId): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => CustomPermissionEnum::LIHAT_DASHBOARD_KEUANGAN->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Dashboard Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(CustomPermissionEnum::SISTEM_KEUANGAN->value);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, CustomPermissionEnum::LIHAT_DASHBOARD_KEUANGAN->value]);
 
         $user = User::factory()->create(['company_id' => $companyId]);
         $user->assignRole($role);
@@ -78,8 +79,8 @@ class PayrollDashboardPageTest extends TestCase
 
         PayrollItem::create(['payroll_id' => $paidPayroll->id, 'name' => 'Gaji Pokok', 'type' => 'earning', 'amount' => 4500000, 'source_type' => 'gaji_pokok']);
 
-        Incentive::create(['user_id' => $employeePaid->id, 'amount' => 500000, 'is_active' => true]);
-        UserKoperasi::create(['user_id' => $employeePaid->id, 'amount' => 150000, 'is_active' => true]);
+        EmployeeIncentive::create(['employee_id' => $employeePaid->employee->id, 'amount' => 500000, 'is_active' => true]);
+        EmployeeKoperasi::create(['employee_id' => $employeePaid->employee->id, 'amount' => 150000, 'is_active' => true]);
 
         $component = Livewire::actingAs($finance)
             ->test(PayrollDashboardPage::class)

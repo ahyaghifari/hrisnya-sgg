@@ -25,7 +25,7 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
     abstract protected function componentType(): string;
 
     /** Dikali ke amount akhir — cuma BPJS Kesehatan yang override ini (lihat tanggungan). */
-    protected function multiplier(User $user): float
+    protected function multiplier(User $user, Payroll $payroll): float
     {
         return 1.0;
     }
@@ -54,7 +54,7 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
             return;
         }
 
-        $multiplier = $this->multiplier($user);
+        $multiplier = $this->multiplier($user, $payroll);
 
         $amount = round((float) $basis * (float) $rate / 100 * $multiplier, 2);
 

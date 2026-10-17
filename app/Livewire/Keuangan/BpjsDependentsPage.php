@@ -3,8 +3,8 @@
 namespace App\Livewire\Keuangan;
 
 use App\Models\Master\Companies;
-use App\Models\Payroll\BpjsDependent;
-use App\Models\User;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeBpjsDependent;
 use Filament\Notifications\Notification;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
@@ -22,7 +22,7 @@ class BpjsDependentsPage extends Component
     public string $search = '';
 
     public bool $showAddModal = false;
-    public ?string $addUserId = null;
+    public ?string $addEmployeeId = null;
     public ?string $addCount = null;
     public ?string $addNote = null;
 
@@ -33,7 +33,7 @@ class BpjsDependentsPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can('viewAny', BpjsDependent::class), 403);
+        abort_unless(Auth::user()->can('viewAny', EmployeeBpjsDependent::class), 403);
 
         $this->companyId = Auth::user()->canFilterByCompany()
             ? (Auth::user()->company_id ?? Companies::orderBy('code')->value('id'))
@@ -56,44 +56,44 @@ class BpjsDependentsPage extends Component
     {
         $search = trim($this->search);
 
-        return BpjsDependent::query()
-            ->whereHas('user', fn ($q) => $q->whereCompany($this->companyId)
-                ->when($search !== '', fn ($q2) => $q2->searchNameOrNip($search)))
-            ->with('user')
+        return EmployeeBpjsDependent::query()
+            ->whereHas('employee', fn ($q) => $q->where('company_id', $this->companyId)
+                ->when($search !== '', fn ($q2) => $q2->where(fn ($q3) => $q3->where('nama_lengkap', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"))))
+            ->with('employee')
             ->get();
     }
 
-    public function getAvailableUsersProperty()
+    public function getAvailableEmployeesProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
-        return User::query()
-            ->whereCompany($this->companyId)
-            ->where('is_active', true)
+        return Employee::query()
+            ->where('company_id', $this->companyId)
+            ->where('status', 'aktif')
             ->whereDoesntHave('bpjsDependent')
-            ->orderByName()
+            ->orderBy('nama_lengkap')
             ->get();
     }
 
     public function getCanCreateProperty(): bool
     {
-        return Auth::user()->can('create', BpjsDependent::class);
+        return Auth::user()->can('create', EmployeeBpjsDependent::class);
     }
 
     public function getCanUpdateProperty(): bool
     {
-        return Auth::user()->can('update', BpjsDependent::class);
+        return Auth::user()->can('update', EmployeeBpjsDependent::class);
     }
 
     // ── Tambah ───────────────────────────────────────────────────────────────
 
     public function openAddModal(): void
     {
-        abort_unless(Auth::user()->can('create', BpjsDependent::class), 403);
+        abort_unless(Auth::user()->can('create', EmployeeBpjsDependent::class), 403);
 
-        $this->addUserId = null;
+        $this->addEmployeeId = null;
         $this->addCount = null;
         $this->addNote = null;
         $this->resetErrorBag();
@@ -107,27 +107,27 @@ class BpjsDependentsPage extends Component
 
     public function saveAdd(): void
     {
-        abort_unless(Auth::user()->can('create', BpjsDependent::class), 403);
+        abort_unless(Auth::user()->can('create', EmployeeBpjsDependent::class), 403);
 
         $this->validate([
-            'addUserId' => 'required|exists:users,id',
+            'addEmployeeId' => 'required|exists:employees,id',
             'addCount' => 'required|integer|min:1',
             'addNote' => 'nullable|string|max:255',
         ], [], [
-            'addUserId' => 'karyawan',
+            'addEmployeeId' => 'karyawan',
             'addCount' => 'jumlah tanggungan',
             'addNote' => 'keterangan',
         ]);
 
         abort_if(
-            BpjsDependent::where('user_id', $this->addUserId)->exists(),
+            EmployeeBpjsDependent::where('employee_id', $this->addEmployeeId)->exists(),
             409,
             'Karyawan ini sudah punya data tanggungan — ubah dari daftar, bukan tambah lagi.'
         );
 
         try {
-            BpjsDependent::create([
-                'user_id' => $this->addUserId,
+            EmployeeBpjsDependent::create([
+                'employee_id' => $this->addEmployeeId,
                 'count' => $this->addCount,
                 'note' => $this->addNote,
                 'is_active' => true,
@@ -149,7 +149,7 @@ class BpjsDependentsPage extends Component
 
     public function openEditModal(string $id): void
     {
-        $dependent = BpjsDependent::findOrFail($id);
+        $dependent = EmployeeBpjsDependent::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $dependent), 403);
 
@@ -167,7 +167,7 @@ class BpjsDependentsPage extends Component
 
     public function saveEdit(): void
     {
-        $dependent = BpjsDependent::findOrFail($this->editingId);
+        $dependent = EmployeeBpjsDependent::findOrFail($this->editingId);
 
         abort_unless(Auth::user()->can('update', $dependent), 403);
 
@@ -196,7 +196,7 @@ class BpjsDependentsPage extends Component
 
     public function toggleActive(string $id): void
     {
-        $dependent = BpjsDependent::findOrFail($id);
+        $dependent = EmployeeBpjsDependent::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $dependent), 403);
 
@@ -205,7 +205,7 @@ class BpjsDependentsPage extends Component
 
     public function removeDependent(string $id): void
     {
-        $dependent = BpjsDependent::findOrFail($id);
+        $dependent = EmployeeBpjsDependent::findOrFail($id);
 
         abort_unless(Auth::user()->can('delete', $dependent), 403);
 

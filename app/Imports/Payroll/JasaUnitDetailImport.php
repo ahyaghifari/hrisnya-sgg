@@ -3,7 +3,8 @@
 namespace App\Imports\Payroll;
 
 use App\Enum\Payroll\PayrollComponentEnum;
-use App\Models\Payroll\JasaUnitDetail;
+use App\Models\Employee\Employee;
+use App\Models\Payroll\PayrollJasaUnitDetail;
 use App\Models\Payroll\JasaUnitType;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\User;
@@ -59,17 +60,17 @@ class JasaUnitDetailImport implements ToCollection, WithHeadingRow
                 continue; // baris kosong, bukan error
             }
 
-            $user = User::whereCompany($this->companyId)->whereNip($nip)->first();
+            $employee = Employee::where('company_id', $this->companyId)->where('nip', $nip)->first();
             $jasa = JasaUnitType::where('company_id', $this->companyId)->where('code', $kode)->first();
 
-            $error = $this->validateRow($user, $jasa, $amount, $nip, $kode, $eligibleTypeIds);
+            $error = $this->validateRow($employee, $jasa, $amount, $nip, $kode, $eligibleTypeIds);
 
             if ($this->preview) {
                 $this->previewRows[] = [
                     'row' => $rowNum,
                     'nip' => $nip,
                     'kode' => $kode,
-                    'nama' => $user?->name,
+                    'nama' => $employee?->nama_lengkap,
                     'jasa' => $jasa?->name,
                     'nominal' => $amount,
                     'error' => $error,
@@ -84,10 +85,10 @@ class JasaUnitDetailImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            JasaUnitDetail::updateOrCreate(
+            PayrollJasaUnitDetail::updateOrCreate(
                 [
                     'payroll_period_id' => $this->periodId,
-                    'user_id' => $user->id,
+                    'employee_id' => $employee->id,
                     'jasa_unit_type_id' => $jasa->id,
                 ],
                 [
@@ -100,9 +101,9 @@ class JasaUnitDetailImport implements ToCollection, WithHeadingRow
         }
     }
 
-    private function validateRow(?User $user, ?JasaUnitType $jasa, float $amount, string $nip, string $kode, $eligibleTypeIds): ?string
+    private function validateRow(?Employee $employee, ?JasaUnitType $jasa, float $amount, string $nip, string $kode, $eligibleTypeIds): ?string
     {
-        if (! $user) {
+        if (! $employee) {
             return "NIP {$nip} tidak ditemukan.";
         }
 
@@ -110,7 +111,7 @@ class JasaUnitDetailImport implements ToCollection, WithHeadingRow
             return "Kode jasa '{$kode}' tidak ditemukan.";
         }
 
-        if (! $eligibleTypeIds->contains($user->profile?->employee_type_id)) {
+        if (! $eligibleTypeIds->contains($employee->employee_type_id)) {
             return "NIP {$nip}: tipe karyawan ini belum terdaftar sebagai penerima Jasa Unit di halaman Penerima Komponen Gaji.";
         }
 

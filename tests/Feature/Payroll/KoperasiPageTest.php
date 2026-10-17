@@ -8,7 +8,7 @@ use App\Livewire\Keuangan\KoperasiPage;
 use App\Models\Master\Companies;
 use App\Models\Master\EmployeeTypes;
 use App\Models\Payroll\PayrollComponentRecipient;
-use App\Models\Payroll\UserKoperasi;
+use App\Models\Employee\EmployeeKoperasi;
 use App\Models\User;
 use App\Models\User\UserProfiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,15 +24,17 @@ class KoperasiPageTest extends TestCase
     private function actingAsFinance(): User
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Create:UserKoperasi', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Update:UserKoperasi', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Delete:UserKoperasi', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'ViewAny:EmployeeKoperasi', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create:EmployeeKoperasi', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:EmployeeKoperasi', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete:EmployeeKoperasi', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Koperasi Test', 'guard_name' => 'web']);
         $role->givePermissionTo([
             CustomPermissionEnum::SISTEM_KEUANGAN->value,
-            'Create:UserKoperasi',
-            'Update:UserKoperasi',
-            'Delete:UserKoperasi',
+            'ViewAny:EmployeeKoperasi',
+            'Create:EmployeeKoperasi',
+            'Update:EmployeeKoperasi',
+            'Delete:EmployeeKoperasi',
         ]);
 
         $user = User::factory()->create();
@@ -66,11 +68,12 @@ class KoperasiPageTest extends TestCase
             ->test(KoperasiPage::class)
             ->set('companyId', $company->id)
             ->call('openAddModal')
-            ->set('addUserId', $employee->id)
+            ->set('addEmployeeId', $employee->employee->id)
             ->set('addAmount', '150000')
             ->call('saveAdd');
 
-        $this->assertDatabaseHas('user_koperasi', ['user_id' => $employee->id, 'amount' => 150000, 'is_active' => true]);
+        $this->assertDatabaseHas('employee_koperasi', ['employee_id' => $employee->employee->id, 'is_active' => true]);
+        $this->assertEquals(150000, EmployeeKoperasi::where('employee_id', $employee->employee->id)->firstOrFail()->amount); // kolom amount terenkripsi
     }
 
     public function test_bulk_edit_amount_updates_selected_members(): void
@@ -79,8 +82,8 @@ class KoperasiPageTest extends TestCase
         $company = $this->makeCompany();
         $employeeA = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
         $employeeB = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $memberA = UserKoperasi::create(['user_id' => $employeeA->id, 'amount' => 100000, 'is_active' => true]);
-        $memberB = UserKoperasi::create(['user_id' => $employeeB->id, 'amount' => 200000, 'is_active' => true]);
+        $memberA = EmployeeKoperasi::create(['employee_id' => $employeeA->employee->id, 'amount' => 100000, 'is_active' => true]);
+        $memberB = EmployeeKoperasi::create(['employee_id' => $employeeB->employee->id, 'amount' => 200000, 'is_active' => true]);
 
         Livewire::actingAs($finance)
             ->test(KoperasiPage::class)
@@ -90,8 +93,8 @@ class KoperasiPageTest extends TestCase
             ->set('editAmount', '300000')
             ->call('saveEdit');
 
-        $this->assertDatabaseHas('user_koperasi', ['id' => $memberA->id, 'amount' => 300000]);
-        $this->assertDatabaseHas('user_koperasi', ['id' => $memberB->id, 'amount' => 300000]);
+        $this->assertEquals(300000, $memberA->fresh()->amount);
+        $this->assertEquals(300000, $memberB->fresh()->amount);
     }
 
     public function test_toggle_active_flips_status(): void
@@ -99,14 +102,14 @@ class KoperasiPageTest extends TestCase
         $finance = $this->actingAsFinance();
         $company = $this->makeCompany();
         $employee = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $member = UserKoperasi::create(['user_id' => $employee->id, 'amount' => 100000, 'is_active' => true]);
+        $member = EmployeeKoperasi::create(['employee_id' => $employee->employee->id, 'amount' => 100000, 'is_active' => true]);
 
         Livewire::actingAs($finance)
             ->test(KoperasiPage::class)
             ->set('companyId', $company->id)
             ->call('toggleActive', $member->id);
 
-        $this->assertDatabaseHas('user_koperasi', ['id' => $member->id, 'is_active' => false]);
+        $this->assertDatabaseHas('employee_koperasi', ['id' => $member->id, 'is_active' => false]);
     }
 
     public function test_remove_member_deletes_row(): void
@@ -114,14 +117,14 @@ class KoperasiPageTest extends TestCase
         $finance = $this->actingAsFinance();
         $company = $this->makeCompany();
         $employee = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $member = UserKoperasi::create(['user_id' => $employee->id, 'amount' => 100000, 'is_active' => true]);
+        $member = EmployeeKoperasi::create(['employee_id' => $employee->employee->id, 'amount' => 100000, 'is_active' => true]);
 
         Livewire::actingAs($finance)
             ->test(KoperasiPage::class)
             ->set('companyId', $company->id)
             ->call('removeMember', $member->id);
 
-        $this->assertDatabaseMissing('user_koperasi', ['id' => $member->id]);
+        $this->assertDatabaseMissing('employee_koperasi', ['id' => $member->id]);
     }
 
     public function test_export_returns_download_response(): void
@@ -129,7 +132,7 @@ class KoperasiPageTest extends TestCase
         $finance = $this->actingAsFinance();
         $company = $this->makeCompany();
         $employee = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        UserKoperasi::create(['user_id' => $employee->id, 'amount' => 100000, 'is_active' => true]);
+        EmployeeKoperasi::create(['employee_id' => $employee->employee->id, 'amount' => 100000, 'is_active' => true]);
 
         Livewire::actingAs($finance)
             ->test(KoperasiPage::class)

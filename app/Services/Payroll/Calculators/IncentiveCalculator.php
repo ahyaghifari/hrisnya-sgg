@@ -3,7 +3,7 @@
 namespace App\Services\Payroll\Calculators;
 
 use App\Enum\Payroll\PayrollComponentEnum;
-use App\Models\Incentive\Incentive;
+use App\Models\Employee\EmployeeIncentive;
 use App\Models\Payroll\LegacyPositionAllowance;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollItem;
@@ -14,7 +14,7 @@ use App\Models\User;
 
 /**
  * Metode ditentukan setting `insentif_metode` (company-scoped, lihat requiredSettings() di
- * PayrollComponentEnum::INSENTIF). "master" (Holding): roster ala Koperasi (`user_koperasi`) —
+ * PayrollComponentEnum::INSENTIF). "master" (Holding): roster ala Koperasi (`employee_koperasi`) —
  * semua baris `is_active=true` milik karyawan ikut DIJUMLAHKAN setiap Generate/Regenerate,
  * TIDAK difilter tanggal periode sama sekali. `incentive_date` cuma keterangan "diterima sejak
  * kapan", bukan syarat. Nonaktifkan lewat toggle di halaman Insentif kalau mau berhenti.
@@ -43,8 +43,8 @@ class IncentiveCalculator implements PayrollComponentCalculator
             return;
         }
 
-        $incentives = Incentive::query()
-            ->where('user_id', $user->id)
+        $incentives = EmployeeIncentive::query()
+            ->where('employee_id', $payroll->employee_id)
             ->where('is_active', true)
             ->get();
 

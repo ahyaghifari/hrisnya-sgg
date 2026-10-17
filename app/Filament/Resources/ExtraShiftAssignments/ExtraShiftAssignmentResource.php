@@ -27,7 +27,7 @@ use UnitEnum;
 /**
  * Sisi admin dari halaman portal /presensi/extra-shift (App\Livewire\Presensi\ExtraShiftPage) -
  * versi pertama cuma jalur "assigned" (langsung approved, tidak lewat approval engine), lihat
- * planning/2026-07-31-fitur-extra-shift.md. Pola Resource niru BpjsDependentResource: 1 file,
+ * planning/2026-07-31-fitur-extra-shift.md. Pola Resource niru EmployeeBpjsDependentResource: 1 file,
  * form/table inline, create/edit lewat modal (ManageRecords).
  */
 class ExtraShiftAssignmentResource extends Resource

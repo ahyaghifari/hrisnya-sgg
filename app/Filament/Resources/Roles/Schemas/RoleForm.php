@@ -28,7 +28,7 @@ class RoleForm
      * — field key checkbox HARUS sama persis antara sini dan sana, kalau tidak checkbox tampil
      * kosong walau role sudah punya permission-nya (data tidak hilang, cuma UI-nya salah).
      *
-     * UserKoperasi & BpjsDependent TIDAK di-list manual di sini (beda dari Schedule) — keduanya
+     * EmployeeKoperasi & EmployeeBpjsDependent TIDAK di-list manual di sini (beda dari Schedule) — keduanya
      * sekarang punya Filament Resource (navigationGroup 'Keuangan'), jadi otomatis ke-merge ke
      * section "Sistem Keuangan" lewat $containerMerge di bawah, tidak perlu di-hardcode.
      *

@@ -356,7 +356,7 @@ return [
 
     'keuangan.insentif' => [
         'label' => 'Insentif',
-        'permission' => 'ViewAny:Incentive',
+        'permission' => 'ViewAny:EmployeeIncentive',
         'guard' => null,
     ],
 
@@ -397,13 +397,13 @@ return [
     // Belum terdaftar sebelumnya (sama seperti keuangan.jasa-unit di atas).
     'keuangan.koperasi' => [
         'label' => 'Koperasi',
-        'permission' => 'ViewAny:UserKoperasi',
+        'permission' => 'ViewAny:EmployeeKoperasi',
         'guard' => null,
     ],
 
     'keuangan.tanggungan-bpjs' => [
         'label' => 'Tanggungan BPJS',
-        'permission' => 'ViewAny:BpjsDependent',
+        'permission' => 'ViewAny:EmployeeBpjsDependent',
         'guard' => null,
     ],
 

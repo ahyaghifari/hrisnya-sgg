@@ -3,10 +3,12 @@
 namespace App\Livewire\Keuangan;
 
 use App\Enum\Payroll\PayrollComponentEnum;
-use App\Models\Payroll\ExecutiveAllowance;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeExecutiveAllowance;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -20,7 +22,7 @@ class ExecutiveAllowancesPage extends Component
 {
     public bool $showFormModal = false;
     public ?string $editingId = null;
-    public ?string $formUserId = null;
+    public ?string $formEmployeeId = null;
     /** 'component' (pilih dari PayrollComponentEnum) atau 'manual' (label bebas) - lihat saveForm().
      * Default 'component' (2026-08-12, instruksi user) - baris eksekutif kebanyakan memang
      * komponen gaji baku (Gaji Pokok, dst), Manual cuma buat kasus di luar itu. */
@@ -41,39 +43,39 @@ class ExecutiveAllowancesPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can('viewAny', ExecutiveAllowance::class), 403);
+        abort_unless(Auth::user()->can('viewAny', EmployeeExecutiveAllowance::class), 403);
     }
 
     public function getAllowancesProperty()
     {
-        return ExecutiveAllowance::query()
-            ->whereIn('user_id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
-            ->with('user')
+        return EmployeeExecutiveAllowance::query()
+            ->whereIn('employee_id', Employee::query()->select('id')->whereIn('user_id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS))
+            ->with('employee')
             ->orderByDesc('created_at')
             ->get();
     }
 
     public function getEmployeesProperty()
     {
-        return User::withoutGlobalScope('non_karyawan')
-            ->whereIn('id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
-            ->orderByName()
+        return Employee::query()
+            ->whereIn('user_id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)
+            ->orderBy('nama_lengkap')
             ->get();
     }
 
     public function getCanCreateProperty(): bool
     {
-        return Auth::user()->can('create', ExecutiveAllowance::class);
+        return Auth::user()->can('create', EmployeeExecutiveAllowance::class);
     }
 
     // ── Form Tambah/Edit ─────────────────────────────────────────────────────
 
     public function openCreateModal(): void
     {
-        abort_unless(Auth::user()->can('create', ExecutiveAllowance::class), 403);
+        abort_unless(Auth::user()->can('create', EmployeeExecutiveAllowance::class), 403);
 
         $this->editingId = null;
-        $this->formUserId = null;
+        $this->formEmployeeId = null;
         $this->formSource = 'component';
         $this->formComponent = null;
         $this->formType = 'earning';
@@ -86,12 +88,12 @@ class ExecutiveAllowancesPage extends Component
 
     public function openEditModal(string $id): void
     {
-        $allowance = ExecutiveAllowance::findOrFail($id);
+        $allowance = EmployeeExecutiveAllowance::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $allowance), 403);
 
         $this->editingId = $allowance->id;
-        $this->formUserId = $allowance->user_id;
+        $this->formEmployeeId = $allowance->employee_id;
         $this->formSource = $allowance->component ? 'component' : 'manual';
         $this->formComponent = $allowance->component;
         $this->formType = $allowance->type;
@@ -127,11 +129,11 @@ class ExecutiveAllowancesPage extends Component
     public function saveForm(): void
     {
         $ability = $this->editingId ? 'update' : 'create';
-        $subject = $this->editingId ? ExecutiveAllowance::findOrFail($this->editingId) : ExecutiveAllowance::class;
+        $subject = $this->editingId ? EmployeeExecutiveAllowance::findOrFail($this->editingId) : EmployeeExecutiveAllowance::class;
         abort_unless(Auth::user()->can($ability, $subject), 403);
 
         $this->validate([
-            'formUserId' => 'required|in:' . implode(',', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS),
+            'formEmployeeId' => ['required', Rule::in(Employee::query()->whereIn('user_id', User::PAYROLL_ELIGIBLE_EXECUTIVE_IDS)->pluck('id')->all())],
             'formSource' => 'required|in:component,manual',
             'formComponent' => 'required_if:formSource,component|nullable|in:' . implode(',', array_column(PayrollComponentEnum::cases(), 'value')),
             'formType' => 'required_if:formSource,manual|in:earning,deduction',
@@ -139,7 +141,7 @@ class ExecutiveAllowancesPage extends Component
             'formAmount' => 'required|numeric|min:0.01',
             'formNote' => 'nullable|string',
         ], [], [
-            'formUserId' => 'penerima',
+            'formEmployeeId' => 'penerima',
             'formComponent' => 'komponen',
             'formType' => 'jenis',
             'formLabel' => 'label',
@@ -156,7 +158,7 @@ class ExecutiveAllowancesPage extends Component
         }
 
         $data = [
-            'user_id' => $this->formUserId,
+            'employee_id' => $this->formEmployeeId,
             'component' => $this->formSource === 'component' ? $this->formComponent : null,
             'type' => $this->formType,
             'label' => $this->formLabel,
@@ -168,9 +170,9 @@ class ExecutiveAllowancesPage extends Component
             // ->findOrFail()->update() (instance), BUKAN whereKey()->update() (query builder) -
             // yang terakhir melewati cast PayrollEncrypted, nulis 'amount' plaintext mentah (bug
             // ditemukan 2026-08-21, sama pola KoperasiPage::saveEdit()).
-            ExecutiveAllowance::findOrFail($this->editingId)->update($data);
+            EmployeeExecutiveAllowance::findOrFail($this->editingId)->update($data);
         } else {
-            ExecutiveAllowance::create([...$data, 'is_active' => true]);
+            EmployeeExecutiveAllowance::create([...$data, 'is_active' => true]);
         }
 
         $this->showFormModal = false;
@@ -183,7 +185,7 @@ class ExecutiveAllowancesPage extends Component
 
     public function toggleActive(string $id): void
     {
-        $allowance = ExecutiveAllowance::findOrFail($id);
+        $allowance = EmployeeExecutiveAllowance::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $allowance), 403);
 
@@ -192,7 +194,7 @@ class ExecutiveAllowancesPage extends Component
 
     public function removeAllowance(string $id): void
     {
-        $allowance = ExecutiveAllowance::findOrFail($id);
+        $allowance = EmployeeExecutiveAllowance::findOrFail($id);
 
         abort_unless(Auth::user()->can('delete', $allowance), 403);
 

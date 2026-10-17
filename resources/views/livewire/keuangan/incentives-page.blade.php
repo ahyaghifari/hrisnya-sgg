@@ -53,8 +53,8 @@
                         <tbody>
                             @forelse ($this->incentives as $incentive)
                                 <tr wire:key="'incentive-'.{{ $incentive->id }}" style="border-bottom:1px solid var(--border-soft);">
-                                    <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->user?->company?->name ?? '-' }}</td>
-                                    <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $incentive->user?->name ?? '-' }}</td>
+                                    <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->employee?->company?->name ?? '-' }}</td>
+                                    <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $incentive->employee?->nama_lengkap ?? '-' }}</td>
                                     <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->name ?? '-' }}</td>
                                     <td style="padding:9px 14px;white-space:nowrap;">{{ $incentive->incentive_date?->format('d M Y') ?? '-' }}</td>
                                     <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp {{ number_format($incentive->amount, 0, ',', '.') }}</td>
@@ -105,14 +105,14 @@
                     <div>
                         <label class="form-label">Penerima <span style="color:var(--danger-text);">*</span></label>
                         <div wire:ignore>
-                            <select data-tom-select data-placeholder="-- Pilih Karyawan --" wire:model="formUserId">
+                            <select data-tom-select data-placeholder="-- Pilih Karyawan --" wire:model="formEmployeeId">
                                 <option value="">-- Pilih Karyawan --</option>
                                 @foreach ($this->employees as $employee)
-                                    <option value="{{ $employee->id }}">{{ $employee->name }} ({{ $employee->nip }})</option>
+                                    <option value="{{ $employee->id }}">{{ $employee->nama_lengkap }} ({{ $employee->nip }})</option>
                                 @endforeach
                             </select>
                         </div>
-                        @error('formUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('formEmployeeId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>

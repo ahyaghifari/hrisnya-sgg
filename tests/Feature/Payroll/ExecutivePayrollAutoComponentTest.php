@@ -87,8 +87,8 @@ class ExecutivePayrollAutoComponentTest extends TestCase
 
         // Gaji Pokok eksekutif dipilih dari "Dari Komponen Gaji" (bukan Manual bebas), sama
         // seperti dilakukan lewat ExecutiveAllowancesPage::saveForm() saat formSource='component'.
-        \App\Models\Payroll\ExecutiveAllowance::create([
-            'user_id' => $exec->id,
+        \App\Models\Employee\EmployeeExecutiveAllowance::create([
+            'employee_id' => \App\Models\Employee\Employee::where('user_id', $exec->id)->value('id'),
             'component' => PayrollComponentEnum::GAJI_POKOK->value,
             'type' => 'earning',
             'label' => 'Gaji Pokok',

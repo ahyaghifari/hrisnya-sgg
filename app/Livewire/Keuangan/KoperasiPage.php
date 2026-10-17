@@ -9,7 +9,8 @@ use App\Imports\Payroll\KoperasiImport;
 use App\Livewire\Concerns\GatesCompanyFilterBySystem;
 use App\Models\Master\Companies;
 use App\Models\Payroll\PayrollComponentRecipient;
-use App\Models\Payroll\UserKoperasi;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeKoperasi;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -38,7 +39,7 @@ class KoperasiPage extends Component
     public array $selected = [];
 
     public bool $showAddModal = false;
-    public ?string $addUserId = null;
+    public ?string $addEmployeeId = null;
     public ?string $addAmount = null;
 
     public bool $showImportModal = false;
@@ -51,7 +52,7 @@ class KoperasiPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can('viewAny', UserKoperasi::class), 403);
+        abort_unless(Auth::user()->can('viewAny', EmployeeKoperasi::class), 403);
 
         $this->companyId = Auth::user()->company_id ?? Companies::orderBy('code')->value('id');
         $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
@@ -78,10 +79,10 @@ class KoperasiPage extends Component
     {
         $search = trim($this->search);
 
-        return UserKoperasi::query()
-            ->whereHas('user', fn ($q) => $q->whereCompany($this->companyId)
-                ->when($search !== '', fn ($q2) => $q2->searchNameOrNip($search)))
-            ->with('user')
+        return EmployeeKoperasi::query()
+            ->whereHas('employee', fn ($q) => $q->where('company_id', $this->companyId)
+                ->when($search !== '', fn ($q2) => $q2->where(fn ($q3) => $q3->where('nama_lengkap', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"))))
+            ->with('employee')
             ->get();
     }
 
@@ -92,7 +93,7 @@ class KoperasiPage extends Component
      * pernah muncul di payroll (PayrollService::runComponent() tetap gate berdasarkan
      * PayrollComponentRecipient, roster ini tidak bisa mem-bypass itu).
      */
-    public function getAvailableUsersProperty()
+    public function getAvailableEmployeesProperty()
     {
         if (! $this->companyId) {
             return collect();
@@ -103,12 +104,12 @@ class KoperasiPage extends Component
             ->where('component', PayrollComponentEnum::KOPERASI->value)
             ->pluck('employee_type_id');
 
-        return User::query()
-            ->whereCompany($this->companyId)
-            ->where('is_active', true)
+        return Employee::query()
+            ->where('company_id', $this->companyId)
+            ->where('status', 'aktif')
             ->whereDoesntHave('koperasi')
-            ->whereHas('profile', fn ($q) => $q->whereIn('employee_type_id', $eligibleTypeIds))
-            ->orderByName()
+            ->whereIn('employee_type_id', $eligibleTypeIds)
+            ->orderBy('nama_lengkap')
             ->get();
     }
 
@@ -116,19 +117,19 @@ class KoperasiPage extends Component
 
     public function getCanCreateKoperasiProperty(): bool
     {
-        return Auth::user()->can('create', UserKoperasi::class);
+        return Auth::user()->can('create', EmployeeKoperasi::class);
     }
 
     public function getCanUpdateKoperasiProperty(): bool
     {
-        return Auth::user()->can('update', UserKoperasi::class);
+        return Auth::user()->can('update', EmployeeKoperasi::class);
     }
 
     public function openAddModal(): void
     {
-        abort_unless(Auth::user()->can('create', UserKoperasi::class), 403);
+        abort_unless(Auth::user()->can('create', EmployeeKoperasi::class), 403);
 
-        $this->addUserId = null;
+        $this->addEmployeeId = null;
         $this->addAmount = null;
         $this->resetErrorBag();
         $this->showAddModal = true;
@@ -141,20 +142,20 @@ class KoperasiPage extends Component
 
     public function saveAdd(): void
     {
-        abort_unless(Auth::user()->can('create', UserKoperasi::class), 403);
+        abort_unless(Auth::user()->can('create', EmployeeKoperasi::class), 403);
 
         $this->validate([
-            'addUserId' => 'required|exists:users,id',
+            'addEmployeeId' => 'required|exists:employees,id',
             'addAmount' => 'required|numeric|min:0.01',
         ], [], [
-            'addUserId' => 'karyawan',
+            'addEmployeeId' => 'karyawan',
             'addAmount' => 'nominal',
         ]);
 
-        $user = User::findOrFail($this->addUserId);
+        $employee = Employee::findOrFail($this->addEmployeeId);
 
         abort_unless(
-            PayrollComponentRecipient::isEligible($user->company_id, PayrollComponentEnum::KOPERASI->value, $user->profile?->employee_type_id),
+            PayrollComponentRecipient::isEligible($employee->company_id, PayrollComponentEnum::KOPERASI->value, $employee->employee_type_id),
             403,
             'Tipe karyawan ini belum terdaftar sebagai penerima Koperasi di halaman Penerima Komponen Gaji.'
         );
@@ -162,17 +163,17 @@ class KoperasiPage extends Component
         // Dropdown "availableUsers" sudah exclude karyawan yang sudah jadi anggota, tapi itu
         // cuma filter tampilan — bukan jaminan atomik (dua tab/klik ganda bisa lolos bareng
         // sebelum salah satu commit). Cek eksplisit di sini + constraint unique di DB
-        // (user_koperasi.user_id) yang jadi jaminan sesungguhnya: SATU baris per karyawan,
+        // (employee_koperasi.employee_id) yang jadi jaminan sesungguhnya: SATU baris per karyawan,
         // tidak ditimpa diam-diam kalau ternyata sudah ada.
         abort_if(
-            UserKoperasi::where('user_id', $this->addUserId)->exists(),
+            EmployeeKoperasi::where('employee_id', $this->addEmployeeId)->exists(),
             409,
             'Karyawan ini sudah jadi anggota koperasi — ubah nominalnya dari daftar, bukan tambah lagi.'
         );
 
         try {
-            UserKoperasi::create([
-                'user_id' => $this->addUserId,
+            EmployeeKoperasi::create([
+                'employee_id' => $this->addEmployeeId,
                 'amount' => $this->addAmount,
                 'is_active' => true,
             ]);
@@ -193,7 +194,7 @@ class KoperasiPage extends Component
 
     public function openEditModal(?string $id = null): void
     {
-        abort_unless(Auth::user()->can('update', $id ? UserKoperasi::findOrFail($id) : UserKoperasi::class), 403);
+        abort_unless(Auth::user()->can('update', $id ? EmployeeKoperasi::findOrFail($id) : EmployeeKoperasi::class), 403);
 
         $this->editingIds = $id ? [$id] : $this->selected;
 
@@ -213,7 +214,7 @@ class KoperasiPage extends Component
 
     public function saveEdit(): void
     {
-        abort_unless(Auth::user()->can('update', UserKoperasi::class), 403);
+        abort_unless(Auth::user()->can('update', EmployeeKoperasi::class), 403);
 
         $this->validate([
             'editAmount' => 'required|numeric|min:0.01',
@@ -225,8 +226,8 @@ class KoperasiPage extends Component
         // 'amount' di-cast PayrollEncrypted, cuma jalan lewat ->save()/->update() PER INSTANCE.
         // Mass update query builder melewati cast sama sekali, nulis nominal PLAINTEXT mentah
         // ke kolom yang seharusnya terenkripsi (bug ditemukan 2026-08-20).
-        UserKoperasi::whereIn('id', $this->editingIds)->get()->each(
-            fn (UserKoperasi $member) => $member->update(['amount' => $this->editAmount])
+        EmployeeKoperasi::whereIn('id', $this->editingIds)->get()->each(
+            fn (EmployeeKoperasi $member) => $member->update(['amount' => $this->editAmount])
         );
 
         $this->showEditModal = false;
@@ -243,7 +244,7 @@ class KoperasiPage extends Component
 
     public function toggleActive(string $id): void
     {
-        $member = UserKoperasi::findOrFail($id);
+        $member = EmployeeKoperasi::findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $member), 403);
 
@@ -252,7 +253,7 @@ class KoperasiPage extends Component
 
     public function removeMember(string $id): void
     {
-        $member = UserKoperasi::findOrFail($id);
+        $member = EmployeeKoperasi::findOrFail($id);
 
         abort_unless(Auth::user()->can('delete', $member), 403);
 
@@ -267,7 +268,7 @@ class KoperasiPage extends Component
 
     public function openImportModal(): void
     {
-        abort_unless(Auth::user()->can('create', UserKoperasi::class) && Auth::user()->can('update', UserKoperasi::class), 403);
+        abort_unless(Auth::user()->can('create', EmployeeKoperasi::class) && Auth::user()->can('update', EmployeeKoperasi::class), 403);
 
         $this->reset('importFile', 'importErrors');
         $this->resetErrorBag();
@@ -281,7 +282,7 @@ class KoperasiPage extends Component
 
     public function import(): void
     {
-        abort_unless(Auth::user()->can('create', UserKoperasi::class) && Auth::user()->can('update', UserKoperasi::class), 403);
+        abort_unless(Auth::user()->can('create', EmployeeKoperasi::class) && Auth::user()->can('update', EmployeeKoperasi::class), 403);
         $this->lockCompanyIdUnlessAllowed(CustomPermissionEnum::SISTEM_KEUANGAN);
 
         $this->validate(['importFile' => 'required|file|mimes:xlsx,xls,csv|max:5120'], [], ['importFile' => 'file']);

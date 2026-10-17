@@ -45,7 +45,7 @@ class RoleFormPermissionGroupingTest extends TestCase
 
     /**
      * SISTEM_* (portal karyawan) + permission anaknya (EDIT_* custom, atau Shield Verb:Subject
-     * buat model tanpa Filament Resource mis. UserKoperasi) harus jatuh ke field key
+     * buat model tanpa Filament Resource mis. EmployeeKoperasi) harus jatuh ke field key
      * "portal_{sistem}_has_permissions" yang SAMA baik saat render (RoleForm) maupun preload
      * (EditRole::mutateFormDataBeforeFill) — kalau field key-nya beda, checkbox tampil kosong
      * walau role sudah punya permission itu (lihat komentar di EditRole.php).
@@ -62,7 +62,7 @@ class RoleFormPermissionGroupingTest extends TestCase
         );
         $this->assertSame(
             'portal_sistem_keuangan_has_permissions',
-            RoleForm::fieldKeyFor('Create:UserKoperasi')
+            RoleForm::fieldKeyFor('Create:EmployeeKoperasi')
         );
 
         // Permission Shield biasa (bukan anak SISTEM_*) tetap dikelompokkan per Subject seperti biasa.

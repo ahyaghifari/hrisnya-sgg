@@ -3,7 +3,8 @@
 namespace Tests\Feature\Payroll;
 
 use App\Livewire\Keuangan\ExecutiveAllowancesPage;
-use App\Models\Payroll\ExecutiveAllowance;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeExecutiveAllowance;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -21,10 +22,10 @@ class ExecutiveAllowancesPageEditEncryptionTest extends TestCase
 
     public function test_editing_allowance_keeps_amount_encrypted(): void
     {
-        Permission::firstOrCreate(['name' => 'ViewAny:ExecutiveAllowance', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Update:ExecutiveAllowance', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'ViewAny:EmployeeExecutiveAllowance', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Update:EmployeeExecutiveAllowance', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Exec Allowance Edit Test', 'guard_name' => 'web']);
-        $role->givePermissionTo(['ViewAny:ExecutiveAllowance', 'Update:ExecutiveAllowance']);
+        $role->givePermissionTo(['ViewAny:EmployeeExecutiveAllowance', 'Update:EmployeeExecutiveAllowance']);
         $admin = User::factory()->create();
         $admin->assignRole($role);
 
@@ -33,8 +34,8 @@ class ExecutiveAllowancesPageEditEncryptionTest extends TestCase
         $exec->forceFill(['id' => $execId, 'name' => 'Presiden Direktur Uji', 'email' => 'presdir-editenc@test.local', 'password' => bcrypt('secret'), 'nip' => '00096', 'is_active' => true]);
         $exec->save();
 
-        $allowance = ExecutiveAllowance::create([
-            'user_id' => $exec->id,
+        $allowance = EmployeeExecutiveAllowance::create([
+            'employee_id' => Employee::where('user_id', $exec->id)->value('id'),
             'component' => 'gaji_pokok',
             'type' => 'earning',
             'label' => 'Gaji Pokok',
@@ -48,7 +49,7 @@ class ExecutiveAllowancesPageEditEncryptionTest extends TestCase
             ->set('formAmount', '12000000')
             ->call('saveForm');
 
-        $raw = DB::table('executive_allowances')->where('id', $allowance->id)->value('amount');
+        $raw = DB::table('employee_executive_allowances')->where('id', $allowance->id)->value('amount');
         $this->assertFalse(is_numeric(trim((string) $raw)), 'amount tersimpan plaintext (angka mentah), harusnya ciphertext.');
         $this->assertSame(12_000_000.0, (float) $allowance->fresh()->amount);
     }

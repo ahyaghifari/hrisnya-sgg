@@ -4,7 +4,7 @@ namespace Tests\Feature\Payroll;
 
 use App\Models\Master\Companies;
 use App\Models\Master\Pangkats;
-use App\Models\Payroll\BpjsDependent;
+use App\Models\Employee\EmployeeBpjsDependent;
 use App\Models\Payroll\PangkatBpjsBasis;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
@@ -29,8 +29,8 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]);
 
         if ($dependentCount !== null) {
-            BpjsDependent::create([
-                'user_id' => $user->id,
+            EmployeeBpjsDependent::create([
+                'employee_id' => $user->employee->id,
                 'count' => $dependentCount,
                 'is_active' => $dependentActive,
             ]);

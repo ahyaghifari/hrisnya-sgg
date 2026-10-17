@@ -68,8 +68,8 @@
                                         <span class="box"><i class="fa-solid fa-check"></i></span>
                                     </span>
                                 </td>
-                                <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $member->user?->name ?? '-' }}</td>
-                                <td style="padding:9px 14px;white-space:nowrap;">{{ $member->user?->nip ?? '-' }}</td>
+                                <td style="padding:9px 14px;font-weight:600;white-space:nowrap;">{{ $member->employee?->nama_lengkap ?? '-' }}</td>
+                                <td style="padding:9px 14px;white-space:nowrap;">{{ $member->employee?->nip ?? '-' }}</td>
                                 <td style="padding:9px 14px;text-align:right;white-space:nowrap;">Rp {{ number_format($member->amount, 0, ',', '.') }}</td>
                                 <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                     @can('update', $member)
@@ -119,14 +119,14 @@
                     <div>
                         <label class="form-label">Karyawan</label>
                         <div wire:ignore>
-                            <select data-tom-select data-placeholder="-- Pilih Karyawan --" wire:model="addUserId">
+                            <select data-tom-select data-placeholder="-- Pilih Karyawan --" wire:model="addEmployeeId">
                                 <option value="">-- Pilih Karyawan --</option>
-                                @foreach ($this->availableUsers as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->nip }})</option>
+                                @foreach ($this->availableEmployees as $employee)
+                                    <option value="{{ $employee->id }}">{{ $employee->nama_lengkap }} ({{ $employee->nip }})</option>
                                 @endforeach
                             </select>
                         </div>
-                        @error('addUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('addEmployeeId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>

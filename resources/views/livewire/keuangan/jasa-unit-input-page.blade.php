@@ -57,14 +57,14 @@
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         @foreach ($rows as $i => $row)
                             @php
-                                $jasaOptions = $this->jasaOptionsFor($row['user_id']);
+                                $jasaOptions = $this->jasaOptionsFor($row['employee_id']);
                             @endphp
                             <div wire:key="jasa-unit-row-{{ $row['id'] ?? 'new-' . $i }}" style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;">
                                 <div style="flex:1;min-width:220px;" wire:ignore>
-                                    <select class="form-input" data-tom-select data-placeholder="-- Cari Karyawan --" style="font-size:12.5px;padding:7px 10px;" wire:model.live="rows.{{ $i }}.user_id">
+                                    <select class="form-input" data-tom-select data-placeholder="-- Cari Karyawan --" style="font-size:12.5px;padding:7px 10px;" wire:model.live="rows.{{ $i }}.employee_id">
                                         <option value="">-- Pilih Karyawan --</option>
-                                        @foreach ($this->eligibleEmployees as $user)
-                                            <option value="{{ $user->id }}" @selected($row['user_id'] === $user->id)>{{ $user->name }} ({{ $user->nip }})</option>
+                                        @foreach ($this->eligibleEmployees as $employee)
+                                            <option value="{{ $employee->id }}" @selected($row['employee_id'] === $employee->id)>{{ $employee->nama_lengkap }} ({{ $employee->nip }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -82,7 +82,7 @@
                                 @endif
 
                                 <div style="flex-basis:100%;">
-                                    @error("rows.{$i}.user_id") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
+                                    @error("rows.{$i}.employee_id") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
                                     @error("rows.{$i}.jasa_unit_type_id") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
                                     @error("rows.{$i}.amount") <p style="font-size:11px;color:#dc2626;margin:2px 0 0;">{{ $message }}</p> @enderror
                                 </div>

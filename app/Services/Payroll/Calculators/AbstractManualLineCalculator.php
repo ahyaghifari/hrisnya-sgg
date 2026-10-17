@@ -16,7 +16,7 @@ use App\Models\User;
  * payroll_items — nama baris di slip pakai `label` per baris kalau diisi (mis. "Angsuran
  * Motor"), fallback ke `componentLabel()` kalau kosong.
  *
- * Koperasi TIDAK lagi lewat sini (2026-08-22) - baca langsung dari `user_koperasi`, lihat
+ * Koperasi TIDAK lagi lewat sini (2026-08-22) - baca langsung dari `employee_koperasi`, lihat
  * KoperasiCalculator. Bon mode Simple juga TIDAK lewat sini - BonImport nulis langsung ke
  * payroll_items lewat PayrollService::applyManualRevision(). Cuma Bon mode Detail
  * (BonDetailImport) dan Insentif metode "import" yang masih pakai jalur payroll_manual_lines ini.

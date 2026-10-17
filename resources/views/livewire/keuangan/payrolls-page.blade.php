@@ -50,7 +50,7 @@
                         </button>
                     @endif
                     {{-- Koperasi sengaja DICABUT dari sini (bukan dihapus) — sudah ada tabel
-                         master `user_koperasi` (halaman Koperasi) yang otomatis sync ke
+                         master `employee_koperasi` (halaman Koperasi) yang otomatis sync ke
                          payroll_manual_lines tiap Generate, jadi input manual per periode di
                          sini jadi redundan. Disembunyikan dulu, bukan dihapus permanen. --}}
                     @if ($periodId)

@@ -46,7 +46,7 @@ return [
     'create_pengajuan_pelatihan' => 'Create:LmsCoursePlanItems', // confirmed via form section literally labeled "Pengajuan Pelatihan" in LmsCoursePlanItemForm.php
     'create_penilaian_karyawan' => 'Create:AssessmentUsers', // UserAssessmentResource (under AssessmentCluster) uses model AssessmentUsers
     'create_perubahan_status_karyawan' => 'Create:UserTransition',
-    'create_program_incentive' => 'Create:Incentive',
+    'create_program_incentive' => 'Create:EmployeeIncentive',
     'create_quiz' => 'Create:LmsQuizzes',
     'create_rencana_pelatihan' => 'Create:LmsCoursePlans',
     'create_role' => 'Create:Role',
@@ -86,7 +86,7 @@ return [
     'delete_penilaian_karyawan' => 'Delete:AssessmentUsers',
     'delete_penugasan_individu' => 'Delete:Task', // TaskRequestResource, navigationLabel "Penugasan Individu", model Task
     'delete_perubahan_status_karyawan' => 'Delete:UserTransition',
-    'delete_program_incentive' => 'Delete:Incentive',
+    'delete_program_incentive' => 'Delete:EmployeeIncentive',
     'delete_quiz' => 'Delete:LmsQuizzes',
     'delete_rencana_pelatihan' => 'Delete:LmsCoursePlans',
     'delete_role' => 'Delete:Role',
@@ -128,7 +128,7 @@ return [
     'edit_penilaian_karyawan' => 'Update:AssessmentUsers',
     'edit_penugasan_individu' => 'Update:Task',
     'edit_perubahan_status_karyawan' => 'Update:UserTransition',
-    'edit_program_incentive' => 'Update:Incentive',
+    'edit_program_incentive' => 'Update:EmployeeIncentive',
     'edit_quiz' => 'Update:LmsQuizzes',
     'edit_rencana_pelatihan' => 'Update:LmsCoursePlans',
     'edit_role' => 'Update:Role',
@@ -172,7 +172,7 @@ return [
     'view_penilaian_karyawan' => 'ViewAny:AssessmentUsers',
     'view_penugasan_individu' => 'ViewAny:Task',
     'view_perubahan_status_karyawan' => 'ViewAny:UserTransition',
-    'view_program_incentive' => 'ViewAny:Incentive',
+    'view_program_incentive' => 'ViewAny:EmployeeIncentive',
     'view_quiz' => 'ViewAny:LmsQuizzes',
     'view_rencana_pelatihan' => 'ViewAny:LmsCoursePlans',
     'view_report_data_absensi' => 'view_report_data_absensi', // self-map, lihat catatan di atas approve_manajemen_lowongan_kerja

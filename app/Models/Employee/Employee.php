@@ -108,6 +108,35 @@ class Employee extends Model
         return $this->belongsTo(User::class, 'user_id')->withoutGlobalScopes()->withTrashed();
     }
 
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Master\Companies::class, 'company_id');
+    }
+
+    /** Keanggotaan koperasi karyawan ini (potongan bulanan), kalau ada. */
+    public function koperasi(): HasOne
+    {
+        return $this->hasOne(EmployeeKoperasi::class);
+    }
+
+    /** Insentif karyawan ini (boleh banyak). */
+    public function incentives(): HasMany
+    {
+        return $this->hasMany(EmployeeIncentive::class);
+    }
+
+    /** Tanggungan BPJS Kesehatan karyawan ini, kalau ada. */
+    public function bpjsDependent(): HasOne
+    {
+        return $this->hasOne(EmployeeBpjsDependent::class);
+    }
+
+    /** Baris tunjangan/potongan manual eksekutif (hanya dua eksekutif payroll-eligible). */
+    public function executiveAllowances(): HasMany
+    {
+        return $this->hasMany(EmployeeExecutiveAllowance::class);
+    }
+
     public function religion(): BelongsTo
     {
         return $this->belongsTo(Religions::class, 'religion_id');

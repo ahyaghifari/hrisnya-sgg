@@ -11,7 +11,7 @@ use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
 use App\Models\Payroll\CompanyPayrollComponent;
-use App\Models\Payroll\JasaUnitDetail;
+use App\Models\Payroll\PayrollJasaUnitDetail;
 use App\Models\Payroll\JasaUnitType;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollPeriod;
@@ -117,7 +117,7 @@ class JasaUnitInputPageTest extends TestCase
 
         $component = Livewire::actingAs($viewer)->test(JasaUnitInputPage::class);
 
-        $jasaForStaffIgd = $component->instance()->jasaOptionsFor($staffIgd->id);
+        $jasaForStaffIgd = $component->instance()->jasaOptionsFor($staffIgd->employee->id);
         $this->assertCount(1, $jasaForStaffIgd);
         $this->assertSame('Jasa Perujuk Rawat', $jasaForStaffIgd->first()->name);
 
@@ -133,7 +133,7 @@ class JasaUnitInputPageTest extends TestCase
         Livewire::actingAs($viewer)->test(JasaUnitInputPage::class)
             ->call('addRow')
             ->set('rows.0.jasa_unit_type_id', 'some-jasa-id')
-            ->set('rows.0.user_id', 'some-user-id')
+            ->set('rows.0.employee_id', 'some-employee-id')
             ->assertSet('rows.0.jasa_unit_type_id', null);
     }
 
@@ -159,13 +159,13 @@ class JasaUnitInputPageTest extends TestCase
         Livewire::actingAs($viewer)->test(JasaUnitInputPage::class)
             ->set('periodId', $period->id)
             ->call('addRow')
-            ->set('rows.0.user_id', $staff->id)
+            ->set('rows.0.employee_id', $staff->employee->id)
             ->set('rows.0.jasa_unit_type_id', $jasa->id)
             ->set('rows.0.amount', '150000')
             ->call('save');
 
-        $detail = JasaUnitDetail::where('payroll_period_id', $period->id)
-            ->where('user_id', $staff->id)
+        $detail = PayrollJasaUnitDetail::where('payroll_period_id', $period->id)
+            ->where('employee_id', $staff->employee->id)
             ->where('jasa_unit_type_id', $jasa->id)
             ->first();
         $this->assertNotNull($detail);
