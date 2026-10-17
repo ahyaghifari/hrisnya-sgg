@@ -63,7 +63,7 @@
             <div style="margin-bottom:14px;max-width:220px;">
                 <label class="form-label">JP Final</label>
                 <input type="number" min="1" class="form-input" wire:model="jp">
-                <p style="font-size:11.5px;color:var(--text-muted);margin:4px 0 0;">Saran sistem {{ $suggestedJp }} JP ({{ $minutes }} menit / {{ $perJp }}).</p>
+                <p style="font-size:11.5px;color:var(--text-muted);margin:4px 0 0;">Saran sistem {{ $suggestedJp }} JP = {{ $perJp }} / menit.</p>
                 @error('jp') <p style="color:var(--danger-text);font-size:12px;margin-top:4px;">{{ $message }}</p> @enderror
             </div>
         @endif
