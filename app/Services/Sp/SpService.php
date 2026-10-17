@@ -318,6 +318,21 @@ class SpService
     }
 
     /**
+     * Level yang boleh diterbitkan untuk karyawan: harus di atas SP aktif tertingginya
+     * (SP1 aktif -> SP2/SP3, SP2 aktif -> SP3, SP3 aktif -> tetap SP3).
+     *
+     * @return array<int, SpLevel>
+     */
+    public function allowedLevels(string $userId): array
+    {
+        $rank = ['sp1' => 1, 'sp2' => 2, 'sp3' => 3];
+        $top = EmployeeSp::active()->issued()->where('user_id', $userId)->get()
+            ->max(fn ($sp) => $rank[$sp->sp_level->value]) ?? 0;
+
+        return array_values(array_filter(SpLevel::cases(), fn ($l) => $rank[$l->value] > $top || $l === SpLevel::SP3));
+    }
+
+    /**
      * Cache tampilan widget Karir (§3.5) - active_sp_level diambil dari SP aktif TERTINGGI.
      * merit_point sengaja TIDAK disentuh di sini (dikelola terpisah oleh alur merit_point_transactions).
      */
