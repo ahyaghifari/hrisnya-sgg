@@ -6,7 +6,6 @@ use App\Enum\AttendanceReqStatus;
 use App\Enum\AttendanceStatus;
 use App\Enum\CustomPermissionEnum;
 use App\Enum\EmployeeTypeCategory;
-use App\Enum\Kepegawaian\KepegawaianSettingEnum;
 use App\Enum\UserProfileDocumentType;
 use App\Livewire\Concerns\HandlesProfilePhotoUpload;
 use App\Livewire\Concerns\ResolvesTodayAttendanceStatus;
@@ -17,10 +16,8 @@ use App\Models\Attendance\AttendanceRequests;
 use App\Models\Employee\EmployeeNakesDocument;
 use App\Models\Master\Religions;
 use App\Models\Payroll\Payroll;
-use App\Models\Setting;
 use App\Models\User;
 use App\Models\User\UserProfileDocument;
-use App\Models\UserHrBalance;
 use App\Services\Attendance\AttendaceReqService;
 use App\Services\Attendance\AttendancePeriodResolver;
 use App\Services\OrgHierarchyService;
@@ -500,19 +497,11 @@ class EmployeeStatistics extends Component
     public function getCanViewPembinaanTabProperty(): bool
     {
         // Profil sendiri: daftar pembinaan ada di halaman "Pembinaan Saya", bukan tab ini.
-        return ! $this->isOwnProfile && ($this->canViewMeritWidget
+        return ! $this->isOwnProfile && (Auth::user()->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value)
             || app(OrgHierarchyService::class)
                 ->subordinates(Auth::user())
                 ->whereKey($this->record->id)
                 ->exists());
-    }
-
-    /** Gerbang lama tab Pembinaan (pemilik akun / SISTEM_PEMBINAAN_KARYAWAN) — sekarang khusus
-     * widget Merit Point + SP, atasan biasa tetap TIDAK lihat. */
-    public function getCanViewMeritWidgetProperty(): bool
-    {
-        return $this->record->id === Auth::id()
-            || Auth::user()->can(CustomPermissionEnum::SISTEM_PEMBINAAN_KARYAWAN->value);
     }
 
     /** Riwayat coaching di mana karyawan ini yang dibina (user_id). Di-scope ke record juga di
@@ -528,242 +517,6 @@ class EmployeeStatistics extends Component
             ->with('coachBy')
             ->latest()
             ->get();
-    }
-
-    /**
-     * Kill-switch GLOBAL sementara (instruksi user 2026-09-23) - widget Merit Point + SP di tab
-     * Karir belum siap tampil ke semua company (permission SISTEM_PEMBINAAN_KARYAWAN belum
-     * di-assign ke role selain Super Admin, lihat percakapan Hak Akses). Set true lagi kalau
-     * sudah siap rilis - fitur di baliknya (SpService, MeritPointService, dst) tidak disentuh,
-     * ini murni sembunyikan tampilan.
-     */
-    public function getShowSpMeritWidgetProperty(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Widget Merit Point + SP di tab Karir (planning/2026-09-23-sp-dan-merit-point.md §3.6) -
-     * cache tampilan, sama gerbang dengan tab Pembinaan (canViewPembinaanTab: pemilik akun atau
-     * pemegang SISTEM_PEMBINAAN_KARYAWAN). Baca dari user_hr_balances (cache) - SESUAI DESAIN,
-     * bukan live-query, widget ini murni tampilan bukan validasi bisnis (lihat §3.5).
-     */
-    public function getHrBalanceProperty(): ?UserHrBalance
-    {
-        if (! $this->showSpMeritWidget || ! $this->canViewMeritWidget) {
-            return null;
-        }
-
-        return UserHrBalance::where('user_id', $this->record->id)->first();
-    }
-
-    /** Merit Point aktif per company lewat Pengaturan Kepegawaian (KepegawaianSettingEnum::MERIT_POINT_ENABLED).
-     * Fallback kalau baris settings belum ada = default enum (false), sama seperti MeritPointRuleResource &
-     * MeritPointTransactionResource - dulu fallback-nya true sehingga "Poin Anda" tampil walau belum pernah diaktifkan. */
-    public function getMeritPointEnabledProperty(): bool
-    {
-        return (bool) Setting::resolve(
-            KepegawaianSettingEnum::MERIT_POINT_ENABLED->value,
-            $this->record->company_id,
-            filter_var(KepegawaianSettingEnum::MERIT_POINT_ENABLED->default(), FILTER_VALIDATE_BOOLEAN)
-        );
-    }
-
-    // ── Riwayat Merit Point (panel, bukan halaman terpisah - instruksi user 2026-09-25) ──
-    public bool $showMeritHistoryModal = false;
-
-    public function getMeritHistoryProperty()
-    {
-        if (! $this->showMeritHistoryModal) {
-            return collect();
-        }
-
-        return \App\Models\MeritPoint\MeritPointTransaction::where('user_id', $this->record->id)
-            ->with('rule')
-            ->latest('created_at')
-            ->get();
-    }
-
-    public function openMeritHistoryModal(): void
-    {
-        abort_unless($this->meritPointEnabled && $this->record->id === Auth::id(), 403);
-
-        $this->showMeritHistoryModal = true;
-    }
-
-    public function closeMeritHistoryModal(): void
-    {
-        $this->showMeritHistoryModal = false;
-    }
-
-    // ── Info Aturan Merit Point (panel read-only, instruksi user 2026-09-27) ── Daftar semua
-    // rule aktif (manual & otomatis) company ini, supaya siapa pun yang lihat widget - diri
-    // sendiri ATAU orang lain - tahu persis kejadian apa dapat berapa poin (mis. "Terlambat -1",
-    // "Ikut Pelatihan +5"), tanpa perlu buka Pengaturan Kepegawaian. Cuma informasi, tidak ada
-    // permission khusus - siapa pun yang bisa lihat widget ($showMeritBeside di blade) boleh buka.
-    public bool $showMeritRulesInfoModal = false;
-
-    public function getMeritRulesInfoProperty()
-    {
-        if (! $this->showMeritRulesInfoModal) {
-            return collect();
-        }
-
-        return \App\Models\MeritPoint\MeritPointRule::where('company_id', $this->record->company_id)
-            ->where('is_active', true)
-            ->orderBy('trigger_type')
-            ->orderBy('name')
-            ->get();
-    }
-
-    public function openMeritRulesInfoModal(): void
-    {
-        abort_unless($this->meritPointEnabled, 403);
-
-        $this->showMeritRulesInfoModal = true;
-    }
-
-    public function closeMeritRulesInfoModal(): void
-    {
-        $this->showMeritRulesInfoModal = false;
-    }
-
-    // ── Transaksi Merit Point Modal ── Rule ATAU manual bebas (dikembalikan 2026-09-27 - user
-    // sempat minta manual dihapus, tapi berubah pikiran, tab manual balik lagi).
-    public bool $showMeritTransactionModal = false;
-    public string $meritTab = 'rule';
-    public ?string $merit_rule_id = null;
-    public string $merit_manual_type = 'add';
-    public ?int $merit_points = null;
-    public string $merit_reason = '';
-
-    // Satu permission custom (BERI_MERIT_POINT), bukan lagi 7 verb Shield Create:MeritPointTransaction
-    // dkk (MeritPointTransactionResource dihapus 2026-09-27) - Super Admin & role Pembinaan sudah
-    // di-grant literal lewat migration, jadi cukup 1 cek di sini (define_via_gate=false, tidak ada
-    // bypass otomatis, lihat App\Enum\CustomPermissionEnum::BERI_MERIT_POINT). Tidak boleh beri
-    // poin ke DIRI SENDIRI walau punya permission-nya (instruksi user 2026-09-27) - dicek di sini
-    // (bukan cuma sembunyikan tombol) karena property ini juga jadi abort_unless() di
-    // openMeritTransactionModal()/saveMeritTransaction(), jadi otomatis kena di server juga.
-    public function getCanCreateMeritTransactionProperty(): bool
-    {
-        $user = Auth::user();
-
-        return $user && $user->id !== $this->record->id && $user->can(CustomPermissionEnum::BERI_MERIT_POINT->value);
-    }
-
-    /** Cuma rule MANUAL - rule Otomatis (trigger_type=automatic) dikelola sendiri oleh sistem
-     * lewat MeritPointService::applyEvent(), tidak boleh dipilih untuk diberikan manual di sini
-     * (bisa dobel dengan yang otomatis). */
-    public function getMeritPointRulesProperty()
-    {
-        $companyId = $this->record->company_id;
-
-        return \App\Models\MeritPoint\MeritPointRule::query()
-            ->where('is_active', true)
-            ->where('trigger_type', \App\Enum\MeritPoint\MeritPointTriggerType::MANUAL->value)
-            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
-            ->get();
-    }
-
-    public function openMeritTransactionModal(): void
-    {
-        abort_unless($this->meritPointEnabled && $this->canCreateMeritTransaction, 403);
-
-        $this->resetMeritForm();
-        $this->showMeritTransactionModal = true;
-    }
-
-    public function closeModalMeritTransaction(): void
-    {
-        $this->showMeritTransactionModal = false;
-        $this->resetMeritForm();
-    }
-
-    private function resetMeritForm(): void
-    {
-        $this->meritTab = 'rule';
-        $this->merit_rule_id = null;
-        $this->merit_manual_type = 'add';
-        $this->merit_points = null;
-        $this->merit_reason = '';
-        $this->resetErrorBag();
-    }
-
-    public function updatedMeritRuleId($value): void
-    {
-        if ($value) {
-            $rule = \App\Models\MeritPoint\MeritPointRule::find($value);
-            if ($rule && empty($this->merit_reason)) {
-                $this->merit_reason = $rule->name;
-            }
-        }
-    }
-
-    public function saveMeritTransaction(): void
-    {
-        abort_unless($this->meritPointEnabled && $this->canCreateMeritTransaction, 403);
-
-        if ($this->meritTab === 'rule') {
-            $this->validate([
-                'merit_rule_id' => ['required', 'exists:merit_point_rules,id'],
-                'merit_reason' => ['required', 'string', 'max:500'],
-            ], [
-                'merit_rule_id.required' => 'Silakan pilih aturan Merit Point.',
-                'merit_rule_id.exists' => 'Aturan tidak ditemukan.',
-                'merit_reason.required' => 'Keterangan/catatan wajib diisi.',
-            ]);
-
-            // findOrFail lewat meritPointRules (bukan MeritPointRule::findOrFail polos) - jaga
-            // rule yang dipilih benar rule MANUAL milik company ini, bukan hasil payload
-            // dimanipulasi (mis. ID rule Otomatis company lain).
-            $rule = $this->meritPointRules->firstWhere('id', $this->merit_rule_id);
-
-            if (! $rule) {
-                $this->addError('merit_rule_id', 'Aturan tidak ditemukan.');
-
-                return;
-            }
-
-            // effectivePoints(), bukan $rule->points polos - rule Reward yang punya bonus_points
-            // dipetakan ke poin bonus (bukan poin biasa) kalau saldo karyawan sudah >= 100.
-            $points = app(\App\Services\MeritPoint\MeritPointService::class)->effectivePoints($rule, $this->record->id);
-            $ruleId = $rule->id;
-        } else {
-            $this->validate([
-                'merit_manual_type' => ['required', 'in:add,subtract'],
-                'merit_points' => ['required', 'integer', 'min:1', 'max:100'],
-                'merit_reason' => ['required', 'string', 'max:500'],
-            ], [
-                'merit_manual_type.required' => 'Pilih jenis transaksi (tambah/kurang).',
-                'merit_points.required' => 'Jumlah poin wajib diisi.',
-                'merit_points.integer' => 'Jumlah poin harus berupa angka bulat.',
-                'merit_points.min' => 'Poin minimal 1.',
-                'merit_points.max' => 'Poin maksimal 100.',
-                'merit_reason.required' => 'Keterangan/catatan wajib diisi.',
-            ]);
-
-            $points = $this->merit_manual_type === 'subtract'
-                ? -abs((int) $this->merit_points)
-                : abs((int) $this->merit_points);
-            $ruleId = null;
-        }
-
-        app(\App\Services\MeritPoint\MeritPointService::class)->addTransaction([
-            'user_id' => $this->record->id,
-            'rule_id' => $ruleId,
-            'points' => $points,
-            'reason' => $this->merit_reason,
-            'created_by' => Auth::id(),
-        ]);
-
-        $this->showMeritTransactionModal = false;
-        $this->resetMeritForm();
-        $this->record->refresh();
-
-        Notification::make()
-            ->title('Transaksi Merit Point berhasil disimpan')
-            ->success()
-            ->send();
     }
 
     /** Pemilik akun selalu boleh; selain itu HC (`sistem_kepegawaian`, dibatasi company sendiri

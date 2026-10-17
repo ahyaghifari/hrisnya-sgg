@@ -53,8 +53,7 @@
     ResolvesTodayAttendanceStatus::resolveAttendanceWindow(). Tombol ikon info di pojok kanan
     atas (request user - bukan pill berteks lagi), buka modal detail lengkap. Alpine murni,
     tidak perlu round-trip Livewire karena datanya sudah ada di $status sejak render awal.
-    Transisi modal niru pola merit-modal-* di employee-statistics.blade.php (fade overlay + pop
-    di desktop, slide dari bawah di HP) tapi lewat Alpine x-transition karena elemen ini TETAP
+    Transisi modal: fade overlay + pop di desktop, slide dari bawah di HP tapi lewat Alpine x-transition karena elemen ini TETAP
     di DOM (x-show toggle display, bukan ditambah/dibuang Livewire @if) - CSS @keyframes/animation
     cuma jalan sekali saat mount, tidak re-trigger tiap dibuka-tutup. --}}
     {{-- Sync presensi sendiri hari ini (ResyncsOwnAttendance::syncMyToday) - di kiri tombol info

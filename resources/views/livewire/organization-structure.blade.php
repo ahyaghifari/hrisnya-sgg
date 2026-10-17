@@ -14,7 +14,7 @@
 <livewire:organization-chart-widget :company-id="$companyId" :key="'org-chart-'.$companyId" />
 
 {{-- Panel detail jabatan - slide dari kanan (docked di desktop, full-screen di HP, sama pola
-dengan panel Riwayat Merit Point/Riwayat Perubahan Data di employee-statistics.blade.php), pakai
+dengan panel Riwayat Perubahan Data di employee-statistics.blade.php), pakai
 warna tema situs sendiri (var(--surface) dkk, ikut dark mode) - sebelumnya x-filament::section
 bawaan Filament (primary-*/gray-*), kepakai di sini walau bukan admin panel jadi tampilannya
 nyempil sendiri & tidak ikut dark mode. Alpine (bukan Livewire @if polos) sengaja dipertahankan -

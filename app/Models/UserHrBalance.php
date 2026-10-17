@@ -10,8 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Cache tampilan widget Karir (planning/2026-09-23-sp-dan-merit-point.md §3.5) - BUKAN sumber
- * kebenaran. Semua validasi/keputusan bisnis WAJIB live-query ke employee_sps/
- * merit_point_transactions, bukan baca model ini.
+ * kebenaran. Semua validasi/keputusan bisnis WAJIB live-query ke employee_sps, bukan baca model ini.
  */
 class UserHrBalance extends Model
 {
@@ -23,13 +22,11 @@ class UserHrBalance extends Model
 
     protected $fillable = [
         'user_id',
-        'merit_point',
         'active_sp_level',
         'active_sp_id',
     ];
 
     protected $casts = [
-        'merit_point' => 'integer',
         'active_sp_level' => SpLevel::class,
     ];
 

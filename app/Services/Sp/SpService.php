@@ -2,9 +2,7 @@
 
 namespace App\Services\Sp;
 
-use App\Enum\MeritPoint\MeritPointEvent;
 use App\Enum\Pembinaan\PembinaanSettingEnum;
-use App\Services\MeritPoint\MeritPointService;
 use App\Enum\Sp\SpLevel;
 use App\Enum\Sp\SpRecommendationDecision;
 use App\Models\Setting;
@@ -66,8 +64,8 @@ class SpService
      *  (tidak ada langkah draft di jalur itu). */
     public function afterIssued(EmployeeSp $employeeSp): void
     {
-        // TTD digital ditahan: terbit = dokumen dikunci (FIX) + yang mengetahui dikabari. Efek SP (saldo, merit
-        // point, notifikasi karyawan) berlaku saat berkas bertanda tangan diunggah (uploadSigned).
+        // TTD digital ditahan: terbit = dokumen dikunci (FIX) + yang mengetahui dikabari. Efek SP (saldo,
+        // notifikasi karyawan) berlaku saat berkas bertanda tangan diunggah (uploadSigned).
         if (! SpReportService::digitalSigningEnabled()) {
             $this->signCreatedByAndNotifyKnowsBy($employeeSp);
 
@@ -81,26 +79,12 @@ class SpService
             User::find($employeeSp->user_id)?->notify(new SpIssued($employeeSp));
         }
 
-        $this->applyMerit($employeeSp);
-
         $this->signCreatedByAndNotifyKnowsBy($employeeSp);
-    }
-
-    private function applyMerit(EmployeeSp $employeeSp): void
-    {
-        app(MeritPointService::class)->applyEvent(
-            MeritPointEvent::from($employeeSp->sp_level->value),
-            $employeeSp->user_id,
-            $employeeSp->company_id,
-            'employee_sp',
-            $employeeSp->id,
-            'Penerbitan ' . $employeeSp->sp_level->name,
-        );
     }
 
     /**
      * Unggah SP yang sudah ditandatangani langsung (pengganti TTD digital yang ditahan). Unggahan pertama
-     * meresmikan SP: saldo/level aktif diperbarui, merit point diterapkan, karyawan dikabari. Berkas boleh
+     * meresmikan SP: saldo/level aktif diperbarui, karyawan dikabari. Berkas boleh
      * diganti sesudahnya selama SP belum dibatalkan.
      */
     public function uploadSigned(EmployeeSp $employeeSp, User $actor, \Illuminate\Http\UploadedFile $file): void
@@ -136,7 +120,6 @@ class SpService
 
         if ($first) {
             $this->refreshBalance($employeeSp->user_id);
-            $this->applyMerit($employeeSp);
             User::find($employeeSp->user_id)?->notify(new SpIssued($employeeSp->fresh()));
         }
     }
@@ -199,7 +182,7 @@ class SpService
     /**
      * Revisi SP yang sudah terbit walau sebagian sudah menandatangani (hanya sebelum semua TTD selesai):
      * tanda tangan dibatalkan (jejak di event dokumen) dan dokumen dibuka untuk diedit. Penerbitan efek
-     * (merit point, notifikasi karyawan) TIDAK diulang; pembuat menandatangani ulang lewat reissue().
+     * (notifikasi karyawan) TIDAK diulang; pembuat menandatangani ulang lewat reissue().
      * BA lama yang ikut paket SP ikut dibuka.
      */
     public function revise(EmployeeSp $employeeSp, User $actor, string $reason): void
@@ -262,8 +245,6 @@ class SpService
         }
 
         $this->refreshBalance($employeeSp->user_id);
-
-        app(MeritPointService::class)->revokeEvent($employeeSp->user_id, 'employee_sp', $employeeSp->id);
     }
 
     /**
@@ -334,7 +315,6 @@ class SpService
 
     /**
      * Cache tampilan widget Karir (§3.5) - active_sp_level diambil dari SP aktif TERTINGGI.
-     * merit_point sengaja TIDAK disentuh di sini (dikelola terpisah oleh alur merit_point_transactions).
      */
     public function refreshBalance(string $userId): UserHrBalance
     {

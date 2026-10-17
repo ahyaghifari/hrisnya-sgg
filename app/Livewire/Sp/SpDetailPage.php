@@ -218,7 +218,7 @@ class SpDetailPage extends Component
 
     /** Password sendiri sebagai bukti konsen eksplisit created_by (Pasal 59 ayat 3 butir 6 PP
      *  71/2019), BARU benar-benar terbit: Document dibuat, ditandatangani created_by, knows_by
-     *  dinotif, merit point diterapkan, karyawan dinotif SP (semua di SpService::afterIssued()). */
+     *  dinotif, karyawan dinotif SP (semua di SpService::afterIssued()). */
     public function issue(): void
     {
         abort_unless($this->canIssue, 403);

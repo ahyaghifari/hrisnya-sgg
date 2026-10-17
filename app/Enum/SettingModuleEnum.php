@@ -24,7 +24,7 @@ enum SettingModuleEnum: string
             self::TASK => 'Tugas',
             self::LMS => 'LMS',
             self::KEPEGAWAIAN => 'Kepegawaian',
-            self::PEMBINAAN => 'Pembinaan (SP & Merit Point)',
+            self::PEMBINAAN => 'Pembinaan (SP)',
         };
     }
 }

@@ -56,16 +56,6 @@ enum CustomPermissionEnum: string
      * siapa saja. */
     case COACHING_KARYAWAN_LAINNYA = 'coaching_karyawan_lainnya';
 
-    /** Beri Merit Point ke karyawan (modal transaksi di tab Karir Profil Saya, lihat
-     * EmployeeStatistics::saveMeritTransaction()) - 1 permission custom, GANTI 7 verb Shield
-     * ViewAny/View/Create/Update/Delete/Restore/ForceDelete:MeritPointTransaction yang dulu
-     * dipakai (instruksi user 2026-09-27: transaksi cuma create+list polos, tidak butuh CRUD
-     * penuh sebuah subject Shield). MeritPointTransactionResource/Policy dihapus bareng ini -
-     * kelola RULE (bukan pemberian poinnya) tetap lewat MeritPointRule Shield permission biasa.
-     * Dikelompokkan 1 Fieldset bareng MeritPointRule di Hak Akses lewat
-     * RoleForm::customPermissionSubjectOverrides(). */
-    case BERI_MERIT_POINT = 'beri_merit_point';
-
     // Verb non-CRUD (approve/import/report) - dideklarasikan juga di
     // config/filament-shield.php 'custom_permissions' supaya Shield tidak menganggapnya yatim.
     // Sebelumnya dijaga lewat PermissionsSeeder.php lama (sudah dihapus), dipindah ke sini.
@@ -337,7 +327,6 @@ enum CustomPermissionEnum: string
             self::PENGAJUAN_ABSENSI_SAYA => 'Pengajuan Absensi Saya',
             self::PEMBINAAN_SAYA => 'Pembinaan Saya',
             self::COACHING_KARYAWAN_LAINNYA => 'Coaching Karyawan Lainnya (Semua Karyawan, Bukan Cuma Staff)',
-            self::BERI_MERIT_POINT => 'Beri Merit Point',
             self::VIEW_REPORT_DATA_ABSENSI => 'Lihat Laporan Data Absensi',
             self::APPROVE_PENGAJUAN_PELATIHAN => 'Approve Pengajuan Pelatihan',
             self::LIHAT_PERUSAHAAN_LAIN => 'Lihat Perusahaan Lain',

@@ -247,13 +247,6 @@ class RoleForm
             // 'Pembinaan' - row action Setujui/Tolak dicek lewat Update:SpRecommendation
             // (->authorize('update')), permission itu perlu ikut section yang sama.
             'SpRecommendation' => 'Pembinaan Karyawan',
-            // MeritPointRule (2026-09-23, masih DEMO): navigationGroup-nya 'Pembinaan', tapi
-            // dikelompokkan ke 'Kepegawaian' di Hak Akses atas instruksi user 2026-09-27 (beda
-            // dari Coaching/Counseling/EmployeeSp/SpRecommendation yang tetap di Pembinaan
-            // Karyawan). MeritPointTransaction dihapus 2026-09-27 - BERI_MERIT_POINT
-            // (customPermissionSubjectOverrides()) numpang subject ini juga, jadi keduanya 1
-            // Fieldset gabungan "Merit Point", bukan 2 section terpisah.
-            'MeritPointRule' => 'Kepegawaian',
             // Semua WidgetPermissionEnum (2026-08-19, instruksi user) numpuk di 1 subject
             // 'DashboardWidget' -> container "Dashboard Widget" - lihat
             // customPermissionSubjectOverrides() di bawah, subject-nya digenerate otomatis dari
@@ -303,10 +296,6 @@ class RoleForm
             // SubDivisionsResource - di tree/checkbox tampil sebagai satu node "Struktur
             // Organisasi", bukan label salah satu resource-nya (Departemen).
             'OrgStructure' => 'Struktur Organisasi',
-            // Label "Merit Point" (bukan "Aturan Merit Point") - subject ini sekarang menaungi
-            // dua hal: CRUD rule (Shield) + BERI_MERIT_POINT (custom, numpang subject ini lewat
-            // customPermissionSubjectOverrides()), jadi 1 Fieldset gabungan.
-            'MeritPointRule' => 'Merit Point',
             'EmployeeSp' => 'Surat Peringatan (SP)',
             'SpRecommendation' => 'Rekomendasi SP',
         ];
@@ -327,9 +316,6 @@ class RoleForm
         return [
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_STATISTIK->value => 'SikartapDashboard',
             CustomPermissionEnum::LIHAT_DASHBOARD_SIKARTAP_ANTRIAN_TAHAP->value => 'SikartapDashboard',
-            // BERI_MERIT_POINT numpang subject 'MeritPointRule' (bukan bikin subject/section
-            // sendiri) - 1 Fieldset gabungan "Merit Point" di Hak Akses (instruksi user 2026-09-27).
-            CustomPermissionEnum::BERI_MERIT_POINT->value => 'MeritPointRule',
             // Semua permission WidgetPermissionEnum otomatis ikut subject 'DashboardWidget'
             // (container "Dashboard Widget", lihat subjectContainerOverrides()) - generik dari
             // ::cases(), BUKAN didaftar satu-satu, supaya widget Dashboard baru ke depan
@@ -634,9 +620,8 @@ class RoleForm
 
                             // Build options with custom wording - lewat $labelFor() (bukan
                             // "$actionLabel $label" manual) supaya custom permission yang numpang
-                            // subject Shield ini (mis. BERI_MERIT_POINT numpang 'MeritPointRule'
-                            // lewat customPermissionSubjectOverrides()) tetap tampil label
-                            // aslinya ("Beri Merit Point"), bukan "beri_merit_point Merit Point".
+                            // subject Shield ini (lewat customPermissionSubjectOverrides()) tetap
+                            // tampil label aslinya.
                             $options = [];
                             foreach ($sortedPermissions as $permission) {
                                 $options[$permission->name] = $labelFor($permission->name);
