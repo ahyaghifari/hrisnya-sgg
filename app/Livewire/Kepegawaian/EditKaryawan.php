@@ -41,6 +41,7 @@ class EditKaryawan extends Component
         if ($profile) {
             $this->nickname = $profile->nickname ?? '';
             $this->is_dokter = (bool) $profile->is_dokter;
+            $this->is_dokter_umum = (bool) $profile->is_dokter_umum;
             $this->gender = $profile->gender;
             $this->marital_status = $profile->marital_status;
             $this->religion_id = $profile->religion_id;
@@ -99,6 +100,7 @@ class EditKaryawan extends Component
         $profileData = [
             'nickname' => $this->nickname ?: null,
             'is_dokter' => $this->is_dokter,
+            'is_dokter_umum' => $this->is_dokter && $this->is_dokter_umum,
             'gender' => $this->gender,
             'marital_status' => $this->marital_status,
             'place_of_birth' => $this->place_of_birth ?: null,

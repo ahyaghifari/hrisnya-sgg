@@ -315,6 +315,17 @@
                     Dokter
                 </label>
             </div>
+            @if ($is_dokter)
+                <div style="display:flex;align-items:flex-end;">
+                    <label class="accent-teal" style="display:flex;align-items:center;gap:9px;font-size:16px;font-weight:600;color:var(--text-body);cursor:pointer;padding-bottom:9px;">
+                        <span class="custom-checkbox" style="width:26px;height:26px;">
+                            <input type="checkbox" wire:model="is_dokter_umum">
+                            <span class="box"><i class="fa-solid fa-check" style="font-size:14px;"></i></span>
+                        </span>
+                        Dokter Umum
+                    </label>
+                </div>
+            @endif
         </div>
     </div>
 
