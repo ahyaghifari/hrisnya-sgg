@@ -75,8 +75,8 @@ class IncentiveCalculator implements PayrollComponentCalculator
 
     private function calculateFromLegacyGap(User $user, Payroll $payroll, PayrollContext $context): void
     {
-        $pangkatId = $user->profile?->pangkat_id;
-        $kelasId = $user->profile?->kelas_id;
+        $pangkatId = $user->employee?->pangkat_id;
+        $kelasId = $user->employee?->kelas_id;
 
         if (! $pangkatId || ! $kelasId) {
             return;

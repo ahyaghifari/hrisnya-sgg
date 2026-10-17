@@ -20,7 +20,7 @@ class TunjanganTransportasiCalculator implements PayrollComponentCalculator
 
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $kelasId = $user->profile?->kelas_id;
+        $kelasId = $user->employee?->kelas_id;
 
         if (! $kelasId) {
             return;

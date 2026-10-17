@@ -16,7 +16,7 @@ use App\Models\Payroll\JasaUnitType;
 use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
-use App\Models\User\UserJobPositions;
+
 use App\Models\User\UserProfiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -63,12 +63,8 @@ class JasaUnitInputPageTest extends TestCase
             'status' => 'approved',
         ]);
 
-        UserJobPositions::create([
-            'user_id' => $user->id,
-            'job_position_id' => $jobPosition->id,
-            'start_date' => now()->subYear(),
-            'status' => 'active',
-        ]);
+        // Jabatan sekarang dari employees.job_position_id, disalin dari profil lewat observer.
+        UserProfiles::updateOrCreate(['user_id' => $user->id], ['job_position_id' => $jobPosition->id]);
     }
 
     public function test_eligible_employees_list_is_not_scoped_to_any_division(): void

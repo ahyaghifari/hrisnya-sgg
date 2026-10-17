@@ -81,7 +81,7 @@ class PayrollService
      */
     public function slipPassword(User $user): ?string
     {
-        $dob = $user->profile?->date_of_birth;
+        $dob = $user->employee?->date_of_birth;
 
         if (! $dob || ! $user->nip) {
             return null;
@@ -806,7 +806,7 @@ class PayrollService
         // aktif di company ini tetap harus tampil sebagai baris Rp0 di slip meski tipe karyawan
         // ini belum terdaftar sebagai penerima (2026-08-02, per keputusan user: "penerima cuma
         // nentuin dia dapat uang atau tidak, bukan nentuin barisnya ada atau tidak").
-        $isEligible = PayrollComponentRecipient::isEligible($companyComponent->company_id, $companyComponent->component, $user->profile?->employee_type_id);
+        $isEligible = PayrollComponentRecipient::isEligible($companyComponent->company_id, $companyComponent->component, $user->employee?->employee_type_id);
 
         // Baris komponen ini sudah di-edit manual di payroll sebelumnya & sudah dibawa pindah
         // apa adanya ke payroll baru ini (lihat generateForEmployee()) - Calculator-nya WAJIB

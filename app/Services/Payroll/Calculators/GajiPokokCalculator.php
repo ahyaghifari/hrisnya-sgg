@@ -93,8 +93,8 @@ class GajiPokokCalculator implements PayrollComponentCalculator
     {
         // Gaji Pokok butuh Pangkat (jenjang jabatan) + Kelas (level dalam pangkat itu) - dua-duanya
         // FK opsional di UserProfiles, kalau salah satu kosong berarti data karyawan belum lengkap.
-        $pangkat = $user->profile?->pangkat;
-        $kelas = $user->profile?->kelas;
+        $pangkat = $user->employee?->pangkat;
+        $kelas = $user->employee?->kelas;
 
         // Tidak ada Pangkat/Kelas = tidak bisa hitung Gaji Pokok sama sekali, skip diam-diam
         // (karyawan itu memang belum eligible, bukan error).
@@ -113,7 +113,7 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         // kenaikan penuh cuma karena bukan Orientasi secara eksplisit. Docblock di atas bilang
         // "rate cuma berlaku Tetap & Kontrak" - null bukan salah satu dari itu, harus ikut
         // diblok sama seperti Orientasi.
-        $category = $user->profile?->employeeType?->category;
+        $category = $user->employee?->employeeType?->category;
         $rate = ($category === null || $category === EmployeeTypeCategory::ORIENTASI)
             ? 0.0
             : (GajiPokokKenaikanOverride::activeRateFor($user->employee?->id)

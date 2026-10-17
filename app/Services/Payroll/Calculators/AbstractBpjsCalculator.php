@@ -32,7 +32,7 @@ abstract class AbstractBpjsCalculator implements PayrollComponentCalculator
 
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $bpjsBasis = $user->profile?->pangkat?->bpjsBasis?->bpjs_basis;
+        $bpjsBasis = $user->employee?->pangkat?->bpjsBasis?->bpjs_basis;
 
         if (! $bpjsBasis) {
             return;

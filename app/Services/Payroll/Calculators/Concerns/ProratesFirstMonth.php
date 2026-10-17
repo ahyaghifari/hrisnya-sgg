@@ -35,8 +35,8 @@ trait ProratesFirstMonth
      */
     protected function firstMonthProrate(User $user, PayrollPeriod $period): ?array
     {
-        // Tanggal Bergabung - kolom string biasa di DB (bukan di-cast Carbon oleh model).
-        $joiningDate = $user->profile?->joining_date ? Carbon::parse($user->profile->joining_date) : null;
+        // Tanggal Bergabung - dibaca dari employees.joining_date (di-cast Carbon).
+        $joiningDate = $user->employee?->joining_date ? Carbon::parse($user->employee->joining_date) : null;
 
         // Syarat prorate: (1) Tanggal Bergabung ADA, (2) jatuh SETELAH awal periode (baru masuk
         // di tengah bulan, bukan sudah dari awal), (3) masih di dalam rentang periode ini.

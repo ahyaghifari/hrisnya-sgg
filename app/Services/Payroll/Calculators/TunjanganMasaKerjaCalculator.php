@@ -22,7 +22,7 @@ class TunjanganMasaKerjaCalculator implements PayrollComponentCalculator
 
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $joiningDate = $user->profile?->joining_date;
+        $joiningDate = $user->employee?->joining_date;
 
         if (! $joiningDate) {
             return;

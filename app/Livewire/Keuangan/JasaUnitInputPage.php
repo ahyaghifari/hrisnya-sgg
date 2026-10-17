@@ -162,7 +162,7 @@ class JasaUnitInputPage extends Component
             return collect();
         }
 
-        $orgStructureId = Employee::find($employeeId)?->user?->activeJobPosition?->jobPosition?->org_structure_id;
+        $orgStructureId = Employee::find($employeeId)?->jobPosition?->org_structure_id;
 
         if (! $orgStructureId) {
             return collect();

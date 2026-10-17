@@ -147,6 +147,11 @@ class Employee extends Model
         return $this->belongsTo(JobPositions::class, 'job_position_id');
     }
 
+    public function employeeType(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Master\EmployeeTypes::class, 'employee_type_id');
+    }
+
     public function pangkat(): BelongsTo
     {
         return $this->belongsTo(Pangkats::class, 'pangkat_id');

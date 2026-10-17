@@ -138,10 +138,10 @@ class ManualPayrollExcelImporter
             $totalNet += $row['net'];
 
             // Warning yang tidak memblokir import, cuma pemberitahuan sebelum kirim slip.
-            if (! $user->profile?->email_pribadi && ! $user->email) {
+            if (! $user->employee?->email_pribadi && ! $user->email) {
                 $warnings[] = ['type' => 'tanpa_email', 'nip' => $row['nip'], 'nama' => $user->name, 'detail' => 'Tidak punya email pribadi maupun email akun — slip tidak akan terkirim.'];
             }
-            if (! $user->profile?->date_of_birth) {
+            if (! $user->employee?->date_of_birth) {
                 $warnings[] = ['type' => 'tanpa_dob', 'nip' => $row['nip'], 'nama' => $user->name, 'detail' => 'Tanggal lahir kosong — password PDF slip tidak bisa dibuat, email di-skip.'];
             }
 

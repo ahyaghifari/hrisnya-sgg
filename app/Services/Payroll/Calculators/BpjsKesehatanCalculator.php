@@ -21,7 +21,7 @@ class BpjsKesehatanCalculator extends AbstractBpjsCalculator
      */
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
-        $joiningDate = $user->profile?->joining_date ? Carbon::parse($user->profile->joining_date) : null;
+        $joiningDate = $user->employee?->joining_date ? Carbon::parse($user->employee->joining_date) : null;
 
         if ($joiningDate && $joiningDate->gt($period->start_date) && $joiningDate->lte($period->end_date)) {
             PayrollItem::create([

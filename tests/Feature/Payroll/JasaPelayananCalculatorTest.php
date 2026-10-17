@@ -9,7 +9,7 @@ use App\Models\Payroll\OmsetDetail;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\User;
-use App\Models\User\UserJobPositions;
+use App\Models\User\UserProfiles;
 use App\Services\Payroll\Calculators\JasaPelayananCalculator;
 use App\Services\Payroll\Calculators\PayrollContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,12 +32,7 @@ class JasaPelayananCalculatorTest extends TestCase
         JobPositions::create(['company_id' => $company->id, 'name' => 'Dokter', 'planned_manpower' => 1, 'status' => 'approved', 'job_evaluation_score' => 700]);
 
         $user = User::factory()->create(['company_id' => $company->id]);
-        UserJobPositions::create([
-            'user_id' => $user->id,
-            'job_position_id' => $userPosition->id,
-            'start_date' => now()->subYear(),
-            'status' => 'active',
-        ]);
+        UserProfiles::create(['user_id' => $user->id, 'job_position_id' => $userPosition->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
@@ -62,12 +57,7 @@ class JasaPelayananCalculatorTest extends TestCase
         $userPosition = JobPositions::create(['company_id' => $company->id, 'name' => 'Perawat', 'planned_manpower' => 1, 'status' => 'approved', 'job_evaluation_score' => 300]);
 
         $user = User::factory()->create(['company_id' => $company->id]);
-        UserJobPositions::create([
-            'user_id' => $user->id,
-            'job_position_id' => $userPosition->id,
-            'start_date' => now()->subYear(),
-            'status' => 'active',
-        ]);
+        UserProfiles::create(['user_id' => $user->id, 'job_position_id' => $userPosition->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);

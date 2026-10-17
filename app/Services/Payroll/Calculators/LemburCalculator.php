@@ -45,7 +45,7 @@ class LemburCalculator implements PayrollComponentCalculator
 
         $baseRate = $metode === 'flat_per_jam'
             ? (float) Setting::resolve('lembur_rate_per_jam', $period->company_id, default: 0)
-            : (float) ($user->profile?->pangkat?->lemburRate?->amount_per_hour ?? 0);
+            : (float) ($user->employee?->pangkat?->lemburRate?->amount_per_hour ?? 0);
 
         if ($baseRate <= 0) {
             return;
