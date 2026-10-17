@@ -172,13 +172,13 @@ return [
 
     'kepegawaian.kontrak' => [
         'label' => 'Kontrak Karyawan',
-        'permission' => 'ViewAny:UserContract',
+        'permission' => 'ViewAny:EmployeeContract',
         'guard' => null,
     ],
 
     'kepegawaian.orientasi' => [
         'label' => 'Orientasi Karyawan',
-        'permission' => 'ViewAny:UserOrientation',
+        'permission' => 'ViewAny:EmployeeOrientation',
         'guard' => null,
     ],
 

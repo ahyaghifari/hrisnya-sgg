@@ -36,7 +36,7 @@ use Carbon\Carbon;
  * juga, dikonfirmasi user 2026-08-05 - awalnya cuma Gaji Pokok).
  *
  * Transisi Orientasi->Kontrak (instruksi user 2026-09-15) - setting `kontrak_prorate_metode`
- * company-scoped, CUMA berlaku bulan TTD kontrak (UserContract pertama milik user, dicari
+ * company-scoped, CUMA berlaku bulan TTD kontrak (kontrak pertama milik karyawan, employee_contracts, dicari
  * lewat OrientationService::followUpContract):
  * - 'penuh' (default, = perilaku lama tanpa perubahan): kapanpun tanggal TTD-nya, bulan itu
  *   langsung dibayar Kontrak penuh (rate normal, tanpa prorate) - employee_type sudah ke-flip

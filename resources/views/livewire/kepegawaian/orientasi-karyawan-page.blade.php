@@ -49,13 +49,13 @@
                     <div class="pwa-list-row">
                         <div class="pwa-tile-icon neutral"><i class="fa-solid fa-user-graduate"></i></div>
                         <div style="flex:1;min-width:0;">
-                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $o->user?->name ?? '-' }}</p>
+                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $o->employee?->nama_lengkap ?? '-' }}</p>
                             <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
                                 {{ $o->start_date?->format('d M Y') }} - {{ $o->end_date?->format('d M Y') }} &middot; {{ $o->duration_months }} bln
                             </p>
                             <p style="font-size:11px;color:var(--text-faint);margin-top:2px;">
                                 {{ $sourceLabels[$o->source] ?? ($o->source ?? '-') }}
-                                @if ($canBrowseAllCompanies && $o->user?->company?->name) &middot; {{ $o->user->company->name }} @endif
+                                @if ($canBrowseAllCompanies && $o->employee?->company?->name) &middot; {{ $o->employee->company->name }} @endif
                             </p>
                         </div>
                         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
@@ -96,7 +96,7 @@
                     @foreach ($rows as $o)
                         @php $isActive = $o->end_date && $o->end_date >= now()->startOfDay(); @endphp
                         <tr wire:key="orientation-{{ $o->id }}" style="border-bottom:1px solid var(--border-soft);">
-                            <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $o->user?->name ?? '-' }}</td>
+                            <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $o->employee?->nama_lengkap ?? '-' }}</td>
                             <td style="padding:9px 14px;white-space:nowrap;">{{ $o->start_date?->format('d M Y') }}</td>
                             <td style="padding:9px 14px;white-space:nowrap;">{{ $o->end_date?->format('d M Y') }}</td>
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">{{ $o->duration_months }} bln</td>
@@ -105,7 +105,7 @@
                                 <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $isActive ? 'rgba(4,124,84,0.1)' : 'rgba(220,38,38,0.1)' }};color:{{ $isActive ? '#047C54' : '#dc2626' }};">{{ $isActive ? 'Aktif' : 'Berakhir' }}</span>
                             </td>
                             @if ($canBrowseAllCompanies)
-                                <td style="padding:9px 14px;white-space:nowrap;">{{ $o->user?->company?->name ?? '-' }}</td>
+                                <td style="padding:9px 14px;white-space:nowrap;">{{ $o->employee?->company?->name ?? '-' }}</td>
                             @endif
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                 @if ($o->file_url)

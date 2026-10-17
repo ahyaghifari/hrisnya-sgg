@@ -65,9 +65,9 @@ trait ProratesFirstMonth
      * Tanggal TTD kontrak PERTAMA (Orientasi->Kontrak, instruksi user 2026-09-15) kalau JATUH di
      * periode ini DAN setting `kontrak_prorate_metode` company ini = 'tiered' DAN tanggalnya > 5
      * (1-5 tetap dianggap penuh, tidak perlu prorate apapun - null juga di sini, caller pakai
-     * jalur normal). "PERTAMA" (oldest by contract_start_date) penting - perpanjangan kontrak
+     * jalur normal). "PERTAMA" (oldest by start_date) penting - perpanjangan kontrak
      * SELALU butuh kontrak lama sudah ada (lihat ContractExtensionService::followUpDuration,
-     * lempar exception kalau `currentContract` kosong), jadi baris UserContract PALING AWAL
+     * lempar exception kalau `currentContract` kosong), jadi baris kontrak (employee_contracts) PALING AWAL
      * milik user pasti dari OrientationService::followUpContract, tidak pernah dari
      * perpanjangan - aman dipakai sebagai penanda "ini benar TTD pertama", bukan perpanjangan.
      */
@@ -77,13 +77,13 @@ trait ProratesFirstMonth
             return null;
         }
 
-        $firstContract = $user->contracts()->oldest('contract_start_date')->first();
+        $firstContract = $user->employee?->contracts()->oldest('start_date')->first();
 
-        if (! $firstContract || ! $firstContract->contract_start_date) {
+        if (! $firstContract || ! $firstContract->start_date) {
             return null;
         }
 
-        $signDate = Carbon::parse($firstContract->contract_start_date);
+        $signDate = Carbon::parse($firstContract->start_date);
 
         if (! $signDate->between($period->start_date, $period->end_date) || $signDate->day <= 5) {
             return null;

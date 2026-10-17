@@ -137,6 +137,40 @@ class Employee extends Model
         return $this->hasMany(EmployeeExecutiveAllowance::class);
     }
 
+    /** Riwayat kontrak (1 baris = 1 periode kontrak yang sudah disetujui), lihat EmployeeContract. */
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(EmployeeContract::class)->kontrak();
+    }
+
+    /** Riwayat periode orientasi (1 baris = 1 periode/perpanjangan). Dibuat lewat Rekrutmen. */
+    public function orientations(): HasMany
+    {
+        return $this->hasMany(EmployeeContract::class)->orientasi();
+    }
+
+    /**
+     * Kontrak paling baru YANG SUDAH MULAI (start_date <= hari ini). Filter tanggal penting: baris kontrak
+     * yang dibuat duluan dengan start_date di masa depan (transisi belum efektif) tidak boleh dianggap
+     * 'current' sebelum waktunya.
+     */
+    public function currentContract(): HasOne
+    {
+        return $this->hasOne(EmployeeContract::class)
+            ->where('type', EmployeeContract::TYPE_KONTRAK)
+            ->where('start_date', '<=', now())
+            ->latestOfMany('start_date');
+    }
+
+    /** Periode orientasi terbaru yang SUDAH MULAI - pola currentContract(). */
+    public function currentOrientation(): HasOne
+    {
+        return $this->hasOne(EmployeeContract::class)
+            ->where('type', EmployeeContract::TYPE_ORIENTASI)
+            ->where('start_date', '<=', now())
+            ->latestOfMany('start_date');
+    }
+
     public function religion(): BelongsTo
     {
         return $this->belongsTo(Religions::class, 'religion_id');

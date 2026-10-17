@@ -8,7 +8,9 @@ use App\Models\Master\EmployeeTypes;
 use App\Models\Master\JobPositions;
 use App\Models\Rekrutmen\JobApplication;
 use App\Models\User;
-use App\Models\User\UserOrientation;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeContract;
+use App\Services\Identity\EmployeeSyncService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -114,13 +116,17 @@ class CandidateOnboardingService
 
             // Periode orientasi — cuma dibuat kalau karyawan ini belum punya periode orientasi
             // aktif (hindari dobel kalau tombol onboarding dipencet ulang).
-            $hasActiveOrientation = UserOrientation::where('user_id', $user->id)
+            $employee = Employee::where('user_id', $user->id)->first() ?? app(EmployeeSyncService::class)->syncUser($user);
+
+            $hasActiveOrientation = EmployeeContract::orientasi()
+                ->where('employee_id', $employee->id)
                 ->whereDate('end_date', '>=', $joiningDate)
                 ->exists();
 
             if (! $hasActiveOrientation) {
-                UserOrientation::create([
-                    'user_id' => $user->id,
+                EmployeeContract::create([
+                    'employee_id' => $employee->id,
+                    'type' => EmployeeContract::TYPE_ORIENTASI,
                     'company_id' => $companyId,
                     'start_date' => $joiningDate,
                     'end_date' => Carbon::parse($joiningDate)->addMonths($orientationMonths)->toDateString(),

@@ -12,7 +12,7 @@ use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use App\Models\User\UserProfiles;
 use App\Services\Payroll\Calculators\GajiPokokCalculator;
 use App\Services\Payroll\Calculators\PayrollContext;
@@ -295,7 +295,7 @@ class GajiPokokCalculatorTest extends TestCase
 
     /**
      * Setup bareng untuk 4 test transisi Orientasi->Kontrak (instruksi user 2026-09-15): Kontrak
-     * kenaikan 10% (rate 0% dikunci di test biar hitungan prorate bersih), UserContract pertama
+     * kenaikan 10% (rate 0% dikunci di test biar hitungan prorate bersih), kontrak pertama (EmployeeContract)
      * = jejak TTD dari OrientationService::followUpContract().
      */
     private function makeContractTransitionUser(Companies $company, string $contractStartDate): User
@@ -312,12 +312,12 @@ class GajiPokokCalculatorTest extends TestCase
         // joining_date sengaja jauh sebelum periode biar tidak numpuk sama prorate karyawan baru.
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
 
-        UserContract::create([
-            'user_id' => $user->id,
+        EmployeeContract::create([
+            'employee_id' => $user->employee->id, 'type' => 'kontrak',
             'company_id' => $company->id,
             'employee_type_id' => $kontrak->id,
-            'contract_start_date' => $contractStartDate,
-            'contract_end_date' => now()->parse($contractStartDate)->addYear()->toDateString(),
+            'start_date' => $contractStartDate,
+            'end_date' => now()->parse($contractStartDate)->addYear()->toDateString(),
         ]);
 
         return $user;
@@ -407,10 +407,10 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2024-01-01']);
 
         // Kontrak PERTAMA (TTD dari orientasi) tahun lalu - sudah lewat, bukan bulan ini.
-        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2025-01-10', 'contract_end_date' => '2026-01-09']);
+        EmployeeContract::create(['employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'start_date' => '2025-01-10', 'end_date' => '2026-01-09']);
         // PERPANJANGAN kontrak, TTD tanggal 25 Juli (>20) - ini BUKAN transisi Orientasi->Kontrak,
         // jadi tidak boleh dianggap "Orientasi penuh bulan ini".
-        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-25', 'contract_end_date' => '2027-07-24']);
+        EmployeeContract::create(['employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'start_date' => '2026-07-25', 'end_date' => '2027-07-24']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);

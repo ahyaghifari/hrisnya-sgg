@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\UserContracts\Tables;
+namespace App\Filament\Resources\EmployeeOrientations\Tables;
 
-use App\Filament\Resources\UserColumn;
-use App\Filament\Resources\UserContracts\UserContractResource;
+
+use App\Filament\Resources\EmployeeOrientations\EmployeeOrientationResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
@@ -11,38 +11,54 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Carbon;
 
-class UserContractsTable
+class EmployeeOrientationsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
             ->columns([
-                TextColumn::make('user.name')
+                TextColumn::make('employee.nama_lengkap')
                     ->label('Karyawan')
-                    ->searchable(query: UserColumn::searchName())
-                    ->sortable(query: UserColumn::sortName()),
-
-                TextColumn::make('employeeType.name')
-                    ->label('Tipe Karyawan')
+                    ->searchable()
                     ->sortable(),
 
-                TextColumn::make('contract_start_date')
+                TextColumn::make('start_date')
                     ->label('Mulai')
                     ->date('d M Y')
                     ->sortable(),
 
-                TextColumn::make('contract_end_date')
+                TextColumn::make('end_date')
                     ->label('Sampai')
                     ->date('d M Y')
                     ->sortable(),
 
+                TextColumn::make('duration_months')
+                    ->label('Durasi')
+                    ->suffix(' bln')
+                    ->sortable(),
+
                 TextColumn::make('status')
                     ->label('Status')
-                    ->state(fn ($record) => $record->contract_end_date && Carbon::parse($record->contract_end_date)->isPast()
+                    ->state(fn ($record) => $record->end_date && Carbon::parse($record->end_date)->isPast()
                         ? 'Berakhir'
                         : 'Aktif')
                     ->badge()
                     ->color(fn (string $state) => $state === 'Aktif' ? 'success' : 'danger'),
+
+                TextColumn::make('source')
+                    ->label('Sumber')
+                    ->formatStateUsing(fn (?string $state) => match ($state) {
+                        'recruitment' => 'Rekrutmen',
+                        'extension' => 'Perpanjangan',
+                        'manual' => 'Manual',
+                        default => $state ?? '-',
+                    })
+                    ->badge()
+                    ->color(fn (?string $state) => match ($state) {
+                        'recruitment' => 'info',
+                        'extension' => 'warning',
+                        default => 'gray',
+                    }),
 
                 IconColumn::make('file_path')
                     ->label('Surat')
@@ -51,11 +67,11 @@ class UserContractsTable
                     ->falseIcon('heroicon-o-document')
                     ->url(fn ($record) => $record->file_url, shouldOpenInNewTab: true),
 
-                UserContractResource::companyTableColumn(),
+                EmployeeOrientationResource::companyTableColumn(),
             ])
-            ->defaultSort('contract_start_date', 'desc')
+            ->defaultSort('start_date', 'desc')
             ->filters([
-                UserContractResource::companyTableFilter(),
+                EmployeeOrientationResource::companyTableFilter(),
             ])
             ->recordActions([
                 EditAction::make(),

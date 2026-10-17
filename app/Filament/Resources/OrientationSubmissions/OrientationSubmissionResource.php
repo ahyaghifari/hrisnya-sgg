@@ -44,10 +44,10 @@ class OrientationSubmissionResource extends BaseCompanyResource
             ->columns([
                 TextColumn::make('user.name')->label('Karyawan')->searchable(query: UserColumn::searchName())->sortable(query: UserColumn::sortName()),
                 TextColumn::make('user.nip')->label('NIP')->searchable(query: UserColumn::searchNip()),
-                TextColumn::make('userOrientation')
+                TextColumn::make('employeeContract')
                     ->label('Periode Orientasi')
-                    ->state(fn ($record) => $record->userOrientation
-                        ? $record->userOrientation->start_date?->format('d M Y') . ' – ' . $record->userOrientation->end_date?->format('d M Y')
+                    ->state(fn ($record) => $record->employeeContract
+                        ? $record->employeeContract->start_date?->format('d M Y') . ' – ' . $record->employeeContract->end_date?->format('d M Y')
                         : '—'),
                 TextColumn::make('status')
                     ->badge()

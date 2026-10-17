@@ -8,7 +8,7 @@ use App\Models\ContractSubmission;
 use App\Models\SikartapReviewer;
 use App\Models\Setting;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use App\Notifications\ContractReviewRequested;
 use App\Notifications\ContractReviewed;
 use App\Notifications\ContractRevisionRequested;
@@ -204,7 +204,7 @@ class ContractExtensionService
         }
 
         $user = $submission->user;
-        $current = $user?->currentContract ?? $submission->userContract;
+        $current = $user?->employee?->currentContract ?? $submission->employeeContract;
 
         if (! $user || ! $current) {
             throw new \RuntimeException('Kontrak berjalan karyawan tidak ditemukan.');
@@ -214,8 +214,8 @@ class ContractExtensionService
             throw new \RuntimeException('Karyawan bukan berstatus Kontrak.');
         }
 
-        $anchor = $current->contract_end_date
-            ? Carbon::parse($current->contract_end_date)->max(Carbon::today())
+        $anchor = $current->end_date
+            ? Carbon::parse($current->end_date)->max(Carbon::today())
             : Carbon::today();
 
         // Lempar kalau lewat MAX_KONTRAK_TAHUN / USIA_PENSIUN (guard di dalam).
@@ -227,18 +227,20 @@ class ContractExtensionService
         );
 
         DB::transaction(function () use ($submission, $user, $current, $anchor, $end, $durasiBulan) {
-            $newContract = UserContract::create([
-                'user_id' => $user->id,
+            $newContract = EmployeeContract::create([
+                'employee_id' => $user->employee->id,
                 'company_id' => $submission->company_id,
+                'type' => EmployeeContract::TYPE_KONTRAK,
                 'employee_type_id' => $current->employee_type_id,
-                'contract_start_date' => $anchor->copy()->toDateString(),
-                'contract_end_date' => $end->toDateString(),
+                'start_date' => $anchor->copy()->toDateString(),
+                'end_date' => $end->toDateString(),
+                'previous_contract_id' => $current->id,
             ]);
 
             $submission->update([
                 'status' => 'selesai',
                 'decision_durasi_bulan' => $durasiBulan,
-                'new_contract_id' => $newContract->id,
+                'new_employee_contract_id' => $newContract->id,
             ]);
 
             $submission->user?->notify(new ContractReviewed($submission));

@@ -4,7 +4,7 @@ namespace App\Livewire\Dashboard;
 
 use App\Models\OrientationSubmission;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use Livewire\Component;
 
 /**
@@ -86,15 +86,15 @@ class EmployeeTypeBreakdownWidget extends Component
         };
     }
 
-    /** Kontrak dari periode kontrak TERBARU per user (UserContract, ledger append-only), yang
+    /** Kontrak dari periode kontrak TERBARU per user (EmployeeContract type kontrak, ledger append-only), yang
      * berakhir dalam $maxDays hari ke depan. */
     private function expiringContracts(int $maxDays)
     {
         $now = now()->startOfDay();
 
-        return UserContract::latestPerUserInCompany($this->companyId)
+        return EmployeeContract::latestKontrakPerEmployeeInCompany($this->companyId)
             ->filter(function ($c) use ($now, $maxDays) {
-                $days = $now->diffInDays($c->contract_end_date, false);
+                $days = $now->diffInDays($c->end_date, false);
 
                 return $days >= 0 && $days < $maxDays;
             })
@@ -137,9 +137,9 @@ class EmployeeTypeBreakdownWidget extends Component
     {
         $now = now()->startOfDay();
 
-        return UserContract::latestPerUserInCompany($this->companyId)
+        return EmployeeContract::latestKontrakPerEmployeeInCompany($this->companyId)
             ->filter(function ($c) use ($now, $minDays, $maxDays) {
-                $days = $now->diffInDays($c->contract_end_date, false);
+                $days = $now->diffInDays($c->end_date, false);
 
                 return $days >= $minDays && $days < $maxDays;
             })

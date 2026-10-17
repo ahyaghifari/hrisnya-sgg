@@ -3,7 +3,7 @@
 namespace App\Livewire\Kepegawaian;
 
 use App\Models\Master\Companies;
-use App\Models\User\UserOrientation;
+use App\Models\Employee\EmployeeContract;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -15,11 +15,11 @@ use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 /**
- * Padanan portal dari admin UserOrientationResource — daftar periode orientasi karyawan
+ * Padanan portal dari admin EmployeeOrientationResource — daftar periode orientasi karyawan
  * (ledger user_orientations). Bisa EDIT tanggal/durasi lewat modal (koreksi data yang
  * salah/telat), TAPI TIDAK ada Tambah maupun Hapus — pola sama KontrakPage. Baris baru lahir
  * dari onboarding Rekrutmen atau perpanjangan penilaian orientasi (sikartap.orientasi).
- * Otorisasi Edit lewat UserOrientationPolicy (Shield Update:UserOrientation).
+ * Otorisasi Edit lewat EmployeeContractPolicy (Shield Update:EmployeeOrientation untuk baris orientasi).
  */
 #[Layout('components.layout', ['title' => 'Orientasi Karyawan'])]
 class OrientasiKaryawanPage extends Component
@@ -49,7 +49,7 @@ class OrientasiKaryawanPage extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()->can('viewAny', UserOrientation::class), 403);
+        abort_unless(Auth::user()->can('ViewAny:EmployeeOrientation'), 403);
 
         if (! Auth::user()->canFilterByCompany() || $this->companyId === null) {
             $this->companyId = Auth::user()->company_id;
@@ -84,14 +84,15 @@ class OrientasiKaryawanPage extends Component
     {
         $today = Carbon::today()->toDateString();
 
-        return UserOrientation::query()
-            ->with(['user.company'])
+        return EmployeeContract::query()
+            ->orientasi()
+            ->with(['employee.company'])
             ->when($this->companyId, fn ($q) => $q->where('company_id', $this->companyId))
             ->when($this->status === 'aktif', fn ($q) => $q->where('end_date', '>=', $today))
             ->when($this->status === 'berakhir', fn ($q) => $q->where('end_date', '<', $today))
             ->when(trim($this->search) !== '', function ($q) {
                 $search = trim($this->search);
-                $q->whereHas('user', fn ($q2) => $q2->searchNameOrNip($search));
+                $q->whereHas('employee', fn ($q2) => $q2->where(fn ($q3) => $q3->where('nama_lengkap', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%")));
             })
             ->orderByDesc('start_date')
             ->paginate(10)
@@ -104,7 +105,7 @@ class OrientasiKaryawanPage extends Component
 
     /** Non-global cuma boleh kelola baris company sendiri (permission Shield sendirian tidak
      * cek batas company — pola sama KontrakPage::canManage()). */
-    protected function canManage(UserOrientation $orientation): bool
+    protected function canManage(EmployeeContract $orientation): bool
     {
         return Auth::user()->canFilterByCompany()
             || $orientation->company_id === Auth::user()->company_id;
@@ -112,13 +113,13 @@ class OrientasiKaryawanPage extends Component
 
     public function openEditModal(string $id): void
     {
-        $orientation = UserOrientation::with('user')->findOrFail($id);
+        $orientation = EmployeeContract::orientasi()->with('employee')->findOrFail($id);
 
         abort_unless(Auth::user()->can('update', $orientation), 403);
         abort_unless($this->canManage($orientation), 403);
 
         $this->editingId = $orientation->id;
-        $this->editingUserName = $orientation->user?->name;
+        $this->editingUserName = $orientation->employee?->nama_lengkap;
         $this->formStartDate = $orientation->start_date?->toDateString();
         $this->formEndDate = $orientation->end_date?->toDateString();
         $this->formDurationMonths = $orientation->duration_months;
@@ -137,7 +138,7 @@ class OrientasiKaryawanPage extends Component
     {
         abort_if($this->editingId === null, 400);
 
-        $orientation = UserOrientation::findOrFail($this->editingId);
+        $orientation = EmployeeContract::orientasi()->findOrFail($this->editingId);
 
         abort_unless(Auth::user()->can('update', $orientation), 403);
         abort_unless($this->canManage($orientation), 403);
@@ -165,7 +166,7 @@ class OrientasiKaryawanPage extends Component
                 Storage::disk('public')->delete($orientation->file_path);
             }
 
-            $data['file_path'] = $this->formFile->store('user-orientations/' . $orientation->user_id, 'public');
+            $data['file_path'] = $this->formFile->store('user-orientations/' . $orientation->employee_id, 'public');
         }
 
         $orientation->update($data);

@@ -851,7 +851,7 @@ source (tab server-render sekali jalan, x-show cuma toggle CSS). --}}
 
     {{-- Status Kepegawaian: fase berjalan (ringkas) + timeline HORIZONTAL perjalanan
     Bergabung → Orientasi → Kontrak/perpanjangan → Tetap dalam satu baris. Data dari ledger
-    user_orientations & user_contracts, lihat
+    employee_contracts (type orientasi & kontrak), lihat
     EmployeeStatistics::getEmploymentJourneyProperty(). --}}
     @php
         $journey = $this->employmentJourney;

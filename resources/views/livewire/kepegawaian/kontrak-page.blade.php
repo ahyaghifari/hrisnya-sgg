@@ -44,16 +44,16 @@
         @else
             <div class="pwa-list">
                 @foreach ($contracts as $contract)
-                    @php $isActive = $contract->contract_end_date >= now()->startOfDay(); @endphp
+                    @php $isActive = $contract->end_date >= now()->startOfDay(); @endphp
                     <div class="pwa-list-row">
                         <div class="pwa-tile-icon neutral"><i class="fa-solid fa-file-contract"></i></div>
                         <div style="flex:1;min-width:0;">
-                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $contract->user?->name ?? '-' }}</p>
+                            <p style="font-size:13px;font-weight:600;color:var(--text-heading);">{{ $contract->employee?->nama_lengkap ?? '-' }}</p>
                             <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">
-                                {{ $contract->employeeType?->name ?? '-' }} &middot; {{ $contract->contract_start_date?->format('d M Y') }} - {{ $contract->contract_end_date?->format('d M Y') }}
+                                {{ $contract->employeeType?->name ?? '-' }} &middot; {{ $contract->start_date?->format('d M Y') }} - {{ $contract->end_date?->format('d M Y') }}
                             </p>
-                            @if ($canBrowseAllCompanies && $contract->user?->company?->name)
-                                <p style="font-size:11px;color:var(--text-faint);margin-top:2px;">{{ $contract->user->company->name }}</p>
+                            @if ($canBrowseAllCompanies && $contract->employee?->company?->name)
+                                <p style="font-size:11px;color:var(--text-faint);margin-top:2px;">{{ $contract->employee->company->name }}</p>
                             @endif
                         </div>
                         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
@@ -93,17 +93,17 @@
                 </thead>
                 <tbody>
                     @foreach ($contracts as $contract)
-                        @php $isActive = $contract->contract_end_date >= now()->startOfDay(); @endphp
+                        @php $isActive = $contract->end_date >= now()->startOfDay(); @endphp
                         <tr wire:key="'contract-'.{{ $contract->id }}" style="border-bottom:1px solid var(--border-soft);">
-                            <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $contract->user?->name ?? '-' }}</td>
+                            <td style="padding:9px 14px;white-space:nowrap;font-weight:600;">{{ $contract->employee?->nama_lengkap ?? '-' }}</td>
                             <td style="padding:9px 14px;white-space:nowrap;">{{ $contract->employeeType?->name ?? '-' }}</td>
-                            <td style="padding:9px 14px;white-space:nowrap;">{{ $contract->contract_start_date?->format('d M Y') }}</td>
-                            <td style="padding:9px 14px;white-space:nowrap;">{{ $contract->contract_end_date?->format('d M Y') }}</td>
+                            <td style="padding:9px 14px;white-space:nowrap;">{{ $contract->start_date?->format('d M Y') }}</td>
+                            <td style="padding:9px 14px;white-space:nowrap;">{{ $contract->end_date?->format('d M Y') }}</td>
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                 <span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:{{ $isActive ? 'rgba(4,124,84,0.1)' : 'rgba(220,38,38,0.1)' }};color:{{ $isActive ? '#047C54' : '#dc2626' }};">{{ $isActive ? 'Aktif' : 'Berakhir' }}</span>
                             </td>
                             @if ($canBrowseAllCompanies)
-                                <td style="padding:9px 14px;white-space:nowrap;">{{ $contract->user?->company?->name ?? '-' }}</td>
+                                <td style="padding:9px 14px;white-space:nowrap;">{{ $contract->employee?->company?->name ?? '-' }}</td>
                             @endif
                             <td style="padding:9px 14px;text-align:center;white-space:nowrap;">
                                 @if ($contract->file_url)
@@ -154,13 +154,13 @@
 
                     <div>
                         <label class="form-label">Karyawan</label>
-                        <select class="form-input" wire:model="formUserId" @if (! $formCompanyId) disabled @endif>
+                        <select class="form-input" wire:model="formEmployeeId" @if (! $formCompanyId) disabled @endif>
                             <option value="">-- Pilih Karyawan --</option>
-                            @foreach ($this->formUserOptions as $id => $name)
+                            @foreach ($this->formEmployeeOptions as $id => $name)
                                 <option value="{{ $id }}">{{ $name }}</option>
                             @endforeach
                         </select>
-                        @error('formUserId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
+                        @error('formEmployeeId') <p style="font-size:11px;color:#dc2626;margin-top:4px;">{{ $message }}</p> @enderror
                     </div>
 
                     <div>

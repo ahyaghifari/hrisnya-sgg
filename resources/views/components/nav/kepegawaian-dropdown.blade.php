@@ -6,8 +6,8 @@
     $canViewJabatan = auth()->user()->can('ViewAny:JobPositions');
     $canViewJobEvaluation = auth()->user()->can(\App\Enum\CustomPermissionEnum::LIHAT_JOB_EVALUATION->value);
     $canViewPerubahanStatus = auth()->user()->can('ViewAny:UserTransition');
-    $canViewKontrak = auth()->user()->can('ViewAny:UserContract');
-    $canViewOrientasiData = auth()->user()->can('ViewAny:UserOrientation');
+    $canViewKontrak = auth()->user()->can('ViewAny:EmployeeContract');
+    $canViewOrientasiData = auth()->user()->can('ViewAny:EmployeeOrientation');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
     $canViewMerit = auth()->user()->can('ViewAny:MeritPointRule') || auth()->user()->can(\App\Enum\CustomPermissionEnum::BERI_MERIT_POINT->value);
 @endphp

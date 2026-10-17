@@ -10,7 +10,7 @@ use App\Models\Payroll\PayrollPeriod;
 use App\Models\Payroll\TransportAllowance;
 use App\Models\Setting;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use App\Models\User\UserProfiles;
 use App\Services\Payroll\Calculators\PayrollContext;
 use App\Services\Payroll\Calculators\TunjanganTransportasiCalculator;
@@ -104,7 +104,7 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         $kontrak = EmployeeTypes::create(['name' => 'Kontrak', 'company_id' => $company->id, 'category' => 'kontrak']);
         $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $kontrak->id, 'joining_date' => '2025-01-01']);
-        UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-10', 'contract_end_date' => '2027-07-09']);
+        EmployeeContract::create(['employee_id' => $user->employee->id, 'type' => 'kontrak', 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'start_date' => '2026-07-10', 'end_date' => '2027-07-09']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);

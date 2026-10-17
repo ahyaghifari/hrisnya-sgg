@@ -10,7 +10,7 @@ use App\Models\OrientationSubmission;
 use App\Models\SikartapReviewer;
 use App\Models\User;
 use App\Models\User\UserJobPositions;
-use App\Models\User\UserOrientation;
+use App\Models\Employee\EmployeeContract;
 use App\Services\OrientationService;
 use App\Services\SikartapReviewerResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -227,11 +227,11 @@ class OrientasiReviewerAndScoringTest extends TestCase
 
         app(OrientationService::class)->approvePresentationBySupport($submission->fresh(), $support);
 
-        $before = $orientee->orientations()->count();
+        $before = $orientee->employee->orientations()->count();
         app(OrientationService::class)->followUpNotContinued($submission->fresh(), '2026-11-01', $reviewer->id);
         $submission->refresh();
 
-        $this->assertSame($before, $orientee->orientations()->count()); // tidak ada periode baru
+        $this->assertSame($before, $orientee->employee->orientations()->count()); // tidak ada periode baru
         $this->assertSame('selesai', $submission->status);
         $this->assertSame('2026-11-01', $submission->effective_end_date->toDateString());
         $this->assertTrue($submission->presentationFullyApproved());
@@ -347,16 +347,17 @@ class OrientasiReviewerAndScoringTest extends TestCase
 
         $this->assertSame('selesai', $submission->status);
         $this->assertTrue($submission->presentationFullyApproved());
-        $this->assertDatabaseHas('user_contracts', [
-            'user_id' => $orientee->id,
+        $this->assertDatabaseHas('employee_contracts', [
+            'employee_id' => $orientee->employee->id,
+            'type' => 'kontrak',
             'employee_type_id' => $kontrakType->id,
         ]);
     }
 
     private function makeSubmission(User $orientee): OrientationSubmission
     {
-        $period = UserOrientation::create([
-            'user_id' => $orientee->id,
+        $period = EmployeeContract::create([
+            'employee_id' => $orientee->employee->id, 'type' => 'orientasi',
             'company_id' => $this->company->id,
             'start_date' => '2026-08-01',
             'end_date' => '2026-10-31',
@@ -366,7 +367,7 @@ class OrientasiReviewerAndScoringTest extends TestCase
 
         return OrientationSubmission::create([
             'user_id' => $orientee->id,
-            'user_orientation_id' => $period->id,
+            'employee_contract_id' => $period->id,
             'company_id' => $this->company->id,
             'status' => 'draft',
             'attachments' => [['path' => 'x.pdf', 'name' => 'x.pdf']],

@@ -24,7 +24,7 @@ class OrientationSubmission extends Model
 
     protected $fillable = [
         'user_id',
-        'user_orientation_id',
+        'employee_contract_id',
         'company_id',
         'status',
         'decision',
@@ -73,10 +73,10 @@ class OrientationSubmission extends Model
         return $this->belongsTo(User::class);
     }
 
-    /** Periode orientasi (user_orientations) yang dinilai lewat pengajuan ini. */
-    public function userOrientation(): BelongsTo
+    /** Periode orientasi (baris employee_contracts type orientasi) yang dinilai lewat pengajuan ini. */
+    public function employeeContract(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User\UserOrientation::class);
+        return $this->belongsTo(\App\Models\Employee\EmployeeContract::class, 'employee_contract_id');
     }
 
     public function company(): BelongsTo

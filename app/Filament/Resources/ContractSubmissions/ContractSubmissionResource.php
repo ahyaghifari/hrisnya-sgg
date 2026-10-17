@@ -48,10 +48,10 @@ class ContractSubmissionResource extends BaseCompanyResource
             ->columns([
                 TextColumn::make('user.name')->label('Karyawan')->searchable(query: UserColumn::searchName())->sortable(query: UserColumn::sortName()),
                 TextColumn::make('user.nip')->label('NIP')->searchable(query: UserColumn::searchNip()),
-                TextColumn::make('userContract')
+                TextColumn::make('employeeContract')
                     ->label('Kontrak Berjalan')
-                    ->state(fn ($record) => $record->userContract
-                        ? $record->userContract->contract_start_date?->format('d M Y') . ' – ' . $record->userContract->contract_end_date?->format('d M Y')
+                    ->state(fn ($record) => $record->employeeContract
+                        ? $record->employeeContract->start_date?->format('d M Y') . ' – ' . $record->employeeContract->end_date?->format('d M Y')
                         : '—'),
                 TextColumn::make('status')
                     ->badge()

@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\UserOrientations\Tables;
+namespace App\Filament\Resources\EmployeeContracts\Tables;
 
-use App\Filament\Resources\UserColumn;
-use App\Filament\Resources\UserOrientations\UserOrientationResource;
+
+use App\Filament\Resources\EmployeeContracts\EmployeeContractResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
@@ -11,16 +11,20 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Carbon;
 
-class UserOrientationsTable
+class EmployeeContractsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
             ->columns([
-                TextColumn::make('user.name')
+                TextColumn::make('employee.nama_lengkap')
                     ->label('Karyawan')
-                    ->searchable(query: UserColumn::searchName())
-                    ->sortable(query: UserColumn::sortName()),
+                    ->searchable()
+                    ->sortable(),
+
+                TextColumn::make('employeeType.name')
+                    ->label('Tipe Karyawan')
+                    ->sortable(),
 
                 TextColumn::make('start_date')
                     ->label('Mulai')
@@ -32,11 +36,6 @@ class UserOrientationsTable
                     ->date('d M Y')
                     ->sortable(),
 
-                TextColumn::make('duration_months')
-                    ->label('Durasi')
-                    ->suffix(' bln')
-                    ->sortable(),
-
                 TextColumn::make('status')
                     ->label('Status')
                     ->state(fn ($record) => $record->end_date && Carbon::parse($record->end_date)->isPast()
@@ -45,21 +44,6 @@ class UserOrientationsTable
                     ->badge()
                     ->color(fn (string $state) => $state === 'Aktif' ? 'success' : 'danger'),
 
-                TextColumn::make('source')
-                    ->label('Sumber')
-                    ->formatStateUsing(fn (?string $state) => match ($state) {
-                        'recruitment' => 'Rekrutmen',
-                        'extension' => 'Perpanjangan',
-                        'manual' => 'Manual',
-                        default => $state ?? '-',
-                    })
-                    ->badge()
-                    ->color(fn (?string $state) => match ($state) {
-                        'recruitment' => 'info',
-                        'extension' => 'warning',
-                        default => 'gray',
-                    }),
-
                 IconColumn::make('file_path')
                     ->label('Surat')
                     ->boolean()
@@ -67,11 +51,11 @@ class UserOrientationsTable
                     ->falseIcon('heroicon-o-document')
                     ->url(fn ($record) => $record->file_url, shouldOpenInNewTab: true),
 
-                UserOrientationResource::companyTableColumn(),
+                EmployeeContractResource::companyTableColumn(),
             ])
             ->defaultSort('start_date', 'desc')
             ->filters([
-                UserOrientationResource::companyTableFilter(),
+                EmployeeContractResource::companyTableFilter(),
             ])
             ->recordActions([
                 EditAction::make(),

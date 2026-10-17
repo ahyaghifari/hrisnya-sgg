@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\UserContracts\Pages;
+namespace App\Filament\Resources\EmployeeContracts\Pages;
 
-use App\Filament\Resources\UserContracts\UserContractResource;
+use App\Filament\Resources\EmployeeContracts\EmployeeContractResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
 
-class ManageUserContracts extends ManageRecords
+class ManageEmployeeContracts extends ManageRecords
 {
-    protected static string $resource = UserContractResource::class;
+    protected static string $resource = EmployeeContractResource::class;
 
     protected static ?string $title = 'Data Kontrak';
 

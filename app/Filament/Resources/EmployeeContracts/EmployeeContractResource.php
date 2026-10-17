@@ -1,20 +1,23 @@
 <?php
 
-namespace App\Filament\Resources\UserContracts;
+namespace App\Filament\Resources\EmployeeContracts;
 
 use App\Filament\Resources\BaseCompanyResource;
-use App\Filament\Resources\UserContracts\Pages\ManageUserContracts;
-use App\Filament\Resources\UserContracts\Tables\UserContractsTable;
+use App\Filament\Resources\EmployeeContracts\Pages\ManageEmployeeContracts;
+use App\Filament\Resources\EmployeeContracts\Tables\EmployeeContractsTable;
+use App\Models\Employee\Employee;
+use App\Models\Employee\EmployeeContract;
 use App\Models\Master\EmployeeTypes;
-use App\Models\User\UserContract;
 use BackedEnum;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 /**
@@ -22,11 +25,14 @@ use UnitEnum;
  * Orientasi/Perpanjangan Kontrak) - resource ini nambah jalur MANUAL (mis. migrasi data lama,
  * koreksi baris yang salah/hilang) tanpa harus lewat alur approval transisi penuh.
  * source_transition_id sengaja tidak ada di form - baris manual dari sini memang tidak
- * bersumber dari transisi manapun (kolomnya nullable).
+ * bersumber dari transisi manapun (kolomnya nullable). Hanya baris type 'kontrak' di
+ * employee_contracts; baris orientasi dikelola EmployeeOrientationResource.
  */
-class UserContractResource extends BaseCompanyResource
+class EmployeeContractResource extends BaseCompanyResource
 {
-    protected static ?string $model = UserContract::class;
+    protected static ?string $model = EmployeeContract::class;
+
+    protected static ?string $slug = 'employee-contracts';
 
     protected static string|UnitEnum|null $navigationGroup = 'Kepegawaian';
 
@@ -42,15 +48,22 @@ class UserContractResource extends BaseCompanyResource
     // Perubahan Status Karyawan (5), Permintaan Tenaga Kerja (6), Dokumen (7), Jabatan (8).
     protected static ?int $navigationSort = 4;
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->kontrak();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->components([
                 static::companyFormField(),
 
-                Select::make('user_id')
+                Hidden::make('type')->default(EmployeeContract::TYPE_KONTRAK),
+
+                Select::make('employee_id')
                     ->label('Karyawan')
-                    ->options(fn () => \App\Models\User::orderByName()->get()->pluck('name', 'id'))
+                    ->options(fn () => Employee::query()->orderBy('nama_lengkap')->pluck('nama_lengkap', 'id'))
                     ->searchable()
                     ->required(),
 
@@ -66,14 +79,14 @@ class UserContractResource extends BaseCompanyResource
                     ->preload()
                     ->required(),
 
-                DatePicker::make('contract_start_date')
+                DatePicker::make('start_date')
                     ->label('Mulai')
                     ->required(),
 
-                DatePicker::make('contract_end_date')
+                DatePicker::make('end_date')
                     ->label('Sampai')
                     ->required()
-                    ->afterOrEqual('contract_start_date'),
+                    ->afterOrEqual('start_date'),
 
                 FileUpload::make('file_path')
                     ->label('Surat Kontrak')
@@ -82,19 +95,19 @@ class UserContractResource extends BaseCompanyResource
                     ->disk('public')
                     ->maxSize(10240)
                     ->acceptedFileTypes(['application/pdf', 'image/*'])
-                    ->directory(fn (Get $get) => 'user-contracts/' . ($get('user_id') ?? 'unknown')),
+                    ->directory(fn (Get $get) => 'user-contracts/' . ($get('employee_id') ?? 'unknown')),
             ]);
     }
 
     public static function table(Table $table): Table
     {
-        return UserContractsTable::configure($table);
+        return EmployeeContractsTable::configure($table);
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => ManageUserContracts::route('/'),
+            'index' => ManageEmployeeContracts::route('/'),
         ];
     }
 }

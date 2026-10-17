@@ -28,11 +28,11 @@
                 </div>
                 <span style="font-size:11px;font-weight:700;color:{{ $sColor }};white-space:nowrap;">{{ $sLabel }}</span>
             </div>
-            @if ($r->userOrientation)
+            @if ($r->employeeContract)
                 <p style="font-size:12px;color:var(--text-body);margin:0 0 4px;">
                     <span style="color:var(--text-faint);">Periode:</span>
-                    {{ $r->userOrientation->start_date?->format('d M Y') }} &ndash; {{ $r->userOrientation->end_date?->format('d M Y') }}
-                    ({{ $r->userOrientation->duration_months }} bln)
+                    {{ $r->employeeContract->start_date?->format('d M Y') }} &ndash; {{ $r->employeeContract->end_date?->format('d M Y') }}
+                    ({{ $r->employeeContract->duration_months }} bln)
                 </p>
             @endif
             @if ($r->note)

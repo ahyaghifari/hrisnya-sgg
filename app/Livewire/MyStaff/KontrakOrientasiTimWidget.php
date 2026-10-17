@@ -4,7 +4,7 @@ namespace App\Livewire\MyStaff;
 
 use App\Livewire\MyStaff\Concerns\LazyLoadsOnExpand;
 use App\Models\OrientationSubmission;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use App\Services\OrgHierarchyService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -25,22 +25,23 @@ class KontrakOrientasiTimWidget extends Component
         return app(OrgHierarchyService::class)->subordinates(Auth::user())->pluck('id');
     }
 
-    /** Kontrak dari periode kontrak TERBARU per user (UserContract, ledger append-only), yang
+    /** Kontrak dari periode kontrak TERBARU per user (EmployeeContract type kontrak, ledger append-only), yang
      * berakhir dalam $maxDays hari ke depan - scope staff, bukan lewat
-     * UserContract::latestPerUserInCompany() (itu company-wide). */
+     * EmployeeContract::latestKontrakPerEmployeeInCompany() (itu company-wide). */
     private function expiringContracts(int $minDays, int $maxDays)
     {
         $now = now()->startOfDay();
 
-        return UserContract::query()
-            ->whereIn('user_id', $this->subordinateIds())
-            ->whereNotNull('contract_end_date')
-            ->with(['user.profile.jobPosition'])
+        return EmployeeContract::query()
+            ->kontrak()
+            ->whereHas('employee', fn ($q) => $q->whereIn('user_id', $this->subordinateIds()))
+            ->whereNotNull('end_date')
+            ->with(['employee.jobPosition'])
             ->get()
-            ->groupBy('user_id')
-            ->map(fn ($group) => $group->sortByDesc('contract_start_date')->first())
+            ->groupBy('employee_id')
+            ->map(fn ($group) => $group->sortByDesc('start_date')->first())
             ->filter(function ($c) use ($now, $minDays, $maxDays) {
-                $days = $now->diffInDays($c->contract_end_date, false);
+                $days = $now->diffInDays($c->end_date, false);
 
                 return $days >= $minDays && $days < $maxDays;
             })

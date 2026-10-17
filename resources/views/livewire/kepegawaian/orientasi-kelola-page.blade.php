@@ -96,7 +96,7 @@
                 <tbody>
                     @foreach ($rows as $u)
                         @php
-                            $period = $u->orientations->first();
+                            $period = $u->employee->orientations->first();
                             $sub = $u->orientationSubmissions->first();
                             $sisa = $period?->end_date ? now()->startOfDay()->diffInDays($period->end_date, false) : null;
                             [$sl, $sc, $sb] = $sub ? ($statusLabels[$sub->status] ?? [$sub->status, 'var(--text-muted)', 'transparent']) : ['Belum ada', 'var(--text-faint)', 'transparent'];
@@ -108,8 +108,8 @@
                                 @if ($period)
                                     {{ $period->start_date?->format('d M Y') }} &ndash; {{ $period->end_date?->format('d M Y') }}
                                     <span style="color:var(--text-faint);">({{ $period->duration_months }} bln)</span>
-                                    @if ($u->orientations->count() > 1)
-                                        <span style="font-size:10px;color:var(--text-faint);">&middot; periode ke-{{ $u->orientations->count() }}</span>
+                                    @if ($u->employee->orientations->count() > 1)
+                                        <span style="font-size:10px;color:var(--text-faint);">&middot; periode ke-{{ $u->employee->orientations->count() }}</span>
                                     @endif
                                 @else
                                     <span style="color:var(--text-faint);">-</span>
@@ -161,7 +161,7 @@
                 <tbody>
                     @foreach ($rows as $u)
                         @php
-                            $period = $u->orientations->first();
+                            $period = $u->employee->orientations->first();
                             $sub = $u->orientationSubmissions->firstWhere('status', 'selesai') ?? $u->orientationSubmissions->first();
                             $cat = $u->profile?->employeeType?->category;
                         @endphp
@@ -174,8 +174,8 @@
                             <td style="padding:9px 14px;white-space:nowrap;">
                                 @if ($period)
                                     {{ $period->start_date?->format('d M Y') }} &ndash; {{ $period->end_date?->format('d M Y') }}
-                                    @if ($u->orientations->count() > 1)
-                                        <span style="font-size:10px;color:var(--text-faint);">&middot; {{ $u->orientations->count() }} periode</span>
+                                    @if ($u->employee->orientations->count() > 1)
+                                        <span style="font-size:10px;color:var(--text-faint);">&middot; {{ $u->employee->orientations->count() }} periode</span>
                                     @endif
                                 @else <span style="color:var(--text-faint);">-</span>
                                 @endif

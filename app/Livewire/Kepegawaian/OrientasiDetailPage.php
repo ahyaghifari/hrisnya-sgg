@@ -58,7 +58,7 @@ class OrientasiDetailPage extends Component
 
     public function mount(OrientationSubmission $record): void
     {
-        $record->load(['user.profile', 'user.orientations', 'userOrientation', 'assessments.scores', 'decidedBy', 'presentationHrBy', 'presentationSupportBy']);
+        $record->load(['user.profile', 'user.employee.orientations', 'employeeContract', 'assessments.scores', 'decidedBy', 'presentationHrBy', 'presentationSupportBy']);
 
         abort_unless($this->canAccess($record, Auth::user()), 403);
 
@@ -67,7 +67,7 @@ class OrientasiDetailPage extends Component
         $this->buildRows();
 
         // Default: hari setelah periode orientasi terakhir berakhir (atau hari ini).
-        $last = $record->user?->orientations->sortByDesc('start_date')->first();
+        $last = $record->user?->employee?->orientations->sortByDesc('start_date')->first();
         $anchor = $last?->end_date && $last->end_date->isFuture()
             ? $last->end_date->copy()->addDay()
             : Carbon::today();
@@ -133,7 +133,7 @@ class OrientasiDetailPage extends Component
 
     private function buildMonths(): void
     {
-        $period = $this->record->userOrientation;
+        $period = $this->record->employeeContract;
         $start = $period?->start_date ? Carbon::parse($period->start_date)->startOfMonth() : Carbon::now()->startOfMonth();
         $count = max(1, (int) ($period?->duration_months ?? 3));
 
@@ -205,14 +205,14 @@ class OrientasiDetailPage extends Component
 
     /**
      * Tindak lanjut kontrak: cuma tandai selesai; kontrak dibuat lewat UserTransition (yang
-     * menulis `user_contracts` setelah approval). Butuh kedua permission rantai itu.
+     * menulis `employee_contracts` setelah approval). Butuh kedua permission rantai itu.
      */
     public function getCanFollowUpContractProperty(): bool
     {
         return $this->record->status === 'dinilai'
             && $this->record->decision === OrientationDecisionEnum::LANJUT_KONTRAK->value
             && Auth::user()->can('Create:UserTransition')
-            && Auth::user()->can('Create:UserContract');
+            && Auth::user()->can('Create:EmployeeContract');
     }
 
     public function getDecisionOptionsProperty(): array

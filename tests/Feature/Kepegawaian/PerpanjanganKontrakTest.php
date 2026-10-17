@@ -11,7 +11,7 @@ use App\Models\Master\JobPositions;
 use App\Models\Master\OrgStructure;
 use App\Models\SikartapReviewer;
 use App\Models\User;
-use App\Models\User\UserContract;
+use App\Models\Employee\EmployeeContract;
 use App\Models\User\UserJobPositions;
 use App\Models\User\UserProfiles;
 use App\Services\ContractExtensionService;
@@ -20,7 +20,7 @@ use Tests\TestCase;
 
 /**
  * Modul Perpanjangan Kontrak (2026-09-06) — lepas Approval Engine, reviewer dari
- * sikartap_reviewers context `contract`, `perpanjang` bikin baris user_contracts baru.
+ * sikartap_reviewers context `contract`, `perpanjang` bikin baris employee_contracts baru.
  */
 class PerpanjanganKontrakTest extends TestCase
 {
@@ -57,22 +57,22 @@ class PerpanjanganKontrakTest extends TestCase
             'employee_type_id' => $this->kontrakType->id,
             'joining_date' => now()->subYears(1)->toDateString(),
         ]);
-        UserContract::create([
-            'user_id' => $user->id,
+        EmployeeContract::create([
+            'employee_id' => $user->employee->id, 'type' => 'kontrak',
             'company_id' => $this->company->id,
             'employee_type_id' => $this->kontrakType->id,
-            'contract_start_date' => now()->subMonths(11)->toDateString(),
-            'contract_end_date' => now()->addMonth()->toDateString(),
+            'start_date' => now()->subMonths(11)->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
         ]);
 
-        return $user->fresh(['profile.employeeType', 'currentContract']);
+        return $user->fresh(['profile.employeeType']);
     }
 
     private function makeSubmission(User $employee): ContractSubmission
     {
         return ContractSubmission::create([
             'user_id' => $employee->id,
-            'user_contract_id' => $employee->currentContract?->id,
+            'employee_contract_id' => $employee->employee->currentContract?->id,
             'company_id' => $this->company->id,
             'status' => 'draft',
             'alasan' => 'Kinerja baik, lanjut.',
@@ -126,7 +126,7 @@ class PerpanjanganKontrakTest extends TestCase
         $submission->refresh();
         $this->assertSame('diajukan', $submission->status);
 
-        $before = $employee->contracts()->count();
+        $before = $employee->employee->contracts()->count();
 
         // Penilai memutuskan perpanjang — TANPA durasi. Belum ada kontrak baru.
         app(ContractExtensionService::class)->review($submission, $reviewer->id, 'perpanjang', 'Disetujui');
@@ -134,7 +134,7 @@ class PerpanjanganKontrakTest extends TestCase
         $this->assertSame('dinilai', $submission->status);
         $this->assertSame('perpanjang', $submission->decision);
         $this->assertNull($submission->decision_durasi_bulan);
-        $this->assertSame($before, $employee->contracts()->count());
+        $this->assertSame($before, $employee->employee->contracts()->count());
 
         // HR menetapkan durasi → kontrak baru dibuat, selesai.
         app(ContractExtensionService::class)->followUpDuration($submission, 6, $reviewer->id);
@@ -142,13 +142,13 @@ class PerpanjanganKontrakTest extends TestCase
 
         $this->assertSame('selesai', $submission->status);
         $this->assertSame(6, $submission->decision_durasi_bulan);
-        $this->assertSame($before + 1, $employee->contracts()->count());
-        $this->assertNotNull($submission->new_contract_id);
+        $this->assertSame($before + 1, $employee->employee->contracts()->count());
+        $this->assertNotNull($submission->new_employee_contract_id);
 
-        $new = UserContract::find($submission->new_contract_id);
+        $new = EmployeeContract::find($submission->new_employee_contract_id);
         // anchor = kontrak lama berakhir (+1 bln dari hari ini), end = anchor + 6 bln.
-        $this->assertSame(now()->addMonth()->toDateString(), $new->contract_start_date->toDateString());
-        $this->assertSame(now()->addMonth()->addMonths(6)->toDateString(), $new->contract_end_date->toDateString());
+        $this->assertSame(now()->addMonth()->toDateString(), $new->start_date->toDateString());
+        $this->assertSame(now()->addMonth()->addMonths(6)->toDateString(), $new->end_date->toDateString());
     }
 
     public function test_review_tidak_perpanjang_marks_ditolak_no_contract(): void
@@ -160,13 +160,13 @@ class PerpanjanganKontrakTest extends TestCase
         $submission->documents()->create(['label' => 'Surat Rekomendasi Atasan', 'path' => 'y.pdf', 'original_name' => 'y.pdf']);
         app(ContractExtensionService::class)->submit($submission->fresh(), $employee);
 
-        $before = $employee->contracts()->count();
+        $before = $employee->employee->contracts()->count();
         app(ContractExtensionService::class)->review($submission->fresh(), $reviewer->id, 'tidak_perpanjang', 'Kinerja kurang');
         $submission->refresh();
 
         $this->assertSame('ditolak', $submission->status);
-        $this->assertSame($before, $employee->contracts()->count());
-        $this->assertNull($submission->new_contract_id);
+        $this->assertSame($before, $employee->employee->contracts()->count());
+        $this->assertNull($submission->new_employee_contract_id);
     }
 
     public function test_request_revision_sends_back_to_draft_and_clears_on_resubmit(): void
