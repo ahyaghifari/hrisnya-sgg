@@ -4,6 +4,7 @@ namespace App\Models\Payroll;
 
 use App\Casts\PayrollEncrypted;
 use App\Models\User;
+use App\Models\Employee\Employee;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,7 @@ class PayrollManualLine extends Model
     protected $fillable = [
         'payroll_period_id',
         'user_id',
+        'employee_id',
         'component',
         'label',
         'amount',
@@ -34,6 +36,11 @@ class PayrollManualLine extends Model
     public function payrollPeriod(): BelongsTo
     {
         return $this->belongsTo(PayrollPeriod::class, 'payroll_period_id');
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     public function user(): BelongsTo

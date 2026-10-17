@@ -156,6 +156,7 @@ class ManualPayrollExcelImporter
                 'nip' => $user->nip,
                 'nip_excel' => $row['nip_excel'],
                 'user_id' => $user->id,
+                'employee_id' => $user->employee?->id,
                 'nama' => $user->name,
                 'nama_excel' => $row['nama'],
                 'unit' => $row['unit'],
@@ -200,16 +201,16 @@ class ManualPayrollExcelImporter
         $parsed = $this->parse($path, $this->tunjanganKhususLabel($period->company_id));
         $preview = $this->preview($path, $period->company_id, $parsed);
 
-        // user_id yang payroll-nya di period ini sudah DIBAYAR — dikunci total, tidak ikut
+        // employee_id yang payroll-nya di period ini sudah DIBAYAR — dikunci total, tidak ikut
         // di-replace import (baris Excel-nya dilewati di loop bawah).
-        $paidUserIds = Payroll::query()
+        $paidEmployeeIds = Payroll::query()
             ->where('payroll_period_id', $period->id)
             ->where('is_paid', true)
-            ->pluck('user_id');
+            ->pluck('employee_id');
 
         $parsedByNip = collect($parsed['rows'])->keyBy('nip_excel');
 
-        return DB::transaction(function () use ($preview, $parsedByNip, $period, $actor, $paidUserIds) {
+        return DB::transaction(function () use ($preview, $parsedByNip, $period, $actor, $paidEmployeeIds) {
             // Bersihkan payroll lama yang BELUM dibayar (+ item-nya) untuk period ini. Yang sudah
             // dibayar dibiarkan apa adanya.
             $oldIds = Payroll::where('payroll_period_id', $period->id)
@@ -223,7 +224,7 @@ class ManualPayrollExcelImporter
             // Koperasi/Bon manual tidak disentuh.
             PayrollManualLine::where('payroll_period_id', $period->id)
                 ->where('component', self::SOURCE_POTONGAN_KHUSUS)
-                ->whereNotIn('user_id', $paidUserIds)
+                ->whereNotIn('employee_id', $paidEmployeeIds)
                 ->delete();
 
             $created = 0;
@@ -231,7 +232,7 @@ class ManualPayrollExcelImporter
 
             foreach ($preview['matched'] as $m) {
                 // Karyawan sudah dibayar di period ini — jangan ditimpa.
-                if ($paidUserIds->contains($m['user_id'])) {
+                if ($paidEmployeeIds->contains($m['employee_id'])) {
                     $skippedPaid++;
                     continue;
                 }
@@ -239,6 +240,7 @@ class ManualPayrollExcelImporter
                 $row = $parsedByNip->get($m['nip_excel']);
 
                 $payroll = Payroll::create([
+                    'employee_id' => $m['employee_id'],
                     'user_id' => $m['user_id'],
                     'payroll_period_id' => $period->id,
                     'gross_salary' => $row['gross'],
@@ -282,6 +284,7 @@ class ManualPayrollExcelImporter
                         if (! empty($line['manual_line'])) {
                             PayrollManualLine::create([
                                 'payroll_period_id' => $period->id,
+                                'employee_id' => $m['employee_id'],
                                 'user_id' => $m['user_id'],
                                 'component' => $line['source_type'],
                                 'label' => $line['label'],

@@ -16,6 +16,7 @@ use App\Models\Attendance\AttendanceRecords;
 use App\Models\Attendance\AttendanceRequests;
 use App\Models\Employee\EmployeeNakesDocument;
 use App\Models\Master\Religions;
+use App\Models\Employee\Employee;
 use App\Models\Payroll\Payroll;
 use App\Models\Setting;
 use App\Models\User;
@@ -1261,7 +1262,7 @@ class EmployeeStatistics extends Component
     public function getMyPayrollHistoryProperty()
     {
         return Payroll::query()
-            ->where('user_id', $this->record->id)
+            ->whereIn('employee_id', Employee::query()->select('id')->where('user_id', $this->record->id))
             ->where('is_paid', true)
             ->with('payrollPeriod')
             ->get()

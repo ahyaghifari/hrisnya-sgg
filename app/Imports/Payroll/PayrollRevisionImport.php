@@ -5,6 +5,7 @@ namespace App\Imports\Payroll;
 use App\Exports\Payroll\PayrollSlipRekapExport;
 use App\Models\Payroll\Payroll;
 use App\Models\Payroll\PayrollPeriod;
+use App\Models\Employee\Employee;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -103,7 +104,7 @@ class PayrollRevisionImport implements ToCollection
             }
 
             $payroll = Payroll::query()
-                ->where('user_id', $user->id)
+                ->whereIn('employee_id', Employee::query()->select('id')->where('user_id', $user->id))
                 ->where('payroll_period_id', $this->period->id)
                 ->with('items')
                 ->first();

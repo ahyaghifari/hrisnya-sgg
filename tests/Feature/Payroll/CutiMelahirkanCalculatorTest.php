@@ -100,7 +100,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $user = $this->employeeWithGajiPokok(1_600_000, 8);
 
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // 14 hari cuti DALAM periode ini (irisan) - tanggal dibikin persis di dalam periode.
         $this->approvedMaternityLeave($user, '2026-07-01', '2026-07-14');
@@ -127,7 +127,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $user = $this->employeeWithGajiPokok(1_600_000, 8); // Gaji Pokok Akhir = 1.728.000
 
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // 31 hari cuti (periode penuh) - jauh melebihi E=26.
         $this->approvedMaternityLeave($user, '2026-07-01', '2026-07-31');
@@ -155,7 +155,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $user = $this->employeeWithGajiPokok(1_600_000, 8);
 
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         PayrollItem::create([
             'payroll_id' => $payroll->id, 'name' => 'Tunjangan Jabatan', 'type' => 'earning',
@@ -187,7 +187,7 @@ class CutiMelahirkanCalculatorTest extends TestCase
         $user = $this->employeeWithGajiPokok(1_600_000, 8);
 
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         $context->grossSalary = 3_000_000;

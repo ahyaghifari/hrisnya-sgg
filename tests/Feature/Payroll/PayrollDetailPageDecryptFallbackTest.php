@@ -42,7 +42,7 @@ class PayrollDetailPageDecryptFallbackTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
         $employee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Karyawan']);
-        $payroll = Payroll::create(['user_id' => $employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'total_deductions' => 500000]);
+        $payroll = Payroll::create(['user_id' => $employee->id, 'employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'total_deductions' => 500000]);
 
         $item = PayrollItem::create(['payroll_id' => $payroll->id, 'name' => 'Gaji Pokok', 'type' => 'earning', 'quantity' => 1, 'amount' => 5000000, 'source_type' => 'gaji_pokok']);
         // Simulasi baris lama yang masih plaintext - bypass cast lewat query builder.

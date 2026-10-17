@@ -225,7 +225,7 @@ class PayrollDetailPage extends Component
     {
         return PayrollManualLine::query()
             ->where('payroll_period_id', $this->payroll->payroll_period_id)
-            ->where('user_id', $this->payroll->user_id)
+            ->where('employee_id', $this->payroll->employee_id)
             ->where('component', $component)
             ->latest()
             ->get();
@@ -386,7 +386,7 @@ class PayrollDetailPage extends Component
 
         if ($lineId) {
             $line = PayrollManualLine::where('id', $lineId)
-                ->where('user_id', $this->payroll->user_id)
+                ->where('employee_id', $this->payroll->employee_id)
                 ->where('payroll_period_id', $this->payroll->payroll_period_id)
                 ->firstOrFail();
 
@@ -442,7 +442,7 @@ class PayrollDetailPage extends Component
 
         if ($this->editingManualLineId) {
             $line = PayrollManualLine::where('id', $this->editingManualLineId)
-                ->where('user_id', $this->payroll->user_id)
+                ->where('employee_id', $this->payroll->employee_id)
                 ->where('payroll_period_id', $this->payroll->payroll_period_id)
                 ->firstOrFail();
 
@@ -466,6 +466,7 @@ class PayrollDetailPage extends Component
 
             $line = PayrollManualLine::create([
                 'payroll_period_id' => $this->payroll->payroll_period_id,
+                'employee_id' => $this->payroll->employee_id,
                 'user_id' => $this->payroll->user_id,
                 'component' => $this->manualLineComponent,
                 'amount' => $this->manualLineAmount,
@@ -569,7 +570,7 @@ class PayrollDetailPage extends Component
         abort_if($this->periodHasEnded, 403, 'Periode ini sudah bukan periode terbaru — hapus baris manual di sini tidak akan berpengaruh (Regenerate sudah ditutup). Edit manual per baris lewat admin panel (Daftar Payroll > buka payroll ini > tab Payroll Items).');
 
         $line = PayrollManualLine::where('id', $lineId)
-            ->where('user_id', $this->payroll->user_id)
+            ->where('employee_id', $this->payroll->employee_id)
             ->where('payroll_period_id', $this->payroll->payroll_period_id)
             ->firstOrFail();
 

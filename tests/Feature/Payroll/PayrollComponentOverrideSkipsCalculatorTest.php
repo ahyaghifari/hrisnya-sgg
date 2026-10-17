@@ -48,7 +48,7 @@ class PayrollComponentOverrideSkipsCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $employeeType->id]);
 
         PayrollComponentOverride::create([
-            'user_id' => $user->id,
+            'user_id' => $user->id, 'employee_id' => $user->employee->id,
             'component' => PayrollComponentEnum::GAJI_POKOK->value,
             'amount' => 9_999_000,
             'note' => 'kesepakatan khusus',
@@ -57,7 +57,7 @@ class PayrollComponentOverrideSkipsCalculatorTest extends TestCase
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        $payroll = app(PayrollService::class)->generateSingleForUser($user, $period);
+        $payroll = app(PayrollService::class)->generateSingleForEmployee($user->employee, $period);
 
         $item = $payroll->items()->where('source_type', PayrollComponentEnum::GAJI_POKOK->value)->first();
 
@@ -85,7 +85,7 @@ class PayrollComponentOverrideSkipsCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $employeeType->id]);
 
         PayrollComponentOverride::create([
-            'user_id' => $user->id,
+            'user_id' => $user->id, 'employee_id' => $user->employee->id,
             'component' => PayrollComponentEnum::GAJI_POKOK->value,
             'amount' => 9_999_000,
             'is_active' => false,
@@ -93,7 +93,7 @@ class PayrollComponentOverrideSkipsCalculatorTest extends TestCase
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        $payroll = app(PayrollService::class)->generateSingleForUser($user, $period);
+        $payroll = app(PayrollService::class)->generateSingleForEmployee($user->employee, $period);
 
         $item = $payroll->items()->where('source_type', PayrollComponentEnum::GAJI_POKOK->value)->first();
 

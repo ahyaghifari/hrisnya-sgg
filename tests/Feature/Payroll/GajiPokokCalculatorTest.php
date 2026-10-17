@@ -47,7 +47,7 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas3->id, 'employee_type_id' => $tetap->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -72,7 +72,7 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $orientasi->id, 'joining_date' => '2026-01-01']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -92,10 +92,10 @@ class GajiPokokCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id]);
-        GajiPokokKenaikanOverride::create(['user_id' => $user->id, 'rate' => 16, 'is_active' => true]);
+        GajiPokokKenaikanOverride::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'rate' => 16, 'is_active' => true]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -118,10 +118,10 @@ class GajiPokokCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id]);
-        GajiPokokKenaikanOverride::create(['user_id' => $user->id, 'rate' => 16, 'is_active' => false]);
+        GajiPokokKenaikanOverride::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'rate' => 16, 'is_active' => false]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -144,7 +144,7 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas->id, 'employee_type_id' => $tetap->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -169,7 +169,7 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -187,7 +187,7 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]); // kelas_id kosong
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -212,7 +212,7 @@ class GajiPokokCalculatorTest extends TestCase
         // Periode 1-31 Juli 2026. Join 27 Juli s.d. 31 Juli = 5 hari kalender, Minggu jatuh di
         // 26 & 2 Agustus (di luar rentang) - tidak ada yang di-exclude, worked days = 5.
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -235,7 +235,7 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $orientasi->id, 'joining_date' => '2026-01-01']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -258,7 +258,7 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -284,7 +284,7 @@ class GajiPokokCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'kelas_id' => $kelas1->id, 'employee_type_id' => $tetap->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -331,7 +331,7 @@ class GajiPokokCalculatorTest extends TestCase
         $user = $this->makeContractTransitionUser($company, '2026-07-25');
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -346,7 +346,7 @@ class GajiPokokCalculatorTest extends TestCase
         $user = $this->makeContractTransitionUser($company, '2026-07-03');
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -362,7 +362,7 @@ class GajiPokokCalculatorTest extends TestCase
         $user = $this->makeContractTransitionUser($company, '2026-07-10');
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -381,7 +381,7 @@ class GajiPokokCalculatorTest extends TestCase
         $user = $this->makeContractTransitionUser($company, '2026-07-25');
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);
@@ -413,7 +413,7 @@ class GajiPokokCalculatorTest extends TestCase
         UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-25', 'contract_end_date' => '2027-07-24']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new GajiPokokCalculator())->calculate($user, $payroll, $period, $context);

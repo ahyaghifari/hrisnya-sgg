@@ -116,7 +116,7 @@ class GajiPokokCalculator implements PayrollComponentCalculator
         $category = $user->profile?->employeeType?->category;
         $rate = ($category === null || $category === EmployeeTypeCategory::ORIENTASI)
             ? 0.0
-            : (GajiPokokKenaikanOverride::activeRateFor($user->id)
+            : (GajiPokokKenaikanOverride::activeRateFor($user->employee?->id)
                 ?? (float) Setting::resolve('gaji_pokok_kenaikan_per_kelas', $period->company_id, default: 8)) / 100;
 
         // Skip aman kalau fondasi datanya belum lengkap — Gaji Pokok Rp0 yang ke-generate

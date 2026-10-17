@@ -27,7 +27,7 @@ class IncentiveCalculatorMetodeTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         Incentive::create([
             'user_id' => $user->id,

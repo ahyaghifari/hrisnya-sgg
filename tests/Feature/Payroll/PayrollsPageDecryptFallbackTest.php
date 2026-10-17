@@ -43,10 +43,10 @@ class PayrollsPageDecryptFallbackTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
         $goodEmployee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Aman']);
-        $goodPayroll = Payroll::create(['user_id' => $goodEmployee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'total_deductions' => 500000]);
+        $goodPayroll = Payroll::create(['user_id' => $goodEmployee->id, 'employee_id' => $goodEmployee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'total_deductions' => 500000]);
 
         $brokenEmployee = User::factory()->create(['company_id' => $company->id, 'name' => 'Budi Rusak']);
-        $brokenPayroll = Payroll::create(['user_id' => $brokenEmployee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'total_deductions' => 500000]);
+        $brokenPayroll = Payroll::create(['user_id' => $brokenEmployee->id, 'employee_id' => $brokenEmployee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'total_deductions' => 500000]);
         // Simulasi data lama yang masih plaintext (belum ter-reencrypt) - tulis langsung lewat
         // query builder, melewati cast PayrollEncrypted sama sekali.
         DB::table('payrolls')->where('id', $brokenPayroll->id)->update(['gross_salary' => '5000000']);

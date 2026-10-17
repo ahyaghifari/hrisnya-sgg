@@ -52,8 +52,8 @@ class PayrollPeriodUnmarkAsPaidTest extends TestCase
         $employeeA = User::factory()->create(['company_id' => $company->id]);
         $employeeB = User::factory()->create(['company_id' => $company->id]);
 
-        $paid = Payroll::create(['user_id' => $employeeA->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
-        $unpaid = Payroll::create(['user_id' => $employeeB->id, 'payroll_period_id' => $period->id, 'gross_salary' => 3000000, 'net_salary' => 2800000, 'is_paid' => false]);
+        $paid = Payroll::create(['user_id' => $employeeA->id, 'employee_id' => $employeeA->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
+        $unpaid = Payroll::create(['user_id' => $employeeB->id, 'employee_id' => $employeeB->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 3000000, 'net_salary' => 2800000, 'is_paid' => false]);
 
         Livewire::actingAs($admin)
             ->test(ListPayrollPeriods::class)
@@ -76,7 +76,7 @@ class PayrollPeriodUnmarkAsPaidTest extends TestCase
         ]);
 
         $employee = User::factory()->create(['company_id' => $company->id]);
-        Payroll::create(['user_id' => $employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 3000000, 'net_salary' => 2800000, 'is_paid' => false]);
+        Payroll::create(['user_id' => $employee->id, 'employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 3000000, 'net_salary' => 2800000, 'is_paid' => false]);
 
         Livewire::actingAs($admin)
             ->test(ListPayrollPeriods::class)

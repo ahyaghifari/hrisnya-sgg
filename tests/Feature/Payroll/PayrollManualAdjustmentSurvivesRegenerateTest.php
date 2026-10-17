@@ -23,7 +23,7 @@ use Tests\TestCase;
 /**
  * Baris payroll_items yang edited_manually=true (hasil EditAction/Add Adjustment di halaman
  * detail payroll) HARUS dibawa pindah apa adanya ke payroll baru pas Generate/Regenerate,
- * Calculator komponen itu WAJIB di-skip - lihat PayrollService::generateForUser()/runComponent()
+ * Calculator komponen itu WAJIB di-skip - lihat PayrollService::generateForEmployee()/runComponent()
  * dan PayrollContext::protectedSourceTypes.
  */
 class PayrollManualAdjustmentSurvivesRegenerateTest extends TestCase
@@ -50,7 +50,7 @@ class PayrollManualAdjustmentSurvivesRegenerateTest extends TestCase
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5_000_000, 'total_deductions' => 0, 'net_salary' => 5_000_000]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5_000_000, 'total_deductions' => 0, 'net_salary' => 5_000_000]);
         PayrollItem::create([
             'payroll_id' => $payroll->id,
             'name' => 'Gaji Pokok (override HR)',
@@ -114,7 +114,7 @@ class PayrollManualAdjustmentSurvivesRegenerateTest extends TestCase
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5_000_000, 'total_deductions' => 0, 'net_salary' => 5_000_000]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5_000_000, 'total_deductions' => 0, 'net_salary' => 5_000_000]);
         PayrollItem::create([
             'payroll_id' => $payroll->id,
             'name' => 'Gaji Pokok (override HR)',

@@ -91,7 +91,7 @@ class PurgeUsersTest extends TestCase
     {
         $user = $this->demo('D1');
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->artisan('identity:purge-users', ['nip' => ['D1'], '--force' => true])->assertFailed();
         $this->assertSame(1, User::whereNip('D1')->count());
@@ -137,7 +137,7 @@ class PurgeUsersTest extends TestCase
         $withPayroll = $this->demo('D1');
         $clean = $this->demo('D2');
         $period = PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        Payroll::create(['user_id' => $withPayroll->id, 'payroll_period_id' => $period->id]);
+        Payroll::create(['user_id' => $withPayroll->id, 'employee_id' => $withPayroll->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->artisan('identity:purge-users', ['nip' => ['D1', 'D2'], '--force' => true])
             ->expectsOutputToContain('DILEWATI')

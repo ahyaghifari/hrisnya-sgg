@@ -341,7 +341,7 @@ class SalaryComponentsPage extends Component
             ->whereIn('payroll_period_id', $periodIds)
             ->where('component', PayrollComponentEnum::BON->value)
             ->get()
-            ->groupBy(fn ($line) => "{$line->payroll_period_id}|{$line->user_id}");
+            ->groupBy(fn ($line) => "{$line->payroll_period_id}|{$line->employee_id}");
 
         foreach ($groups as $lines) {
             if ($lines->count() <= 1) {
@@ -352,7 +352,7 @@ class SalaryComponentsPage extends Component
 
             $isPaid = Payroll::query()
                 ->where('payroll_period_id', $first->payroll_period_id)
-                ->where('user_id', $first->user_id)
+                ->where('employee_id', $first->employee_id)
                 ->value('is_paid');
 
             if ($isPaid) {

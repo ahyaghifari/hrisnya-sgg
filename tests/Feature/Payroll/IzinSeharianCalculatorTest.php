@@ -57,7 +57,7 @@ class IzinSeharianCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
 
@@ -81,7 +81,7 @@ class IzinSeharianCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-15');
@@ -100,7 +100,7 @@ class IzinSeharianCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-08-01');
 
@@ -124,7 +124,7 @@ class IzinSeharianCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-05-01', '2026-05-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-04-15'); // sebelum window - JANGAN kehitung
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-05-14'); // di dalam window 21 Apr - 20 Mei - HARUS kehitung
@@ -144,7 +144,7 @@ class IzinSeharianCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
 
@@ -168,7 +168,7 @@ class IzinSeharianCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // Baris Gaji Pokok yang SEHARUSNYA sudah dibuat GajiPokokCalculator sebelum Izin Seharian
         // jalan (urutan orchestrator PayrollService) - disimulasikan langsung di sini.
@@ -203,7 +203,7 @@ class IzinSeharianCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         PayrollItem::create([
             'payroll_id' => $payroll->id, 'name' => 'Gaji Pokok', 'type' => 'earning',
@@ -229,7 +229,7 @@ class IzinSeharianCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = $this->makePeriod($company->id, '2026-07-01', '2026-07-31');
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzinSeharian($user, $company->id, '2026-07-10');
 

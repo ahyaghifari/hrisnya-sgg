@@ -24,9 +24,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * PayrollService::generateForUser() WAJIB jalankan semua komponen EARNING (termasuk Gaji Pokok)
+ * PayrollService::generateForEmployee() WAJIB jalankan semua komponen EARNING (termasuk Gaji Pokok)
  * SEBELUM Izin Seharian - metode 'keseluruhan' butuh $context->grossSalary yang sudah final
- * (lihat komentar di generateForUser()). Test ini mengunci OUTCOME dari urutan itu: kalau ada
+ * (lihat komentar di generateForEmployee()). Test ini mengunci OUTCOME dari urutan itu: kalau ada
  * yang menyederhanakan orchestrator jadi 1 loop biasa (Izin Seharian ikut urutan alami komponen,
  * bisa jalan sebelum Gaji Pokok), potongan Izin Seharian di sini akan salah (lebih kecil/nol),
  * bukan cuma teori.

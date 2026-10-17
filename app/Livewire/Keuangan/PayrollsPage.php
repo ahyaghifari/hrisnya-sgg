@@ -622,10 +622,10 @@ class PayrollsPage extends Component
         // importGuardPasses()) - regenerate langsung tiap payroll yang baris-nya berhasil
         // diimport, supaya nominalnya langsung masuk tanpa perlu klik Regenerate manual.
         $regeneratedCount = 0;
-        if ($import->getSuccessUserIds() !== []) {
+        if ($import->getSuccessEmployeeIds() !== []) {
             $payrollService = app(PayrollService::class);
             $payrolls = Payroll::where('payroll_period_id', $this->importPeriodId)
-                ->whereIn('user_id', $import->getSuccessUserIds())
+                ->whereIn('employee_id', $import->getSuccessEmployeeIds())
                 ->with(['user.profile', 'payrollPeriod'])
                 ->get();
 

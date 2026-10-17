@@ -43,7 +43,7 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value, '2026-07-05');
 
@@ -60,7 +60,7 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value, '2026-07-05');
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_PULANG_CEPAT->value, '2026-07-10');
@@ -81,7 +81,7 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // Kategori sakit BUKAN salah satu dari 3 kategori komponen ini.
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_SAKIT->value, '2026-07-05');
@@ -108,7 +108,7 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-05-01', 'end_date' => '2026-05-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value, '2026-04-15'); // sebelum window (Apr21-Mei20) - JANGAN kehitung
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value, '2026-05-14'); // di dalam window - HARUS kehitung
@@ -132,7 +132,7 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // Izin 2 jam (10:00-12:00) - 10.000 x 2 jam = 20.000, bukan flat 10.000.
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_MENINGGALKAN_JAM_KERJA->value, '2026-07-05', '10:00:00', '12:00:00');
@@ -152,7 +152,7 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value, '2026-07-05', '07:00:00', '09:00:00');
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_PULANG_CEPAT->value, '2026-07-10', '15:00:00', '16:00:00');
@@ -174,7 +174,7 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // Izin 4 jam - tetap 10.000 flat, bukan 40.000.
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_MENINGGALKAN_JAM_KERJA->value, '2026-07-05', '09:00:00', '13:00:00');
@@ -190,7 +190,7 @@ class IzinMeninggalkanJamKerjaCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeApprovedIzin($user, $company->id, PermissionTypeCategoryEnum::IZIN_TERLAMBAT_MASUK->value, '2026-07-05');
 

@@ -12,7 +12,7 @@ use App\Models\User;
  *
  * THP = net running total SAAT INI ($context->grossSalary - $context->totalDeductions) - VALID
  * cuma karena CutiCalculator (dispatcher, lihat PayrollCalculatorRegistry) dipaksa jalan PALING
- * TERAKHIR (lihat PayrollService::generateForUser()), jadi semua earning+deduction lain
+ * TERAKHIR (lihat PayrollService::generateForEmployee()), jadi semua earning+deduction lain
  * (termasuk Gaji Pokok, BPJS, Izin Seharian) sudah final duluan.
  *
  * Potongan = THP - ( THP/E x W + GajiPokokAkhir x rasio_gaji_pokok )

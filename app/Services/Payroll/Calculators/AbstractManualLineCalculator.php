@@ -30,7 +30,7 @@ abstract class AbstractManualLineCalculator implements PayrollComponentCalculato
     public function calculate(User $user, Payroll $payroll, PayrollPeriod $period, PayrollContext $context): void
     {
         $lines = PayrollManualLine::query()
-            ->where('user_id', $user->id)
+            ->where('employee_id', $payroll->employee_id)
             ->where('payroll_period_id', $period->id)
             ->where('component', $this->componentValue())
             ->get();

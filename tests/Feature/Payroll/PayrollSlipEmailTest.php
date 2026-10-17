@@ -51,7 +51,7 @@ class PayrollSlipEmailTest extends TestCase
         UserProfiles::create(array_merge(['user_id' => $employee->id, 'date_of_birth' => '1995-05-17'], $profileAttrs));
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-06-01', 'end_date' => '2026-06-30']);
         $payroll = Payroll::create([
-            'user_id' => $employee->id,
+            'user_id' => $employee->id, 'employee_id' => $employee->employee->id,
             'payroll_period_id' => $period->id,
             'gross_salary' => 1000000,
             'net_salary' => 1000000,

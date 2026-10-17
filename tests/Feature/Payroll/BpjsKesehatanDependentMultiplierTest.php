@@ -48,7 +48,7 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
         $user = $this->makeUser($company, dependentCount: 2);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new BpjsKesehatanCalculator())->calculate($user, $payroll, $period, $context);
@@ -66,7 +66,7 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
         $user = $this->makeUser($company, dependentCount: null);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new BpjsKesehatanCalculator())->calculate($user, $payroll, $period, $context);
@@ -83,7 +83,7 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
         $user = $this->makeUser($company, dependentCount: 3, dependentActive: false);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new BpjsKesehatanCalculator())->calculate($user, $payroll, $period, $context);
@@ -104,7 +104,7 @@ class BpjsKesehatanDependentMultiplierTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new BpjsKesehatanCalculator())->calculate($user, $payroll, $period, $context);

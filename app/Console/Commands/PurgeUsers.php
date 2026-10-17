@@ -106,7 +106,13 @@ class PurgeUsers extends Command
 
         try {
             DB::transaction(function () use ($set, $also) {
-                // Salinan karyawan dulu; cascade ke identitas, alamat, lampiran, employee_careers.
+                // Baris penghalang yang diizinkan (--also) dulu: sebagian (mis. payrolls.employee_id) menahan hapus employees.
+                foreach ($also as $target) {
+                    [$table, $column] = explode('.', $target, 2);
+                    DB::table($table)->whereIn($column, $set)->delete();
+                }
+
+                // Salinan karyawan; cascade ke identitas, alamat, lampiran, employee_careers.
                 Employee::whereIn('user_id', $set)->delete();
 
                 foreach (self::POLYMORPHIC as $table => $column) {
@@ -120,11 +126,6 @@ class PurgeUsers extends Command
 
                 // Sisa aktivitas pada pengajuan orang lain: kosongkan pelakunya.
                 DB::table('approval_activities')->whereIn('acted_by', $set)->update(['acted_by' => null]);
-
-                foreach ($also as $target) {
-                    [$table, $column] = explode('.', $target, 2);
-                    DB::table($table)->whereIn($column, $set)->delete();
-                }
 
                 DB::table('users')->whereIn('id', $set)->delete();
             });

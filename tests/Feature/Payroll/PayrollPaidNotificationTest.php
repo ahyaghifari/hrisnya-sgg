@@ -45,7 +45,7 @@ class PayrollPaidNotificationTest extends TestCase
         $period = PayrollPeriod::create(['company_id' => $companyId, 'start_date' => '2026-06-01', 'end_date' => '2026-06-30']);
 
         return Payroll::create([
-            'user_id' => $employee->id,
+            'user_id' => $employee->id, 'employee_id' => $employee->employee->id,
             'payroll_period_id' => $period->id,
             'gross_salary' => 1000000,
             'net_salary' => 1000000,

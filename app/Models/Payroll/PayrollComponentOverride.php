@@ -5,6 +5,7 @@ namespace App\Models\Payroll;
 use App\Casts\PayrollEncrypted;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\User;
+use App\Models\Employee\Employee;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,7 @@ class PayrollComponentOverride extends Model
 
     protected $fillable = [
         'user_id',
+        'employee_id',
         'component',
         'amount',
         'note',
@@ -37,16 +39,21 @@ class PayrollComponentOverride extends Model
         ];
     }
 
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /** Override aktif buat (user, component) ini, kalau ada - dipakai PayrollService::runComponent(). */
-    public static function activeFor(string $userId, string $component): ?self
+    /** Override aktif buat (karyawan, component) ini, kalau ada - dipakai PayrollService::runComponent(). */
+    public static function activeFor(string $employeeId, string $component): ?self
     {
         return static::query()
-            ->where('user_id', $userId)
+            ->where('employee_id', $employeeId)
             ->where('component', $component)
             ->where('is_active', true)
             ->first();

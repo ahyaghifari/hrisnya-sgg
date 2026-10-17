@@ -38,7 +38,7 @@ class BonDetailImportTest extends TestCase
         PayrollComponentRecipient::create(['company_id' => $company->id, 'component' => PayrollComponentEnum::BON->value, 'employee_type_id' => $employeeType->id]);
         Setting::create(['company_id' => $company->id, 'key' => 'bon_metode', 'module' => 'payroll', 'type' => 'string', 'value' => 'detail', 'label' => 'Metode Bon']);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         return [$company, $user, $period, $payroll];
     }
@@ -82,7 +82,7 @@ class BonDetailImportTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id, 'nip' => 'NIP001']);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
         // Sengaja TIDAK set bon_metode -> default 'simple'.
 
         $import = new BonDetailImport($period->id);

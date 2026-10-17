@@ -8,7 +8,7 @@ use App\Models\Payroll\PayrollComponentRecipient;
 use App\Models\Payroll\PayrollManualLine;
 use App\Models\Payroll\PayrollPeriod;
 use App\Models\Setting;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -22,7 +22,7 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  * - Upload ulang NIP + nama potongan yang SAMA -> nominal ditimpa (bukan dobel baris).
  * - Nama potongan BEDA untuk NIP yang sama -> tetap baris terpisah (rincian satu-satu).
  *
- * Interface publik SAMA persis BonImport (getErrors/getSuccessCount/getSuccessUserIds/
+ * Interface publik SAMA persis BonImport (getErrors/getSuccessCount/getSuccessEmployeeIds/
  * getPreview) supaya PayrollsPage::makeImport() bisa pilih salah satu tanpa ubah kode pemanggil.
  */
 class BonDetailImport implements ToCollection, WithHeadingRow
@@ -30,9 +30,9 @@ class BonDetailImport implements ToCollection, WithHeadingRow
     private array $errors = [];
     private int $successCount = 0;
     private array $previewRows = [];
-    /** @var array<int, string> user_id yang baris-nya berhasil diimport - dipakai
+    /** @var array<int, string> employee_id yang baris-nya berhasil diimport - dipakai
      * PayrollsPage::confirmImport() buat regenerate payroll otomatis. */
-    private array $successUserIds = [];
+    private array $successEmployeeIds = [];
 
     public function __construct(
         protected string $payrollPeriodId,
@@ -53,14 +53,14 @@ class BonDetailImport implements ToCollection, WithHeadingRow
                 continue; // baris kosong, bukan error
             }
 
-            $user = User::whereNip($nip)->first();
-            $error = $this->validateRow($user, $amount, $namaPotongan, $nip, $companyId);
+            $employee = Employee::where('nip', $nip)->first();
+            $error = $this->validateRow($employee, $amount, $namaPotongan, $nip, $companyId);
 
             if ($this->preview) {
                 $this->previewRows[] = [
                     'row' => $rowNum,
                     'nip' => $nip,
-                    'nama_sistem' => $user?->name,
+                    'nama_sistem' => $employee?->nama_lengkap,
                     'nama_potongan' => $namaPotongan,
                     'nominal' => $amount,
                     'error' => $error,
@@ -75,15 +75,16 @@ class BonDetailImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            DB::transaction(function () use ($user, $amount, $namaPotongan): void {
+            DB::transaction(function () use ($employee, $amount, $namaPotongan): void {
                 PayrollManualLine::updateOrCreate(
                     [
                         'payroll_period_id' => $this->payrollPeriodId,
-                        'user_id' => $user->id,
+                        'employee_id' => $employee->id,
                         'component' => PayrollComponentEnum::BON->value,
                         'label' => $namaPotongan,
                     ],
                     [
+                        'user_id' => $employee->user_id,
                         'amount' => $amount,
                         'note' => 'Import Excel',
                     ]
@@ -91,17 +92,17 @@ class BonDetailImport implements ToCollection, WithHeadingRow
             });
 
             $this->successCount++;
-            $this->successUserIds[] = $user->id;
+            $this->successEmployeeIds[] = $employee->id;
         }
     }
 
-    private function validateRow(?User $user, float $amount, string $namaPotongan, string $nip, ?string $companyId): ?string
+    private function validateRow(?Employee $employee, float $amount, string $namaPotongan, string $nip, ?string $companyId): ?string
     {
         if (Setting::resolve('bon_metode', $companyId, default: 'simple') !== 'detail') {
             return "NIP {$nip}: company ini pakai mode Bon \"Simple\" - import rincian tidak berlaku, gunakan Import Bon biasa (nip/nama/nominal).";
         }
 
-        if (! $user) {
+        if (! $employee) {
             return "NIP {$nip} tidak ditemukan.";
         }
 
@@ -110,7 +111,7 @@ class BonDetailImport implements ToCollection, WithHeadingRow
         }
 
         $payroll = Payroll::query()
-            ->where('user_id', $user->id)
+            ->where('employee_id', $employee->id)
             ->where('payroll_period_id', $this->payrollPeriodId)
             ->first();
 
@@ -126,7 +127,7 @@ class BonDetailImport implements ToCollection, WithHeadingRow
             return "NIP {$nip}: nominal harus lebih dari 0.";
         }
 
-        if (! PayrollComponentRecipient::isEligible($companyId, PayrollComponentEnum::BON->value, $user->profile?->employee_type_id)) {
+        if (! PayrollComponentRecipient::isEligible($companyId, PayrollComponentEnum::BON->value, $employee->employee_type_id)) {
             return "NIP {$nip}: tipe karyawan ini belum terdaftar sebagai penerima Bon di halaman Penerima Komponen Gaji — nominal tidak akan muncul di payroll meski diimport.";
         }
 
@@ -144,9 +145,9 @@ class BonDetailImport implements ToCollection, WithHeadingRow
     }
 
     /** @return array<int, string> */
-    public function getSuccessUserIds(): array
+    public function getSuccessEmployeeIds(): array
     {
-        return $this->successUserIds;
+        return $this->successEmployeeIds;
     }
 
     public function getPreview(): array

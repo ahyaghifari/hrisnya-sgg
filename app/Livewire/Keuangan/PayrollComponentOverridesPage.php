@@ -6,7 +6,7 @@ use App\Enum\CustomPermissionEnum;
 use App\Enum\Payroll\PayrollComponentEnum;
 use App\Models\Master\Companies;
 use App\Models\Payroll\PayrollComponentOverride;
-use App\Models\User;
+use App\Models\Employee\Employee;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -25,7 +25,7 @@ class PayrollComponentOverridesPage extends Component
     public string $search = '';
 
     public bool $showAddModal = false;
-    public ?string $addUserId = null;
+    public ?string $addEmployeeId = null;
     public ?string $addComponent = null;
     public ?string $addAmount = null;
     public ?string $addNote = null;
@@ -72,23 +72,23 @@ class PayrollComponentOverridesPage extends Component
         $search = trim($this->search);
 
         return PayrollComponentOverride::query()
-            ->whereHas('user', fn ($q) => $q->whereCompany($this->companyId)
-                ->when($search !== '', fn ($q2) => $q2->searchNameOrNip($search)))
-            ->with('user')
+            ->whereHas('employee', fn ($q) => $q->where('company_id', $this->companyId)
+                ->when($search !== '', fn ($q2) => $q2->where(fn ($q3) => $q3->where('nama_lengkap', 'like', "%{$search}%")->orWhere('nip', 'like', "%{$search}%"))))
+            ->with('employee')
             ->latest()
             ->get();
     }
 
-    public function getAvailableUsersProperty()
+    public function getAvailableEmployeesProperty()
     {
         if (! $this->companyId) {
             return collect();
         }
 
-        return User::query()
-            ->whereCompany($this->companyId)
-            ->where('is_active', true)
-            ->orderByName()
+        return Employee::query()
+            ->where('company_id', $this->companyId)
+            ->where('status', 'aktif')
+            ->orderBy('nama_lengkap')
             ->get();
     }
 
@@ -96,7 +96,7 @@ class PayrollComponentOverridesPage extends Component
     {
         abort_unless($this->canEdit, 403);
 
-        $this->addUserId = null;
+        $this->addEmployeeId = null;
         $this->addComponent = null;
         $this->addAmount = null;
         $this->addNote = null;
@@ -114,24 +114,25 @@ class PayrollComponentOverridesPage extends Component
         abort_unless($this->canEdit, 403);
 
         $this->validate([
-            'addUserId' => 'required|exists:users,id',
+            'addEmployeeId' => 'required|exists:employees,id',
             'addComponent' => ['required', \Illuminate\Validation\Rule::in(array_map(fn ($c) => $c->value, PayrollComponentEnum::cases()))],
             'addAmount' => 'required|numeric|min:0',
         ], [], [
-            'addUserId' => 'karyawan',
+            'addEmployeeId' => 'karyawan',
             'addComponent' => 'komponen',
             'addAmount' => 'nominal',
         ]);
 
         abort_if(
-            PayrollComponentOverride::where('user_id', $this->addUserId)->where('component', $this->addComponent)->exists(),
+            PayrollComponentOverride::where('employee_id', $this->addEmployeeId)->where('component', $this->addComponent)->exists(),
             409,
             'Karyawan ini sudah punya Gaji Khusus untuk komponen ini — ubah nominalnya dari daftar, bukan tambah lagi.'
         );
 
         try {
             PayrollComponentOverride::create([
-                'user_id' => $this->addUserId,
+                'employee_id' => $this->addEmployeeId,
+                'user_id' => Employee::whereKey($this->addEmployeeId)->value('user_id'),
                 'component' => $this->addComponent,
                 'amount' => $this->addAmount,
                 'note' => $this->addNote,

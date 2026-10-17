@@ -30,7 +30,7 @@ class PajakGajiPokokExportTest extends TestCase
             : null;
         UserProfiles::create(['user_id' => $user->id, 'job_position_id' => $jobId]);
 
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
         PayrollItem::create([
             'payroll_id' => $payroll->id,
             'name' => 'Gaji Pokok',

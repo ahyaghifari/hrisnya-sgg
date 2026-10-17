@@ -58,7 +58,7 @@ class PayrollComponentOverridesPageTest extends TestCase
             ->test(PayrollComponentOverridesPage::class)
             ->set('companyId', $company->id)
             ->call('openAddModal')
-            ->set('addUserId', $employee->id)
+            ->set('addEmployeeId', $employee->employee->id)
             ->set('addComponent', PayrollComponentEnum::TUNJANGAN_JABATAN->value)
             ->set('addAmount', '750000')
             ->call('saveAdd');
@@ -74,7 +74,7 @@ class PayrollComponentOverridesPageTest extends TestCase
         $company = $this->makeCompany();
         $employee = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
         PayrollComponentOverride::create([
-            'user_id' => $employee->id,
+            'user_id' => $employee->id, 'employee_id' => $employee->employee->id,
             'component' => PayrollComponentEnum::INSENTIF->value,
             'amount' => 100000,
             'is_active' => true,
@@ -84,7 +84,7 @@ class PayrollComponentOverridesPageTest extends TestCase
             ->test(PayrollComponentOverridesPage::class)
             ->set('companyId', $company->id)
             ->call('openAddModal')
-            ->set('addUserId', $employee->id)
+            ->set('addEmployeeId', $employee->employee->id)
             ->set('addComponent', PayrollComponentEnum::INSENTIF->value)
             ->set('addAmount', '200000')
             ->call('saveAdd')
@@ -97,7 +97,7 @@ class PayrollComponentOverridesPageTest extends TestCase
         $company = $this->makeCompany();
         $employee = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
         $override = PayrollComponentOverride::create([
-            'user_id' => $employee->id,
+            'user_id' => $employee->id, 'employee_id' => $employee->employee->id,
             'component' => PayrollComponentEnum::LEMBUR->value,
             'amount' => 50000,
             'is_active' => true,

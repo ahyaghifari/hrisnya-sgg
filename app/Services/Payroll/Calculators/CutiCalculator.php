@@ -19,7 +19,7 @@ use App\Models\User;
  * - CutiPerKomponenCalculator — prorate Tunjangan Jabatan/Transportasi/Masa Kerja, Insentif,
  *   Jasa Pelayanan sesuai hari kerja efektif yang dijalani.
  * - CutiThpCalculator — 1 baris potongan dari selisih THP, WAJIB jalan paling terakhir (lihat
- *   PayrollService::generateForUser()).
+ *   PayrollService::generateForEmployee()).
  *
  * Tetap terdaftar sebagai 1 entry di PayrollCalculatorRegistry (CUTI => self::class) supaya
  * orchestrator (PayrollService) tidak perlu tahu ada 2 teknik di baliknya.

@@ -35,9 +35,10 @@ class PayrollDetailPageManualLineTest extends TestCase
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Update:Payroll', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'View:Payroll', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value, 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Payroll Test', 'guard_name' => 'web']);
-        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, 'Update:Payroll', CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value]);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, 'View:Payroll', 'Update:Payroll', CustomPermissionEnum::EDIT_PAYROLL_ADJUSTMENT->value]);
 
         $user = User::factory()->create();
         $user->assignRole($role);
@@ -51,8 +52,9 @@ class PayrollDetailPageManualLineTest extends TestCase
     {
         Permission::firstOrCreate(['name' => CustomPermissionEnum::SISTEM_KEUANGAN->value, 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Update:Payroll', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'View:Payroll', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Keuangan Payroll Test Terbatas', 'guard_name' => 'web']);
-        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, 'Update:Payroll']);
+        $role->givePermissionTo([CustomPermissionEnum::SISTEM_KEUANGAN->value, 'View:Payroll', 'Update:Payroll']);
 
         $user = User::factory()->create();
         $user->assignRole($role);
@@ -80,7 +82,7 @@ class PayrollDetailPageManualLineTest extends TestCase
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
 
-        return Payroll::create(['user_id' => $employee->id, 'payroll_period_id' => $period->id]);
+        return Payroll::create(['user_id' => $employee->id, 'employee_id' => $employee->employee->id, 'payroll_period_id' => $period->id]);
     }
 
     public function test_bon_simple_mode_blocks_second_manual_line(): void

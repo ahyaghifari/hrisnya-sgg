@@ -47,7 +47,7 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 10);
         $this->makeLateRecord($user, '2026-07-10', 15);
@@ -67,7 +67,7 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 10);
         $this->makeLateRecord($user, '2026-07-10', 15);
@@ -89,7 +89,7 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 10);
         $this->makeLateRecord($user, '2026-07-10', 15);
@@ -108,7 +108,7 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         // Toleransi sudah selesai di level jadwal (status='late' cuma di-set kalau sudah lewat
         // toleransi) - di sini tidak ada threshold menit kedua, 1 menit pun kena hitung.
@@ -129,7 +129,7 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-05-01', 'end_date' => '2026-05-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-04-15', 10); // sebelum window - JANGAN kehitung
         $this->makeLateRecord($user, '2026-05-14', 10); // di dalam window 21 Apr - 20 Mei - HARUS kehitung
@@ -148,7 +148,7 @@ class KeterlambatanCalculatorTest extends TestCase
 
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 10); // ditutup izin - JANGAN kena denda
         $this->makeLateRecord($user, '2026-07-10', 15); // tidak ada izin - HARUS kena denda
@@ -169,7 +169,7 @@ class KeterlambatanCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $this->makeLateRecord($user, '2026-07-05', 30);
 

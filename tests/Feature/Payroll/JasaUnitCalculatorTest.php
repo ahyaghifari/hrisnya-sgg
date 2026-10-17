@@ -28,7 +28,7 @@ class JasaUnitCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $ambulan = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Ambulan']);
         $infus = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Paket Infus']);
@@ -52,7 +52,7 @@ class JasaUnitCalculatorTest extends TestCase
         $company = Companies::create(['code' => 'TST', 'name' => 'Test Company', 'location' => 'Test', 'is_active' => true]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $jasa = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Perujuk Rawat']);
         JasaUnitDetail::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'jasa_unit_type_id' => $jasa->id, 'amount' => 0]);
@@ -70,7 +70,7 @@ class JasaUnitCalculatorTest extends TestCase
         $user = User::factory()->create(['company_id' => $company->id]);
         $otherUser = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $jasa = JasaUnitType::create(['company_id' => $company->id, 'name' => 'Jasa Ambulan']);
         JasaUnitDetail::create(['payroll_period_id' => $period->id, 'user_id' => $otherUser->id, 'jasa_unit_type_id' => $jasa->id, 'amount' => 100_000]);

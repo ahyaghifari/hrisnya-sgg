@@ -73,8 +73,8 @@ class PayrollDashboardPageTest extends TestCase
         $employeePaid = User::factory()->create(['company_id' => $company->id]);
         $employeeUnpaid = User::factory()->create(['company_id' => $company->id]);
 
-        $paidPayroll = Payroll::create(['user_id' => $employeePaid->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
-        Payroll::create(['user_id' => $employeeUnpaid->id, 'payroll_period_id' => $period->id, 'gross_salary' => 3000000, 'net_salary' => 2800000, 'is_paid' => false]);
+        $paidPayroll = Payroll::create(['user_id' => $employeePaid->id, 'employee_id' => $employeePaid->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 5000000, 'net_salary' => 4500000, 'is_paid' => true]);
+        Payroll::create(['user_id' => $employeeUnpaid->id, 'employee_id' => $employeeUnpaid->employee->id, 'payroll_period_id' => $period->id, 'gross_salary' => 3000000, 'net_salary' => 2800000, 'is_paid' => false]);
 
         PayrollItem::create(['payroll_id' => $paidPayroll->id, 'name' => 'Gaji Pokok', 'type' => 'earning', 'amount' => 4500000, 'source_type' => 'gaji_pokok']);
 

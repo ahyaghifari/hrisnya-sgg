@@ -236,7 +236,7 @@ class EmployeeStatisticsTest extends TestCase
         ], $periodOverrides));
 
         return \App\Models\Payroll\Payroll::create([
-            'user_id' => $user->id,
+            'user_id' => $user->id, 'employee_id' => $user->employee->id,
             'payroll_period_id' => $period->id,
             'gross_salary' => 5000000,
             'total_deductions' => 500000,

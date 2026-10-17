@@ -60,7 +60,7 @@ class PayrollRegenerateAuditLogTest extends TestCase
         $fixture = $this->makeFixture();
 
         $service = app(PayrollService::class);
-        $payroll = $service->generateSingleForUser($fixture['user'], $fixture['period']);
+        $payroll = $service->generateSingleForEmployee($fixture['user']->employee, $fixture['period']);
         $this->assertSame(1_080_000.0, (float) $payroll->fresh()->gross_salary); // base 1jt flat x8% = 1,08jt (kelas tidak lagi berpengaruh)
 
         // Ubah basis gaji pokok company ini - regenerate seharusnya menghasilkan angka BEDA,
@@ -83,7 +83,7 @@ class PayrollRegenerateAuditLogTest extends TestCase
         $fixture = $this->makeFixture();
 
         $service = app(PayrollService::class);
-        $payroll = $service->generateSingleForUser($fixture['user'], $fixture['period']);
+        $payroll = $service->generateSingleForEmployee($fixture['user']->employee, $fixture['period']);
 
         // Regenerate TANPA mengubah data master apa pun - angkanya harus tetap sama, tidak
         // perlu dicatat sebagai "perubahan".

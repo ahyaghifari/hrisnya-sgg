@@ -36,7 +36,7 @@ class BpjsKetenagakerjaanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new BpjsKetenagakerjaanCalculator())->calculate($user, $payroll, $period, $context);
@@ -59,7 +59,7 @@ class BpjsKetenagakerjaanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new BpjsKetenagakerjaanCalculator())->calculate($user, $payroll, $period, $context);
@@ -80,7 +80,7 @@ class BpjsKetenagakerjaanCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'pangkat_id' => $pangkat->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new BpjsKetenagakerjaanCalculator())->calculate($user, $payroll, $period, $context);

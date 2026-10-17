@@ -49,7 +49,7 @@ class ExtraShiftCalculatorTest extends TestCase
         // Kasus "libur" (roster kosong/off_day) butuh karyawan terdaftar di jadwal tipe Shift.
         ScheduleAssignment::create(['company_id' => $this->company->id, 'user_id' => $this->user->id, 'schedule_id' => $schedule->id, 'effective_from' => '2026-01-01', 'created_by' => $this->user->id]);
         $this->period =PayrollPeriod::create(['company_id' => $this->company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $this->payroll = Payroll::create(['user_id' => $this->user->id, 'payroll_period_id' => $this->period->id]);
+        $this->payroll = Payroll::create(['user_id' => $this->user->id, 'employee_id' => $this->user->employee->id, 'payroll_period_id' => $this->period->id]);
     }
 
     private function rule(string $from, string $to, ?int $amount): void

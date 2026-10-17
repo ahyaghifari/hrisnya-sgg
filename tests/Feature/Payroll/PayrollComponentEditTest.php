@@ -31,7 +31,7 @@ class PayrollComponentEditTest extends TestCase
         $user = User::create(['name' => 'Karyawan Uji', 'email' => 'karyawan@test.local', 'password' => bcrypt('secret'), 'nip' => '00123', 'company_id' => $company->id, 'is_active' => true]);
 
         $payroll = Payroll::create([
-            'user_id' => $user->id,
+            'user_id' => $user->id, 'employee_id' => $user->employee->id,
             'payroll_period_id' => $period->id,
             'gross_salary' => 5_000_000,
             'total_deductions' => 0,

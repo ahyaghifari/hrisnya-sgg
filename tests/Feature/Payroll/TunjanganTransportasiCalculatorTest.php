@@ -32,7 +32,7 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'kelas_id' => $kelas->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
@@ -51,7 +51,7 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'kelas_id' => $kelas->id, 'joining_date' => '2026-07-27']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
@@ -66,7 +66,7 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id]); // tanpa kelas
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
@@ -84,7 +84,7 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         UserProfiles::create(['user_id' => $user->id, 'kelas_id' => $kelas->id]);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);
@@ -107,7 +107,7 @@ class TunjanganTransportasiCalculatorTest extends TestCase
         UserContract::create(['user_id' => $user->id, 'company_id' => $company->id, 'employee_type_id' => $kontrak->id, 'contract_start_date' => '2026-07-10', 'contract_end_date' => '2027-07-09']);
 
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        $payroll = Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id]);
+        $payroll = Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id]);
 
         $context = new PayrollContext();
         (new TunjanganTransportasiCalculator())->calculate($user, $payroll, $period, $context);

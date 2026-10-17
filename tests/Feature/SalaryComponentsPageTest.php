@@ -121,12 +121,12 @@ class SalaryComponentsPageTest extends TestCase
         $company = $this->makeCompany();
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id, 'is_paid' => false]);
+        Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id, 'is_paid' => false]);
 
         // 3 baris sisa dari mode 'detail'.
-        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 200000, 'note' => 'Bon tgl 5']);
-        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 150000, 'note' => 'Ganti kerugian']);
-        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 50000, 'note' => 'Titip beli']);
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'employee_id' => $user->employee->id, 'component' => 'bon', 'amount' => 200000, 'note' => 'Bon tgl 5']);
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'employee_id' => $user->employee->id, 'component' => 'bon', 'amount' => 150000, 'note' => 'Ganti kerugian']);
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'employee_id' => $user->employee->id, 'component' => 'bon', 'amount' => 50000, 'note' => 'Titip beli']);
 
         Livewire::actingAs($finance)
             ->test(SalaryComponentsPage::class)
@@ -147,10 +147,10 @@ class SalaryComponentsPageTest extends TestCase
         $company = $this->makeCompany();
         $user = User::factory()->create(['company_id' => $company->id]);
         $period = PayrollPeriod::create(['company_id' => $company->id, 'start_date' => '2026-07-01', 'end_date' => '2026-07-31']);
-        Payroll::create(['user_id' => $user->id, 'payroll_period_id' => $period->id, 'is_paid' => true]);
+        Payroll::create(['user_id' => $user->id, 'employee_id' => $user->employee->id, 'payroll_period_id' => $period->id, 'is_paid' => true]);
 
-        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 200000]);
-        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'component' => 'bon', 'amount' => 150000]);
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'employee_id' => $user->employee->id, 'component' => 'bon', 'amount' => 200000]);
+        PayrollManualLine::create(['payroll_period_id' => $period->id, 'user_id' => $user->id, 'employee_id' => $user->employee->id, 'component' => 'bon', 'amount' => 150000]);
 
         Livewire::actingAs($finance)
             ->test(SalaryComponentsPage::class)
