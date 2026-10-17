@@ -30,7 +30,7 @@
             <div>
                 <label class="form-label">Level SP <span style="color:var(--danger-text);">*</span></label>
                 <div class="sp-level-group" role="radiogroup" aria-label="Level SP">
-                    @foreach (\App\Enum\Sp\SpLevel::cases() as $level)
+                    @foreach (app(\App\Services\Sp\SpService::class)->allowedLevels($this->report->user_id) as $level)
                         <button type="button" role="radio" aria-checked="{{ $sp_level === $level->value ? 'true' : 'false' }}"
                             data-level="{{ $level->value }}"
                             wire:click="$set('sp_level', '{{ $level->value }}')"

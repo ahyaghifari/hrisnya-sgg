@@ -90,7 +90,9 @@ class EmployeeSpForm
 
                     Select::make('sp_level')
                         ->label('Level SP')
-                        ->options($levelOptions)
+                        ->options(fn (callable $get) => $get('user_id')
+                            ? collect(app(\App\Services\Sp\SpService::class)->allowedLevels($get('user_id')))->mapWithKeys(fn ($level) => [$level->value => $level->getLabel()])
+                            : $levelOptions)
                         ->required(),
 
                     DatePicker::make('start_date')

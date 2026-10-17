@@ -332,6 +332,9 @@ class SpReportService
             }
 
             $level = \App\Enum\Sp\SpLevel::from($data['sp_level']);
+            if (! in_array($level, app(SpService::class)->allowedLevels($report->user_id), true)) {
+                throw ValidationException::withMessages(['sp_level' => 'Level SP harus di atas SP aktif karyawan.']);
+            }
             $coachingId = $report->coaching_id;
 
             $sp = \App\Models\Sp\EmployeeSp::create([

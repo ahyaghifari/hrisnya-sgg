@@ -57,7 +57,7 @@ class CreateSpFromReportPage extends Component
 
     public function getSpLevelOptionsProperty(): array
     {
-        return collect(SpLevel::cases())->mapWithKeys(fn ($level) => [$level->value => $level->getLabel()])->all();
+        return collect(app(SpService::class)->allowedLevels($this->report->user_id))->mapWithKeys(fn ($level) => [$level->value => $level->getLabel()])->all();
     }
 
     public function getEndDatePreviewProperty(): ?string
@@ -121,7 +121,7 @@ class CreateSpFromReportPage extends Component
     {
         return [
             'nomor' => ['required', 'string', 'max:255'],
-            'sp_level' => ['required', 'in:' . implode(',', array_column(SpLevel::cases(), 'value'))],
+            'sp_level' => ['required', 'in:' . implode(',', array_keys($this->spLevelOptions))],
             'knows_by' => ['required', 'exists:users,id'],
             'start_date' => ['required', 'date'],
             'items' => ['required', 'array', 'min:1'],
