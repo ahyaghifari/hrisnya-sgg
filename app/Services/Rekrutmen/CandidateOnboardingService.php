@@ -30,7 +30,7 @@ class CandidateOnboardingService
      *   Karyawan" manual).
      * @return array{ok:bool, message:string, user_id?:string, existing?:bool}
      */
-    public function createEmployeeFromCandidate(string $jobApplicationId, int $orientationMonths = 3): array
+    public function createEmployeeFromCandidate(string $jobApplicationId, int $orientationMonths = 3, ?string $nip = null): array
     {
         if (! in_array($orientationMonths, self::ORIENTATION_MONTHS_OPTIONS, true)) {
             return ['ok' => false, 'message' => 'Lama orientasi harus 3, 6, atau 12 bulan.'];
@@ -66,6 +66,7 @@ class CandidateOnboardingService
                 ? Carbon::parse($app->offering_birth_date)->toDateString()
                 : null,
             'employee_type_id'   => $orientationType->id,
+            'email_pribadi'      => $email,
             'nickname'            => $c->nickname,
             'marital_status'      => $c->status_marital,
             'no_nik'             => $nik,
@@ -83,7 +84,13 @@ class CandidateOnboardingService
             'joining_date'       => $joiningDate,
         ], fn ($v) => $v !== null && $v !== '');
 
-        return DB::transaction(function () use ($email, $name, $companyId, $profileData, $joiningDate, $orientationMonths) {
+        // NIP manual: wajib untuk akun baru, akun yang sudah ada tidak diubah.
+        $nip = trim((string) $nip);
+        if ($nip === '' && ! User::withTrashed()->where('email', $email)->exists()) {
+            return ['ok' => false, 'message' => 'NIP wajib diisi untuk akun baru.'];
+        }
+
+        return DB::transaction(function () use ($email, $name, $companyId, $profileData, $joiningDate, $orientationMonths, $nip) {
             $existing = User::withTrashed()->where('email', $email)->first();
             $isExisting = (bool) $existing;
 
@@ -93,15 +100,13 @@ class CandidateOnboardingService
                 }
                 $user = $existing;
             } else {
-                $nipGenerator = app(\App\Services\Kepegawaian\NipGeneratorService::class);
-
                 $user = User::create([
                     'name'       => $name,
                     'email'      => $email,
                     'password'   => bcrypt(Str::password(16)),
                     'company_id' => $companyId,
                     'is_active'  => true,
-                    'nip'        => $nipGenerator->applies($companyId) ? $nipGenerator->generate($joiningDate) : null,
+                    'nip'        => $nip,
                 ]);
             }
 

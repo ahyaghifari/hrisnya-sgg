@@ -207,6 +207,41 @@ class TtdOnboardingPage extends Page implements HasActions, HasForms, HasTable
             ->recordActions([
                 Action::make('lihat')->label('Detail')->icon('heroicon-m-eye')->color('gray')
                     ->url(fn ($record) => \App\Filament\Rekrutmen\Pages\ApplicantDetailPage::getUrl() . '?application=' . $record->id),
+                Action::make('nomorPerjanjianMitra')
+                    ->label(fn ($record) => $record->mitraAgreementNumber()?->number ?? 'Buat Nomor Perjanjian')
+                    ->tooltip(fn ($record) => $record->agreementKind() === \App\Models\Rekrutmen\MitraAgreementNumber::KIND_MITRA ? 'Perjanjian Kerja Mitra' : 'PKWTT')
+                    ->icon('heroicon-m-hashtag')->color('gray')
+                    ->visible(fn ($record) => $this->canDecide() && $record->offering_data_confirmed_at)
+                    ->modalHeading(fn ($record) => $record->mitraAgreementNumber() ? 'Ubah Nomor Perjanjian' : 'Buat Nomor Perjanjian')
+                    ->modalDescription(fn ($record) => $record->mitraAgreementNumber()
+                        ? 'Nomor bisa diubah bebas kapan saja. Urutan otomatis nomor berikutnya tidak ikut berubah.'
+                        : ($record->agreementKind() === \App\Models\Rekrutmen\MitraAgreementNumber::KIND_PKWTT
+                            ? 'Nomor lengkap diisi/diedit langsung. Usulan urut otomatis sudah terisi (reset 001 tiap ganti tahun), lengkapi bagian "…".'
+                            : 'Nomor urut otomatis: ' . sprintf('%03d', \App\Models\Rekrutmen\MitraAgreementNumber::nextSeq($record->agreementKind())) . ' (reset 001 tiap ganti tahun). Isi segmen tengah (titik-titik) secara manual.'))
+                    ->modalSubmitActionLabel(fn ($record) => $record->mitraAgreementNumber() ? 'Simpan Nomor' : 'Buat Nomor')
+                    ->schema(function ($record) {
+                        $existing = $record->mitraAgreementNumber();
+
+                        // PKWTT: satu kolom nomor lengkap (usulan terisi, diedit bebas). Mitra RS: hanya segmen tengah.
+                        if ($existing || $record->agreementKind() === \App\Models\Rekrutmen\MitraAgreementNumber::KIND_PKWTT) {
+                            return [\Filament\Forms\Components\TextInput::make('number')->label('Nomor perjanjian')
+                                ->default($existing?->number ?? \App\Models\Rekrutmen\MitraAgreementNumber::suggest($record->agreementKind()))
+                                ->required()->maxLength(100)];
+                        }
+
+                        return [\Filament\Forms\Components\TextInput::make('segment')->label('Segmen tengah (…)')
+                            ->helperText('Contoh: bulan romawi, mis. X')->required()->maxLength(20)];
+                    })
+                    ->action(function (array $data, $record): void {
+                        $existing = $record->mitraAgreementNumber();
+                        $n = $existing
+                            ? tap($existing)->update(['number' => trim($data['number'])])
+                            : \App\Models\Rekrutmen\MitraAgreementNumber::issue($record->id, $record->agreementKind(), trim($data['segment'] ?? ''), isset($data['number']) ? trim($data['number']) : null);
+                        Notification::make()->title(($existing ? 'Nomor diubah: ' : 'Nomor dibuat: ') . $n->number)->success()->send();
+                    }),
+                Action::make('perjanjianMitra')->label(fn ($record) => $record->agreementKind() === \App\Models\Rekrutmen\MitraAgreementNumber::KIND_MITRA ? 'Perjanjian Mitra' : 'PKWTT')->icon('heroicon-m-document-text')->color('gray')
+                    ->visible(fn ($record) => (bool) $record->offering_data_confirmed_at)
+                    ->url(fn ($record) => route('rekrutmen.file.perjanjian-mitra', $record->id), shouldOpenInNewTab: true),
                 $this->aturJadwalOnboardingAction(),
                 $this->tandaiOnboardingSelesaiAction(),
             ])

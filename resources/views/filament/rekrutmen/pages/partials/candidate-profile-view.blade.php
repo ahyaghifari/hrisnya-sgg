@@ -183,11 +183,11 @@ $dateFmt = fn ($v) => $v ? \Carbon\Carbon::parse($v)->translatedFormat('j F Y') 
     <div class="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2 mt-6">Dokumen</div>
     <div class="flex flex-col gap-1.5 mb-6">
         @foreach($candidate->documents as $doc)
-        <div class="text-sm flex items-center gap-2 text-gray-500 dark:text-gray-400">
+        <a href="{{ route('rekrutmen.pelamar.dokumen', [$candidate->job_application_id, $doc->id]) }}" target="_blank"
+           class="text-sm flex items-center gap-2 text-primary-600 hover:underline dark:text-primary-400">
             <x-heroicon-m-document class="w-4 h-4" />
             {{ $doc->document_label ?: $doc->doc_type }}
-            <span class="text-xs italic">(unduh belum tersedia)</span>
-        </div>
+        </a>
         @endforeach
     </div>
     @endif

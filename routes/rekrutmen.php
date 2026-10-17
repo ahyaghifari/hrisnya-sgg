@@ -59,6 +59,16 @@ Route::get('/rekrutmen-file/offering-letter/{jobApplication}/{type}', function (
     return $app->renderOfferingLetterPdf()->stream('offering-letter.pdf');
 })->name('rekrutmen.file.offering-letter');
 
+// Perjanjian Kerja Mitra — PDF dirender langsung saat onboarding (tombol di TTD & Onboarding).
+Route::get('/rekrutmen-file/perjanjian-mitra/{jobApplication}', function (string $jobApplication) {
+    abort_unless(\Illuminate\Support\Facades\Auth::user()?->can(\App\Enum\CustomPermissionEnum::SISTEM_REKRUTMEN->value), 403);
+
+    $app = \App\Models\Rekrutmen\JobApplication::with(['jobOpening.company', 'candidate', 'user'])->findOrFail($jobApplication);
+    abort_if(! $app->offering_data_confirmed_at, 404, 'Data offering kandidat belum dikonfirmasi.');
+
+    return $app->renderMitraAgreementPdf()->stream('perjanjian-mitra.pdf');
+})->name('rekrutmen.file.perjanjian-mitra');
+
 /**
  * Modul MCU rekrutmen — pindah dari panel Filament (McuStationPage dihapus 2026-09-08) ke
  * portal supaya staf klinis tidak perlu akses panel /rekrutmen. Gate: canAccessMcuModule()

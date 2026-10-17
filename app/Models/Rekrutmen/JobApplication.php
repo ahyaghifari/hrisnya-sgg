@@ -278,6 +278,54 @@ class JobApplication extends Model
         ]);
     }
 
+    /**
+     * Perjanjian Kerja Mitra (saat onboarding) — satu view, beda isi holding vs rumah sakit
+     * mengikuti template offering letter perusahaan (Rs = rumah sakit, Sgg = holding).
+     * Dirender langsung, tidak disimpan. Data pihak kedua dari data offering yang sudah
+     * dikonfirmasi kandidat; jenis kelamin & no. telepon belum ada di data rekrutmen (titik-titik).
+     */
+    public function renderMitraAgreementPdf(): \Barryvdh\DomPDF\PDF
+    {
+        $isRs = $this->agreementKind() === MitraAgreementNumber::KIND_MITRA;
+
+        // RS: kop khusus storage/app/private/kop/rs-mitra.jpg. Holding (PKWTT): background satu
+        // halaman penuh di storage/app/private/surat-bg/{hris_code}.jpg, fallback default.jpg
+        // (sama dengan SP & surat tugas).
+        $dir = storage_path('app/private/' . ($isRs ? 'kop/' : 'surat-bg/'));
+        $file = $isRs ? $dir . 'rs-mitra.jpg' : $dir . $this->jobOpening->company->hris_code . '.jpg';
+        if (! $isRs && ! is_file($file)) {
+            $file = $dir . 'default.jpg';
+        }
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView($isRs ? 'pdf.rekrutmen.perjanjian-mitra' : 'pdf.rekrutmen.perjanjian-pkwtt', [
+            'nomor' => $this->mitraAgreementNumber()?->number ?? MitraAgreementNumber::placeholder($this->agreementKind()),
+            'background_path' => is_file($file) ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($file)) : null,
+            'full_name' => $this->offering_full_name,
+            'birth_date' => \Illuminate\Support\Carbon::parse($this->offering_birth_date)->translatedFormat('d F Y'),
+            'address' => $this->offering_domicile_address,
+            'nik' => $this->user?->nik ?: $this->candidate?->nik,
+            'email' => $this->user?->email,
+            'phone' => $this->user?->phone,
+            'marital' => $this->candidate?->status_marital,
+            'jabatan' => $this->jobOpening->title,
+            'unit' => $this->jobOpening->division_name,
+            'start' => $this->onboarding_date ? \Illuminate\Support\Carbon::parse($this->onboarding_date) : null,
+        ]);
+    }
+
+    /** Jenis perjanjian: RS = perjanjian mitra, selain itu (holding) = PKWTT. */
+    public function agreementKind(): string
+    {
+        return $this->jobOpening->company->offering_letter_template === \App\Enum\Recruitment\OfferingLetterTemplate::Rs
+            ? MitraAgreementNumber::KIND_MITRA
+            : MitraAgreementNumber::KIND_PKWTT;
+    }
+
+    public function mitraAgreementNumber(): ?MitraAgreementNumber
+    {
+        return MitraAgreementNumber::where('job_application_id', $this->id)->first();
+    }
+
     private function resolveOfferingBackgroundDataUri(Company $company): ?string
     {
         $path = $company->offering_letter_background_path ?: 'offering-letter-bg/default.jpg';

@@ -103,7 +103,14 @@ $s = $statusMap[$application->status] ?? ['label' => $application->status, 'colo
                 <dt class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ $field->label }}</dt>
                 <dd>
                     @if($field->type === 'file')
-                        <span class="text-sm text-gray-400">{{ $isEmpty ? '— belum diupload —' : 'Berkas ada — unduh menyusul' }}</span>
+                        @if($isEmpty)
+                            <span class="text-sm text-gray-400">— belum diupload —</span>
+                        @else
+                            <a href="{{ route('rekrutmen.pelamar.dokumen', [$application->id, $field->name]) }}" target="_blank"
+                               class="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:underline dark:text-primary-400">
+                                <x-heroicon-m-arrow-top-right-on-square class="w-4 h-4" /> Buka berkas
+                            </a>
+                        @endif
                     @elseif($field->type === 'date' && !$isEmpty)
                         <span class="text-sm text-gray-950 dark:text-white">{{ \Carbon\Carbon::parse($val)->translatedFormat('j F Y') }}</span>
                     @elseif($field->type === 'textarea' && !$isEmpty)
