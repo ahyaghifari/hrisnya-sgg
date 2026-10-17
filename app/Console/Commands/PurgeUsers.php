@@ -29,7 +29,7 @@ class PurgeUsers extends Command
         {nip* : NIP user yang dihapus permanen}
         {--force : Benar-benar menghapus (tanpa ini hanya laporan)}
         {--nullify-approvals : Aktivitas approval pada pengajuan orang lain: kosongkan pelakunya, jangan lewati user}
-        {--also=* : tabel.kolom penghalang lain yang barisnya ikut dihapus (mis. payrolls.user_id)}';
+        {--also=* : tabel.kolom penghalang lain yang barisnya ikut dihapus (mis. payrolls.employee_id)}';
 
     protected $description = 'Hapus permanen user (mis. akun demo) beserta salinan dan data approval-nya; user bermasalah dilewati';
 

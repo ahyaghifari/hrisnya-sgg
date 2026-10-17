@@ -25,22 +25,6 @@ use Illuminate\Support\Facades\DB;
  */
 class EmployeeSyncService
 {
-    /** Tabel payroll yang punya employee_id di samping user_id (migrasi payroll ke employee_id). */
-    public const PAYROLL_LINKED_TABLES = ['payrolls', 'payroll_manual_lines', 'payroll_component_overrides', 'gaji_pokok_kenaikan_overrides'];
-
-    /** Isi/benahi employee_id dari employees.user_id; kembalikan jumlah baris yang berubah. */
-    public function linkPayrollEmployeeIds(): int
-    {
-        $n = 0;
-
-        foreach (self::PAYROLL_LINKED_TABLES as $t) {
-            $n += DB::update("UPDATE {$t} SET employee_id = (SELECT e.id FROM employees e WHERE e.user_id = {$t}.user_id)"
-                . " WHERE employee_id IS NULL OR employee_id <> (SELECT e.id FROM employees e WHERE e.user_id = {$t}.user_id)");
-        }
-
-        return $n;
-    }
-
     public function syncUserId(string $userId): ?Employee
     {
         $user = User::withoutGlobalScopes()->withTrashed()->find($userId);
