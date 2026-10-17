@@ -8,8 +8,7 @@ use App\Enum\SettingTypeEnum;
  * Vocabulary tertutup untuk key `settings` module `pembinaan` (planning/2026-09-23-sp-dan-merit-point.md
  * §0, §3.1) - pola sama App\Enum\Kepegawaian\KepegawaianSettingEnum. Company-scoped, dibaca lewat
  * Setting::resolve($case->value, $companyId, default: $case->default()). Satu modul "Pembinaan"
- * menaungi setting SP + Merit Point sekaligus karena keduanya digabung ke gerbang
- * SISTEM_PEMBINAAN_KARYAWAN yang sama.
+ * menaungi setting SP, gerbangnya SISTEM_PEMBINAAN_KARYAWAN.
  */
 enum PembinaanSettingEnum: string
 {

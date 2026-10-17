@@ -14,9 +14,8 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Halaman "Pengaturan Pembinaan" - durasi SP1/SP2 + toggle MERIT_POINT_ENABLED per company
- * (planning/2026-09-23-sp-dan-merit-point.md §0, §3.1). Tanpa halaman ini, satu-satunya cara
- * mengaktifkan widget Merit Point adalah tulis langsung ke tabel settings. Layout niru pola
+ * Halaman "Pengaturan Pembinaan" - durasi SP1/SP2/SP3 per company
+ * (planning/2026-09-23-sp-dan-merit-point.md §0, §3.1). Layout niru pola
  * persis EmploymentSettingsPage (Kepegawaian)/SikartapSettingsPage - kiri daftar company, kanan
  * form.
  *

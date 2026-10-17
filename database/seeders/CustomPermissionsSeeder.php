@@ -37,8 +37,6 @@ class CustomPermissionsSeeder extends Seeder
     private function seedManualPolicyPermissions(): void
     {
         $subjects = [
-            'MeritPointRule',
-            'MeritPointTransaction',
             'EmployeeSp',
             'SpRecommendation',
         ];

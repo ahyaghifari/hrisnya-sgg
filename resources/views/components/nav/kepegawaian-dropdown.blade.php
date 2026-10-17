@@ -9,7 +9,6 @@
     $canViewKontrak = auth()->user()->can('ViewAny:EmployeeContract');
     $canViewOrientasiData = auth()->user()->can('ViewAny:EmployeeOrientation');
     $canViewPermintaanTenagaKerja = auth()->user()->can('ViewAny:ManpowerRequests');
-    $canViewMerit = auth()->user()->can('ViewAny:MeritPointRule') || auth()->user()->can(\App\Enum\CustomPermissionEnum::BERI_MERIT_POINT->value);
 @endphp
 
 <div class="dropdown">
@@ -23,9 +22,6 @@
             @endif
             @if ($canViewKaryawan)
                 <a href="{{ route('kepegawaian.karyawan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-users"></i> Karyawan</a>
-            @endif
-            @if ($canViewMerit)
-                <a href="{{ route('kepegawaian.merit-poin') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-star"></i> Merit Poin</a>
             @endif
             @if ($canViewAlurPersetujuan)
                 <a href="{{ route('kepegawaian.alur-persetujuan') }}" wire:navigate class="dropdown-item"><i class="fa-solid fa-bars-staggered"></i> Alur Persetujuan</a>
